@@ -1,0 +1,14 @@
+{
+  "name": "Karochat",
+  "short_name": "Karochat",
+  "description": "Meet your mate, chat, make friends. Realtime cross-platform messaging.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0A0A0A",
+  "theme_color": "#0A0A0A",
+  "orientation": "any",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
