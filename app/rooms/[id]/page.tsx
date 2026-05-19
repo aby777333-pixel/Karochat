@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Logo, Wordmark } from "@/components/Brand";
 import { SignOutButton } from "@/components/SignOutButton";
 import { StatusPicker } from "@/components/StatusPicker";
+import { NotificationsButton } from "@/components/NotificationsButton";
 import { RoomChat } from "./RoomChat";
 import { CopyCode } from "./CopyCode";
 import { LeaveRoomButton } from "./LeaveRoomButton";
@@ -93,6 +94,7 @@ export default async function RoomPage({ params }: { params: { id: string } }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <NotificationsButton />
           <StatusPicker
             currentState={presenceState}
             currentText={profile.status_text}
@@ -119,6 +121,7 @@ export default async function RoomPage({ params }: { params: { id: string } }) {
         <div className="flex flex-1 flex-col">
           <RoomChat
             roomId={room.id}
+            roomName={room.name}
             currentUserId={profile.id}
             currentUsername={profile.username}
             currentDisplayName={profile.display_name}

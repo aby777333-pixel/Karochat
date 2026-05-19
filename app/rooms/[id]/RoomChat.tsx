@@ -6,6 +6,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/Button";
 import { PresenceDot } from "@/components/PresenceDot";
 import { usePresenceHeartbeat } from "@/lib/usePresenceHeartbeat";
+import { useNotifyOnNewMessage } from "@/lib/useBrowserNotifications";
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
@@ -32,6 +33,7 @@ type MessageRow = {
 
 export function RoomChat({
   roomId,
+  roomName,
   currentUserId,
   currentUsername,
   currentDisplayName,
@@ -39,6 +41,7 @@ export function RoomChat({
   initialMessages
 }: {
   roomId: string;
+  roomName: string;
   currentUserId: string;
   currentUsername: string;
   currentDisplayName: string;
@@ -55,6 +58,7 @@ export function RoomChat({
   const [error, setError] = useState<string | null>(null);
   const [shaking, setShaking] = useState(false);
   const [pulse, setPulse] = useState(false);
+  const [lastIncoming, setLastIncoming] = useState<MessageRow | null>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -62,6 +66,7 @@ export function RoomChat({
   const profileCache = useRef<Map<string, { username: string; display_name: string }>>(new Map());
 
   usePresenceHeartbeat(supabase, currentPresence);
+  useNotifyOnNewMessage(lastIncoming, { roomName, roomId, currentUserId });
 
   useEffect(() => {
     for (const m of initialMessages) {
@@ -111,17 +116,18 @@ export function RoomChat({
         async (payload) => {
           const m = payload.new as Omit<MessageRow, "sender_username" | "sender_display_name">;
           const profile = await fetchProfile(m.sender_id);
+          const enriched: MessageRow = {
+            ...m,
+            sender_username: profile.username,
+            sender_display_name: profile.display_name
+          } as MessageRow;
           setMessages((prev) => {
             if (prev.some((x) => x.id === m.id)) return prev;
-            return [
-              ...prev,
-              {
-                ...m,
-                sender_username: profile.username,
-                sender_display_name: profile.display_name
-              } as MessageRow
-            ];
+            return [...prev, enriched];
           });
+          if (m.sender_id !== currentUserId) {
+            setLastIncoming(enriched);
+          }
           if (m.type === "nudge") {
             triggerNudge();
           }
