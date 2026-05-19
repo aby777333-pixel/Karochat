@@ -20,13 +20,32 @@ export default async function RoomPage({ params }: { params: { id: string } }) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select(
-      "id, username, display_name, terms_accepted_at, presence_state, status_text, status_emoji"
-    )
-    .eq("id", user.id)
-    .maybeSingle();
+  // Wide query first (needs migration 0004). If anything's missing on the DB
+  // side, fall back to the narrower 0003-only query so we can render a clean
+  // error instead of an infinite redirect loop.
+  let migrationNeeded = false;
+  let profile: any = null;
+  {
+    const wide = await supabase
+      .from("profiles")
+      .select(
+        "id, username, display_name, terms_accepted_at, presence_state, status_text, status_emoji"
+      )
+      .eq("id", user.id)
+      .maybeSingle();
+    if (wide.error) {
+      migrationNeeded = true;
+      const narrow = await supabase
+        .from("profiles")
+        .select("id, username, display_name, terms_accepted_at")
+        .eq("id", user.id)
+        .maybeSingle();
+      profile = narrow.data ?? null;
+    } else {
+      profile = wide.data ?? null;
+    }
+  }
+
   if (!profile?.username) redirect("/onboarding");
   if (!profile.terms_accepted_at) redirect("/terms");
 
@@ -52,7 +71,7 @@ export default async function RoomPage({ params }: { params: { id: string } }) {
     }
   }
 
-  const [{ data: initialMessages }, { data: initialMembers }] = await Promise.all([
+  const [msgsResp, membersResp] = await Promise.all([
     supabase
       .from("messages_with_sender")
       .select("*")
@@ -64,10 +83,60 @@ export default async function RoomPage({ params }: { params: { id: string } }) {
       .select("*")
       .eq("room_id", room.id)
   ]);
+  if (msgsResp.error || membersResp.error) migrationNeeded = true;
+  const initialMessages = msgsResp.data ?? [];
+  const initialMembers = membersResp.data ?? [];
+
+  if (migrationNeeded) {
+    return (
+      <main className="mx-auto flex min-h-[100dvh] max-w-xl flex-col items-center justify-center px-5 py-6 text-center">
+        <Logo className="h-10 w-10" />
+        <Wordmark className="mt-3 text-2xl" />
+        <div className="surface-glass mt-6 w-full p-6">
+          <h1 className="font-display text-xl font-semibold">
+            One more migration to run
+          </h1>
+          <p className="mt-2 text-sm text-white/70">
+            The database is missing schema added in migration 0004
+            (presence states, reactions, member view, etc.). Rooms
+            can&apos;t load until you apply it.
+          </p>
+          <ol className="mt-4 space-y-2 text-left text-sm text-white/80">
+            <li>
+              1. Open the{" "}
+              <a
+                href="https://supabase.com/dashboard/project/dxgduusbdvslusbushxi/sql/new"
+                target="_blank"
+                rel="noreferrer"
+                className="text-neon-blue underline"
+              >
+                Supabase SQL editor
+              </a>
+              .
+            </li>
+            <li>
+              2. Paste{" "}
+              <code className="rounded bg-white/10 px-1 text-xs">
+                supabase/migrations/0004_phase4_5_features.sql
+              </code>
+              .
+            </li>
+            <li>3. Run, then hard-refresh this page.</li>
+          </ol>
+          <Link
+            href="/rooms"
+            className="mt-5 inline-block rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/80 hover:bg-white/10"
+          >
+            ← Back to rooms
+          </Link>
+        </div>
+      </main>
+    );
+  }
 
   const isOwner = room.owner_id === user.id;
   const presenceState: PresenceState =
-    (profile.presence_state as PresenceState | undefined) ?? "online";
+    ((profile as any).presence_state as PresenceState | undefined) ?? "online";
 
   return (
     <main className="mx-auto flex h-[100dvh] max-w-6xl flex-col px-4 py-4 md:py-6">
@@ -99,8 +168,8 @@ export default async function RoomPage({ params }: { params: { id: string } }) {
           <NotificationsButton />
           <StatusPicker
             currentState={presenceState}
-            currentText={profile.status_text}
-            currentEmoji={profile.status_emoji}
+            currentText={(profile as any).status_text ?? null}
+            currentEmoji={(profile as any).status_emoji ?? null}
             displayName={profile.display_name}
           />
           <LeaveRoomButton
