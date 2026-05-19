@@ -6,6 +6,7 @@ import { SignOutButton } from "@/components/SignOutButton";
 import { StatusPicker } from "@/components/StatusPicker";
 import { NotificationsButton } from "@/components/NotificationsButton";
 import { CatchMeUpButton } from "./CatchMeUpButton";
+import { CallButton } from "./CallButton";
 import { RoomChat } from "./RoomChat";
 import { CopyCode } from "./CopyCode";
 import { LeaveRoomButton } from "./LeaveRoomButton";
@@ -164,6 +165,7 @@ export default async function RoomPage({ params }: { params: { id: string } }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <CallButton roomId={room.id} roomName={room.name} />
           <CatchMeUpButton roomId={room.id} />
           <NotificationsButton />
           <StatusPicker
