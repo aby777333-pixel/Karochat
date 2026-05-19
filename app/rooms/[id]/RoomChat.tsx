@@ -4,29 +4,30 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/Button";
+import { PresenceDot } from "@/components/PresenceDot";
+import { usePresenceHeartbeat } from "@/lib/usePresenceHeartbeat";
 
-const MAX_IMAGE_BYTES = 8 * 1024 * 1024; // 8 MB
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
+const REACTION_PALETTE = ["👍", "❤️", "😂", "😮", "😢", "🔥", "🎉", "🙌"];
+const EDIT_WINDOW_MS = 15 * 60 * 1000;
 
 type MessageRow = {
   id: string;
   room_id: string;
   sender_id: string;
+  type: "text" | "image" | "nudge" | "system";
   content: string | null;
   image_url: string | null;
+  reply_to_id: string | null;
+  edited_at: string | null;
+  deleted_at: string | null;
+  reactions: Record<string, string[]> | null;
   created_at: string;
   sender_username: string | null;
   sender_display_name: string | null;
   sender_is_guest?: boolean | null;
-};
-
-type RawMessage = {
-  id: string;
-  room_id: string;
-  sender_id: string;
-  content: string | null;
-  image_url: string | null;
-  created_at: string;
+  sender_presence_state?: string | null;
 };
 
 export function RoomChat({
@@ -34,26 +35,33 @@ export function RoomChat({
   currentUserId,
   currentUsername,
   currentDisplayName,
+  currentPresence,
   initialMessages
 }: {
   roomId: string;
   currentUserId: string;
   currentUsername: string;
   currentDisplayName: string;
+  currentPresence: "online" | "away" | "busy" | "invisible" | "offline";
   initialMessages: MessageRow[];
 }) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [messages, setMessages] = useState<MessageRow[]>(initialMessages);
   const [draft, setDraft] = useState("");
+  const [replyTo, setReplyTo] = useState<MessageRow | null>(null);
+  const [editing, setEditing] = useState<{ id: string; content: string } | null>(null);
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [onlineCount, setOnlineCount] = useState(1);
+  const [shaking, setShaking] = useState(false);
+  const [pulse, setPulse] = useState(false);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const profileCache = useRef<Map<string, { username: string; display_name: string }>>(
-    new Map()
-  );
+  const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  const profileCache = useRef<Map<string, { username: string; display_name: string }>>(new Map());
+
+  usePresenceHeartbeat(supabase, currentPresence);
 
   useEffect(() => {
     for (const m of initialMessages) {
@@ -88,6 +96,7 @@ export function RoomChat({
     [supabase]
   );
 
+  // Realtime: INSERT + UPDATE on messages in this room.
   useEffect(() => {
     const channel = supabase
       .channel(`room-messages:${roomId}`)
@@ -100,24 +109,48 @@ export function RoomChat({
           filter: `room_id=eq.${roomId}`
         },
         async (payload) => {
-          const m = payload.new as RawMessage;
+          const m = payload.new as Omit<MessageRow, "sender_username" | "sender_display_name">;
           const profile = await fetchProfile(m.sender_id);
           setMessages((prev) => {
             if (prev.some((x) => x.id === m.id)) return prev;
             return [
               ...prev,
               {
-                id: m.id,
-                room_id: m.room_id,
-                sender_id: m.sender_id,
-                content: m.content,
-                image_url: m.image_url,
-                created_at: m.created_at,
+                ...m,
                 sender_username: profile.username,
                 sender_display_name: profile.display_name
-              }
+              } as MessageRow
             ];
           });
+          if (m.type === "nudge") {
+            triggerNudge();
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "messages",
+          filter: `room_id=eq.${roomId}`
+        },
+        (payload) => {
+          const m = payload.new as Omit<MessageRow, "sender_username" | "sender_display_name">;
+          setMessages((prev) =>
+            prev.map((x) =>
+              x.id === m.id
+                ? {
+                    ...x,
+                    content: m.content,
+                    image_url: m.image_url,
+                    reactions: m.reactions,
+                    edited_at: m.edited_at,
+                    deleted_at: m.deleted_at
+                  }
+                : x
+            )
+          );
         }
       )
       .subscribe();
@@ -127,11 +160,12 @@ export function RoomChat({
     };
   }, [supabase, roomId, fetchProfile]);
 
+  // Realtime presence channel: room-scoped “here right now” count.
+  const [onlineCount, setOnlineCount] = useState(1);
   useEffect(() => {
     const presence = supabase.channel(`room-presence:${roomId}`, {
       config: { presence: { key: currentUserId } }
     });
-
     presence
       .on("presence", { event: "sync" }, () => {
         const state = presence.presenceState();
@@ -146,7 +180,6 @@ export function RoomChat({
           });
         }
       });
-
     return () => {
       void supabase.removeChannel(presence);
     };
@@ -158,20 +191,35 @@ export function RoomChat({
     el.scrollTop = el.scrollHeight;
   }, [messages.length]);
 
+  function triggerNudge() {
+    setShaking(true);
+    setPulse(true);
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+      navigator.vibrate?.([60, 30, 60, 30, 60]);
+    }
+    setTimeout(() => setShaking(false), 520);
+    setTimeout(() => setPulse(false), 700);
+  }
+
   async function sendText() {
     const text = draft.trim();
     if (!text || sending) return;
     setSending(true);
     setError(null);
-    const { error: insertErr } = await supabase
-      .from("messages")
-      .insert({ sender_id: currentUserId, room_id: roomId, content: text });
+    const { error: insertErr } = await supabase.from("messages").insert({
+      sender_id: currentUserId,
+      room_id: roomId,
+      content: text,
+      reply_to_id: replyTo?.id ?? null,
+      type: "text"
+    });
     setSending(false);
     if (insertErr) {
       setError(insertErr.message);
       return;
     }
     setDraft("");
+    setReplyTo(null);
   }
 
   async function sendImage(file: File) {
@@ -201,7 +249,9 @@ export function RoomChat({
       sender_id: currentUserId,
       room_id: roomId,
       content: caption || null,
-      image_url: pub.publicUrl
+      image_url: pub.publicUrl,
+      reply_to_id: replyTo?.id ?? null,
+      type: "image"
     });
     setUploading(false);
     if (insertErr) {
@@ -209,6 +259,86 @@ export function RoomChat({
       return;
     }
     setDraft("");
+    setReplyTo(null);
+  }
+
+  async function sendNudge() {
+    setError(null);
+    const { error: rpcErr } = await supabase.rpc("send_nudge", { p_room_id: roomId });
+    if (rpcErr) {
+      setError(rpcErr.message);
+      return;
+    }
+  }
+
+  async function toggleReaction(messageId: string, emoji: string) {
+    setMessages((prev) =>
+      prev.map((m) => {
+        if (m.id !== messageId) return m;
+        const r = { ...(m.reactions ?? {}) };
+        const arr = r[emoji] ? [...r[emoji]!] : [];
+        const idx = arr.indexOf(currentUserId);
+        if (idx >= 0) arr.splice(idx, 1);
+        else arr.push(currentUserId);
+        if (arr.length === 0) delete r[emoji];
+        else r[emoji] = arr;
+        return { ...m, reactions: r };
+      })
+    );
+    const { error: rpcErr } = await supabase.rpc("toggle_reaction", {
+      p_message_id: messageId,
+      p_emoji: emoji
+    });
+    if (rpcErr) setError(rpcErr.message);
+  }
+
+  async function saveEdit() {
+    if (!editing) return;
+    const original = messages.find((m) => m.id === editing.id);
+    if (!original) return;
+    const newContent = editing.content.trim();
+    if (!newContent) return;
+    const history = [
+      ...(Array.isArray((original as any).edited_history)
+        ? (original as any).edited_history
+        : []),
+      { at: new Date().toISOString(), content: original.content }
+    ];
+    const { error: updErr } = await supabase
+      .from("messages")
+      .update({
+        content: newContent,
+        edited_at: new Date().toISOString(),
+        edited_history: history
+      })
+      .eq("id", editing.id);
+    if (updErr) {
+      setError(updErr.message);
+      return;
+    }
+    setEditing(null);
+  }
+
+  async function softDelete(messageId: string) {
+    if (!confirm("Delete this message? Everyone will see it as removed.")) return;
+    const { error: updErr } = await supabase
+      .from("messages")
+      .update({
+        deleted_at: new Date().toISOString(),
+        content: null,
+        image_url: null
+      })
+      .eq("id", messageId);
+    if (updErr) setError(updErr.message);
+  }
+
+  function jumpToMessage(id: string) {
+    const el = messageRefs.current.get(id);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add("ring-2", "ring-neon-blue/60");
+      setTimeout(() => el.classList.remove("ring-2", "ring-neon-blue/60"), 1500);
+    }
   }
 
   function onPaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
@@ -225,10 +355,7 @@ export function RoomChat({
       e.preventDefault();
       void sendText();
     }
-  }
-
-  function pickFile() {
-    fileInputRef.current?.click();
+    if (e.key === "Escape" && replyTo) setReplyTo(null);
   }
 
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -238,87 +365,58 @@ export function RoomChat({
   }
 
   return (
-    <section className="surface-glass mt-3 flex flex-1 flex-col overflow-hidden">
+    <section
+      className={clsx(
+        "surface-glass mt-3 flex flex-1 flex-col overflow-hidden",
+        shaking && "animate-nudgeShake"
+      )}
+    >
       <div className="flex items-center justify-between border-b border-white/5 px-4 py-2 text-xs text-white/50">
         <div className="flex items-center gap-2">
-          <span className="relative inline-flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full rounded-full bg-neon-blue opacity-60 animate-pulseDot" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-neon-blue shadow-glow-blue" />
-          </span>
+          <PresenceDot state="online" pulse />
           <span>{onlineCount} here now</span>
         </div>
         <span className="font-mono uppercase tracking-widest">realtime</span>
       </div>
 
-      <div ref={scrollerRef} className="scroll-thin flex-1 space-y-3 overflow-y-auto p-4">
+      <div
+        ref={scrollerRef}
+        className="scroll-thin relative flex-1 space-y-3 overflow-y-auto p-4"
+      >
+        {pulse && (
+          <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 h-12 w-12 -translate-x-1/2 -translate-y-1/2 rounded-full bg-neon-red/40 animate-nudgePulse" />
+        )}
         {messages.length === 0 && (
           <p className="mx-auto mt-10 max-w-sm text-center text-sm text-white/40">
             It&apos;s quiet here. Say hi.
           </p>
         )}
-        {messages.map((m, i) => {
-          const mine = m.sender_id === currentUserId;
-          const prev = messages[i - 1];
-          const showAuthor = !prev || prev.sender_id !== m.sender_id;
-          return (
-            <div
-              key={m.id}
-              className={clsx(
-                "flex animate-rise flex-col",
-                mine ? "items-end" : "items-start"
-              )}
-            >
-              {showAuthor && !mine && (
-                <p className="mb-1 ml-2 text-[11px] text-white/40">
-                  {m.sender_display_name ?? m.sender_username ?? "Someone"}{" "}
-                  <span className="text-white/25">
-                    @{m.sender_username ?? "anon"}
-                  </span>
-                  {m.sender_is_guest && (
-                    <span className="ml-1 rounded-sm bg-white/10 px-1 text-[9px] uppercase tracking-widest text-white/50">
-                      guest
-                    </span>
-                  )}
-                </p>
-              )}
-              {m.image_url ? (
-                <a
-                  href={m.image_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={clsx(
-                    "block overflow-hidden rounded-2xl border border-white/10",
-                    mine ? "rounded-br-sm" : "rounded-bl-sm"
-                  )}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={m.image_url}
-                    alt={m.content ?? "shared image"}
-                    className="max-h-80 w-auto max-w-[78vw] md:max-w-sm"
-                    loading="lazy"
-                  />
-                </a>
-              ) : null}
-              {m.content && (
-                <div
-                  className={clsx(
-                    "max-w-[78%] whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-sm shadow-sm",
-                    m.image_url && "mt-1",
-                    mine
-                      ? "rounded-br-sm bg-neon-blue text-ink-900"
-                      : "rounded-bl-sm border border-white/10 bg-white/5 text-white"
-                  )}
-                >
-                  {m.content}
-                </div>
-              )}
-              <p className="mt-1 px-1 text-[10px] text-white/30">
-                {formatTime(m.created_at)}
-              </p>
-            </div>
-          );
-        })}
+        {messages.map((m, i) => (
+          <MessageBubble
+            key={m.id}
+            m={m}
+            prev={i > 0 ? messages[i - 1] : undefined}
+            allMessages={messages}
+            currentUserId={currentUserId}
+            currentUsername={currentUsername}
+            isEditing={editing?.id === m.id}
+            editingDraft={editing?.id === m.id ? editing.content : null}
+            onEditDraft={(content) => setEditing((s) => (s ? { ...s, content } : s))}
+            onStartEdit={(msg) =>
+              setEditing({ id: msg.id, content: msg.content ?? "" })
+            }
+            onCancelEdit={() => setEditing(null)}
+            onSaveEdit={saveEdit}
+            onDelete={softDelete}
+            onReply={(msg) => setReplyTo(msg)}
+            onReact={toggleReaction}
+            onJump={jumpToMessage}
+            registerRef={(id, el) => {
+              if (el) messageRefs.current.set(id, el);
+              else messageRefs.current.delete(id);
+            }}
+          />
+        ))}
       </div>
 
       <div className="border-t border-white/5 p-3">
@@ -328,10 +426,38 @@ export function RoomChat({
             <span className="mr-2 inline-block animate-pulseDot">●</span>Uploading image…
           </p>
         )}
+        {replyTo && (
+          <div className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs">
+            <span className="text-neon-blue">↪</span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-white/60">
+                Replying to{" "}
+                <span className="text-white">
+                  {replyTo.sender_display_name ?? replyTo.sender_username ?? "someone"}
+                </span>
+              </p>
+              <p className="truncate text-white/40">
+                {replyTo.deleted_at
+                  ? "deleted message"
+                  : replyTo.image_url && !replyTo.content
+                  ? "📷 image"
+                  : replyTo.content ?? "…"}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setReplyTo(null)}
+              className="rounded-md border border-white/10 px-2 py-0.5 text-white/60 hover:bg-white/10"
+              aria-label="Cancel reply"
+            >
+              ✕
+            </button>
+          </div>
+        )}
         <div className="flex items-end gap-2">
           <button
             type="button"
-            onClick={pickFile}
+            onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
             aria-label="Attach image"
             className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/5 text-white/70 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
@@ -340,6 +466,17 @@ export function RoomChat({
               <rect x="3" y="3" width="18" height="18" rx="3" />
               <circle cx="9" cy="9" r="1.5" />
               <path d="m21 15-5-5-9 9" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={() => void sendNudge()}
+            aria-label="Send a nudge"
+            title="Send a nudge (Ctrl+Shift+N)"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-neon-red/40 bg-neon-red/10 text-neon-red transition hover:bg-neon-red/20"
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z" />
             </svg>
           </button>
           <input
@@ -364,10 +501,283 @@ export function RoomChat({
           </Button>
         </div>
         <p className="mt-1.5 px-1 text-[10px] text-white/30">
-          Enter to send · Shift+Enter for newline · 📎 or paste to share images
+          Enter to send · Shift+Enter for newline · 📎 share · ⚡ nudge · paste images
         </p>
       </div>
     </section>
+  );
+}
+
+function MessageBubble({
+  m,
+  prev,
+  allMessages,
+  currentUserId,
+  currentUsername,
+  isEditing,
+  editingDraft,
+  onEditDraft,
+  onStartEdit,
+  onCancelEdit,
+  onSaveEdit,
+  onDelete,
+  onReply,
+  onReact,
+  onJump,
+  registerRef
+}: {
+  m: MessageRow;
+  prev?: MessageRow;
+  allMessages: MessageRow[];
+  currentUserId: string;
+  currentUsername: string;
+  isEditing: boolean;
+  editingDraft: string | null;
+  onEditDraft: (content: string) => void;
+  onStartEdit: (m: MessageRow) => void;
+  onCancelEdit: () => void;
+  onSaveEdit: () => void | Promise<void>;
+  onDelete: (id: string) => void | Promise<void>;
+  onReply: (m: MessageRow) => void;
+  onReact: (id: string, emoji: string) => void | Promise<void>;
+  onJump: (id: string) => void;
+  registerRef: (id: string, el: HTMLDivElement | null) => void;
+}) {
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
+
+  // Nudge: render as a centered system pill.
+  if (m.type === "nudge") {
+    return (
+      <div className="flex animate-rise justify-center">
+        <span className="rounded-full border border-neon-red/40 bg-neon-red/10 px-3 py-1 text-xs text-neon-red">
+          ⚡ {m.sender_display_name ?? m.sender_username ?? "Someone"} sent a nudge
+        </span>
+      </div>
+    );
+  }
+
+  const mine = m.sender_id === currentUserId;
+  const showAuthor = !prev || prev.sender_id !== m.sender_id || prev.type === "nudge";
+  const replyTarget = m.reply_to_id ? allMessages.find((x) => x.id === m.reply_to_id) : null;
+  const isDeleted = !!m.deleted_at;
+  const canEdit =
+    mine && !isDeleted && Date.now() - new Date(m.created_at).getTime() < EDIT_WINDOW_MS;
+
+  return (
+    <div
+      ref={(el) => registerRef(m.id, el)}
+      className={clsx("group flex animate-rise flex-col", mine ? "items-end" : "items-start")}
+    >
+      {showAuthor && !mine && (
+        <p className="mb-1 ml-2 flex items-center gap-1.5 text-[11px] text-white/40">
+          <PresenceDot state={m.sender_presence_state ?? "offline"} pulse />
+          <span className="text-white/70">
+            {m.sender_display_name ?? m.sender_username ?? "Someone"}
+          </span>
+          <span className="text-white/25">@{m.sender_username ?? "anon"}</span>
+          {m.sender_is_guest && (
+            <span className="rounded-sm bg-white/10 px-1 text-[9px] uppercase tracking-widest text-white/50">
+              guest
+            </span>
+          )}
+        </p>
+      )}
+
+      {replyTarget && (
+        <button
+          onClick={() => onJump(replyTarget.id)}
+          className={clsx(
+            "mb-1 max-w-[78%] truncate rounded-lg border-l-2 px-2 py-1 text-left text-[11px]",
+            mine
+              ? "border-neon-blue/60 bg-white/5 text-white/60"
+              : "border-white/30 bg-white/5 text-white/60"
+          )}
+        >
+          ↪{" "}
+          <span className="text-white/80">
+            {replyTarget.sender_display_name ?? replyTarget.sender_username ?? "someone"}
+          </span>
+          : {replyTarget.deleted_at
+            ? "deleted message"
+            : replyTarget.image_url && !replyTarget.content
+            ? "📷 image"
+            : replyTarget.content?.slice(0, 80) ?? "…"}
+        </button>
+      )}
+
+      <div className={clsx("group/bubble relative", mine ? "self-end" : "self-start")}>
+        {/* Actions row */}
+        {!isDeleted && !isEditing && (
+          <div
+            className={clsx(
+              "pointer-events-none absolute -top-7 z-10 hidden gap-0.5 rounded-lg border border-white/10 bg-ink-800/95 px-1 py-0.5 shadow-lg backdrop-blur group-hover/bubble:flex group-hover/bubble:pointer-events-auto",
+              mine ? "right-0" : "left-0"
+            )}
+          >
+            <button
+              onClick={() => setShowReactionPicker((s) => !s)}
+              className="rounded px-1.5 py-0.5 text-xs hover:bg-white/10"
+              aria-label="React"
+              title="React"
+            >
+              😊
+            </button>
+            <button
+              onClick={() => onReply(m)}
+              className="rounded px-1.5 py-0.5 text-xs hover:bg-white/10"
+              aria-label="Reply"
+              title="Reply"
+            >
+              ↪
+            </button>
+            {canEdit && m.content && (
+              <button
+                onClick={() => onStartEdit(m)}
+                className="rounded px-1.5 py-0.5 text-xs hover:bg-white/10"
+                aria-label="Edit"
+                title="Edit"
+              >
+                ✎
+              </button>
+            )}
+            {mine && (
+              <button
+                onClick={() => onDelete(m.id)}
+                className="rounded px-1.5 py-0.5 text-xs text-neon-red hover:bg-neon-red/10"
+                aria-label="Delete"
+                title="Delete"
+              >
+                🗑
+              </button>
+            )}
+          </div>
+        )}
+
+        {showReactionPicker && !isDeleted && (
+          <div
+            className={clsx(
+              "absolute -top-12 z-20 flex gap-1 rounded-full border border-white/10 bg-ink-800/95 px-2 py-1 shadow-lg backdrop-blur",
+              mine ? "right-0" : "left-0"
+            )}
+          >
+            {REACTION_PALETTE.map((e) => (
+              <button
+                key={e}
+                onClick={() => {
+                  void onReact(m.id, e);
+                  setShowReactionPicker(false);
+                }}
+                className="rounded p-1 text-base hover:bg-white/10"
+                aria-label={`React ${e}`}
+              >
+                {e}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {isDeleted ? (
+          <p
+            className={clsx(
+              "max-w-[78%] rounded-2xl border border-white/10 bg-white/5 px-3.5 py-2 text-xs italic text-white/40",
+              mine ? "rounded-br-sm" : "rounded-bl-sm"
+            )}
+          >
+            this message was deleted
+          </p>
+        ) : isEditing ? (
+          <div className="flex flex-col gap-2">
+            <textarea
+              value={editingDraft ?? ""}
+              onChange={(e) => onEditDraft(e.target.value)}
+              maxLength={2000}
+              rows={2}
+              className="min-w-[260px] rounded-xl border border-neon-blue/60 bg-black/40 px-3 py-2 text-sm outline-none"
+              autoFocus
+            />
+            <div className="flex justify-end gap-2 text-xs">
+              <button
+                onClick={onCancelEdit}
+                className="rounded border border-white/10 bg-white/5 px-2 py-1 hover:bg-white/10"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => void onSaveEdit()}
+                className="rounded bg-neon-blue px-2 py-1 text-ink-900 hover:bg-neon-blue/90"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {m.image_url && (
+              <a
+                href={m.image_url}
+                target="_blank"
+                rel="noreferrer"
+                className={clsx(
+                  "mb-1 block overflow-hidden rounded-2xl border border-white/10",
+                  mine ? "rounded-br-sm" : "rounded-bl-sm"
+                )}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={m.image_url}
+                  alt={m.content ?? "shared image"}
+                  className="max-h-80 w-auto max-w-[78vw] md:max-w-sm"
+                  loading="lazy"
+                />
+              </a>
+            )}
+            {m.content && (
+              <div
+                className={clsx(
+                  "max-w-[78%] whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-sm shadow-sm",
+                  mine
+                    ? "rounded-br-sm bg-neon-blue text-ink-900"
+                    : "rounded-bl-sm border border-white/10 bg-white/5 text-white"
+                )}
+              >
+                {m.content}
+                {m.edited_at && (
+                  <span className={clsx("ml-1.5 text-[10px]", mine ? "text-ink-900/60" : "text-white/40")}>
+                    (edited)
+                  </span>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {!isDeleted && m.reactions && Object.keys(m.reactions).length > 0 && (
+        <div className={clsx("mt-1 flex flex-wrap gap-1", mine ? "justify-end" : "")}>
+          {Object.entries(m.reactions).map(([emoji, ids]) => {
+            const minePicked = ids.includes(currentUserId);
+            return (
+              <button
+                key={emoji}
+                onClick={() => onReact(m.id, emoji)}
+                className={clsx(
+                  "flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs transition",
+                  minePicked
+                    ? "border-neon-blue/60 bg-neon-blue/15 text-white"
+                    : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
+                )}
+                aria-pressed={minePicked}
+              >
+                <span>{emoji}</span>
+                <span className="text-[10px]">{ids.length}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <p className="mt-1 px-1 text-[10px] text-white/30">{formatTime(m.created_at)}</p>
+    </div>
   );
 }
 

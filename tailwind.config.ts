@@ -46,12 +46,29 @@ const config: Config = {
         shimmer: {
           "0%": { backgroundPosition: "-200% 0" },
           "100%": { backgroundPosition: "200% 0" }
+        },
+        nudgeShake: {
+          "0%,100%": { transform: "translate(0,0)" },
+          "10%": { transform: "translate(-8px,0)" },
+          "20%": { transform: "translate(8px,0)" },
+          "30%": { transform: "translate(-6px,0)" },
+          "40%": { transform: "translate(4px,0)" },
+          "50%": { transform: "translate(-4px,0)" },
+          "60%": { transform: "translate(3px,0)" },
+          "70%": { transform: "translate(-2px,0)" },
+          "80%": { transform: "translate(2px,0)" }
+        },
+        nudgePulse: {
+          "0%": { transform: "scale(0)", opacity: "0.5" },
+          "100%": { transform: "scale(8)", opacity: "0" }
         }
       },
       animation: {
         pulseDot: "pulseDot 1.8s ease-in-out infinite",
         rise: "rise 220ms ease-out both",
-        shimmer: "shimmer 6s linear infinite"
+        shimmer: "shimmer 6s linear infinite",
+        nudgeShake: "nudgeShake 480ms ease-in-out 1",
+        nudgePulse: "nudgePulse 600ms ease-out 1 forwards"
       }
     }
   },
