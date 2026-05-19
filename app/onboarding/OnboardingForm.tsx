@@ -11,16 +11,9 @@ function sanitizeUsername(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 20);
 }
 
-export function OnboardingForm({
-  defaultUsername,
-  defaultDisplayName
-}: {
-  defaultUsername: string;
-  defaultDisplayName: string;
-}) {
+export function OnboardingForm({ defaultUsername }: { defaultUsername: string }) {
   const router = useRouter();
   const [username, setUsername] = useState(sanitizeUsername(defaultUsername));
-  const [displayName, setDisplayName] = useState(defaultDisplayName);
   const [err, setErr] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -29,11 +22,7 @@ export function OnboardingForm({
     setErr(null);
 
     if (!USERNAME_RE.test(username)) {
-      setErr("Username: 3–20 chars, lowercase letters, numbers, or underscore.");
-      return;
-    }
-    if (displayName.trim().length < 2) {
-      setErr("Display name must be at least 2 characters.");
+      setErr("3–20 chars, lowercase letters, numbers, or underscore.");
       return;
     }
 
@@ -50,7 +39,7 @@ export function OnboardingForm({
       const { error } = await supabase.from("profiles").upsert({
         id: user.id,
         username,
-        display_name: displayName.trim()
+        display_name: username
       });
       if (error) {
         if (error.code === "23505") {
@@ -69,18 +58,6 @@ export function OnboardingForm({
     <form onSubmit={submit} className="space-y-4">
       <div>
         <label className="text-xs uppercase tracking-widest text-white/50">
-          Display name
-        </label>
-        <input
-          value={displayName}
-          onChange={(e) => setDisplayName(e.target.value)}
-          maxLength={40}
-          placeholder="Your name"
-          className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none focus:border-neon-blue/60"
-        />
-      </div>
-      <div>
-        <label className="text-xs uppercase tracking-widest text-white/50">
           Username
         </label>
         <div className="mt-2 flex items-center rounded-xl border border-white/10 bg-black/30 px-3 focus-within:border-neon-blue/60">
@@ -90,12 +67,11 @@ export function OnboardingForm({
             onChange={(e) => setUsername(sanitizeUsername(e.target.value))}
             maxLength={20}
             placeholder="yourhandle"
+            autoFocus
             className="w-full bg-transparent px-2 py-3 text-sm outline-none"
           />
         </div>
-        <p className="mt-1.5 text-[11px] text-white/40">
-          3–20 chars, a–z 0–9 _
-        </p>
+        <p className="mt-1.5 text-[11px] text-white/40">3–20 chars, a–z 0–9 _</p>
       </div>
 
       {err && <p className="text-xs text-neon-red">{err}</p>}

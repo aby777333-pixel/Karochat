@@ -30,12 +30,12 @@ export default async function OnboardingPage() {
         <Wordmark />
       </div>
       <div className="surface-glass mt-12 p-7">
-        <h1 className="font-display text-2xl font-semibold">Pick a name</h1>
+        <h1 className="font-display text-2xl font-semibold">Pick a username</h1>
         <p className="mt-1 text-sm text-white/60">
           This is how friends will find you. You can change it later.
         </p>
         <div className="mt-6">
-          <OnboardingForm defaultDisplayName={defaultName} defaultUsername={defaultName} />
+          <OnboardingForm defaultUsername={defaultName} />
         </div>
       </div>
     </main>
