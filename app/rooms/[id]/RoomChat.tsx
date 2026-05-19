@@ -7,6 +7,7 @@ import { Button } from "@/components/Button";
 import { PresenceDot } from "@/components/PresenceDot";
 import { usePresenceHeartbeat } from "@/lib/usePresenceHeartbeat";
 import { useNotifyOnNewMessage } from "@/lib/useBrowserNotifications";
+import { SmartReplies } from "./SmartReplies";
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
@@ -426,6 +427,23 @@ export function RoomChat({
       </div>
 
       <div className="border-t border-white/5 p-3">
+        <SmartReplies
+          roomId={roomId}
+          lastMessageId={
+            (() => {
+              for (let i = messages.length - 1; i >= 0; i--) {
+                const m = messages[i];
+                if (!m) continue;
+                if (m.sender_id !== currentUserId && m.type !== "nudge" && !m.deleted_at) {
+                  return m.id;
+                }
+              }
+              return null;
+            })()
+          }
+          hidden={draft.trim().length > 0 || !!editing}
+          onPick={(text) => setDraft(text)}
+        />
         {error && <p className="mb-2 text-xs text-neon-red">{error}</p>}
         {uploading && (
           <p className="mb-2 text-xs text-white/50">
