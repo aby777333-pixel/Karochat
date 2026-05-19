@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
-// Old single-lobby route. Kept as a redirect for back-compat with any saved links.
+// Old single-lobby route kept for back-compat. Always lands the user on the
+// rooms picker now — they can choose the Lobby (or any other room) from there.
 export default function ChatPage() {
-  redirect("/rooms/00000000-0000-0000-0000-00000000aaaa");
+  redirect("/rooms");
 }

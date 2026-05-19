@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { redirect, notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Logo, Wordmark } from "@/components/Brand";
 import { SignOutButton } from "@/components/SignOutButton";
@@ -50,12 +50,21 @@ export default async function RoomPage({ params }: { params: { id: string } }) {
   if (!profile?.username) redirect("/onboarding");
   if (!profile.terms_accepted_at) redirect("/terms");
 
-  const { data: room } = await supabase
+  const roomResp = await supabase
     .from("rooms")
     .select("id, name, description, is_public, invite_code, owner_id")
     .eq("id", params.id)
     .maybeSingle();
-  if (!room) notFound();
+  const room = roomResp.data;
+  if (!room) {
+    console.error("[rooms/[id]] room not visible to user", {
+      paramsId: params.id,
+      userId: user.id,
+      pgError: roomResp.error?.message ?? null,
+      pgCode: roomResp.error?.code ?? null
+    });
+    redirect(`/rooms?missing=${encodeURIComponent(params.id)}`);
+  }
 
   const { data: membership } = await supabase
     .from("room_members")

@@ -16,7 +16,11 @@ type RoomRow = {
   member_count: number;
 };
 
-export default async function RoomsPage() {
+export default async function RoomsPage({
+  searchParams
+}: {
+  searchParams?: { missing?: string; join?: string };
+}) {
   const supabase = createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/");
@@ -53,6 +57,9 @@ export default async function RoomsPage() {
   const memberSet = new Set(memberIds);
   const discover = (publicRooms ?? []).filter((r) => !memberSet.has(r.id));
 
+  const missingId = searchParams?.missing;
+  const joinNotice = searchParams?.join;
+
   return (
     <main className="mx-auto flex min-h-[100dvh] max-w-6xl flex-col px-5 py-5 md:py-7">
       <header className="surface-glass flex items-center justify-between gap-3 px-4 py-3">
@@ -68,6 +75,18 @@ export default async function RoomsPage() {
           <SignOutButton />
         </div>
       </header>
+
+      {missingId && (
+        <div className="surface-glass mt-3 border border-neon-red/30 bg-neon-red/5 px-4 py-2 text-xs text-white/80">
+          That room isn&apos;t available to you (it may be private, deleted, or you
+          were removed). Pick another below.
+        </div>
+      )}
+      {joinNotice === "required" && (
+        <div className="surface-glass mt-3 border border-neon-amber/30 bg-neon-amber/5 px-4 py-2 text-xs text-white/80">
+          That room is private. Enter the invite code in the panel on the right.
+        </div>
+      )}
 
       <div className="mt-5 grid flex-1 grid-cols-1 gap-5 lg:grid-cols-[1fr_320px]">
         <div className="space-y-5">
