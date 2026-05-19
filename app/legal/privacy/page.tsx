@@ -90,8 +90,11 @@ export default function PrivacyPage() {
       </p>
 
       <p className="text-xs text-white/40">
-        Questions about this notice can be sent to the operator listed in the
-        README.
+        Questions about this notice can be sent to{" "}
+        <a href="mailto:info@karochat.co" className="text-neon-blue underline">
+          info@karochat.co
+        </a>
+        .
       </p>
     </>
   );

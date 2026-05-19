@@ -7,6 +7,8 @@ import { StatusPicker } from "@/components/StatusPicker";
 import { NotificationsButton } from "@/components/NotificationsButton";
 import { CatchMeUpButton } from "./CatchMeUpButton";
 import { CallButton } from "./CallButton";
+import { NewRoomButton } from "@/components/NewRoomButton";
+import { AdRails } from "@/components/AdRails";
 import { RoomChat } from "./RoomChat";
 import { CopyCode } from "./CopyCode";
 import { LeaveRoomButton } from "./LeaveRoomButton";
@@ -149,7 +151,8 @@ export default async function RoomPage({ params }: { params: { id: string } }) {
     ((profile as any).presence_state as PresenceState | undefined) ?? "online";
 
   return (
-    <main className="mx-auto flex h-[100dvh] max-w-6xl flex-col px-4 py-4 md:py-6">
+    <AdRails>
+    <main className="mx-auto flex h-[100dvh] max-w-6xl flex-col px-1 py-4 md:py-6">
       <header className="surface-glass flex items-center justify-between gap-3 px-4 py-3">
         <div className="flex min-w-0 items-center gap-2">
           <Link
@@ -174,6 +177,7 @@ export default async function RoomPage({ params }: { params: { id: string } }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <NewRoomButton from="room" />
           <CallButton roomId={room.id} roomName={room.name} />
           <CatchMeUpButton roomId={room.id} />
           <NotificationsButton />
@@ -218,5 +222,6 @@ export default async function RoomPage({ params }: { params: { id: string } }) {
         />
       </div>
     </main>
+    </AdRails>
   );
 }

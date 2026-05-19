@@ -66,8 +66,11 @@ export default function CommunityPage() {
       <h2>Reporting</h2>
       <p>
         Reporting is coming. In the meantime, if you encounter something that
-        violates these guidelines, contact the operator listed in the README so
-        we can act on it.
+        violates these guidelines, email{" "}
+        <a href="mailto:info@karochat.co" className="text-neon-blue underline">
+          info@karochat.co
+        </a>{" "}
+        and we&rsquo;ll act on it.
       </p>
 
       <p className="text-xs text-white/40">

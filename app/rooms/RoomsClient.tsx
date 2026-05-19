@@ -1,9 +1,38 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, useTransition } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/Button";
+
+type Visibility = "public" | "listed" | "unlisted" | "secret";
+
+const VIS_OPTIONS: { value: Visibility; label: string; description: string; icon: string }[] = [
+  {
+    value: "public",
+    label: "Public",
+    icon: "🌍",
+    description: "Anyone can find this room in the lobby and join."
+  },
+  {
+    value: "listed",
+    label: "Listed",
+    icon: "🔒",
+    description: "Shows in the lobby with a lock — people request to join."
+  },
+  {
+    value: "unlisted",
+    label: "Unlisted",
+    icon: "🔗",
+    description: "Hidden from the lobby. Only the invite code lets people in."
+  },
+  {
+    value: "secret",
+    label: "Secret",
+    icon: "🕶️",
+    description: "Hidden everywhere. Joinable only via in-app invite."
+  }
+];
 
 export function RoomsClient() {
   return (
@@ -16,12 +45,23 @@ export function RoomsClient() {
 
 function CreateRoomCard() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const focusOnLoad = searchParams.get("create") === "1";
+
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [isPublic, setIsPublic] = useState(true);
+  const [visibility, setVisibility] = useState<Visibility>("public");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<{ id: string; code: string | null } | null>(null);
+
+  useEffect(() => {
+    if (focusOnLoad) {
+      const el = document.getElementById("create-room-name");
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      (el as HTMLInputElement | null)?.focus();
+    }
+  }, [focusOnLoad]);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -36,15 +76,17 @@ function CreateRoomCard() {
         .rpc("create_room", {
           p_name: name.trim(),
           p_description: description.trim() || null,
-          p_is_public: isPublic
+          p_visibility: visibility
         })
-        .single<{ id: string; invite_code: string | null }>();
+        .single<{ id: string; invite_code: string | null; visibility: Visibility }>();
       if (rpcErr || !data) {
         setError(rpcErr?.message ?? "Could not create room.");
         return;
       }
       setCreated({ id: data.id, code: data.invite_code });
-      if (isPublic) {
+      // Public + listed: go straight into the room.
+      // Unlisted + secret: stay on this card so the owner can copy the code.
+      if (data.visibility === "public" || data.visibility === "listed") {
         router.push(`/rooms/${data.id}`);
       }
     });
@@ -53,10 +95,10 @@ function CreateRoomCard() {
   if (created && created.code) {
     return (
       <section className="surface-glass p-5">
-        <h3 className="font-display text-base font-semibold">Private room created</h3>
+        <h3 className="font-display text-base font-semibold">Room created</h3>
         <p className="mt-1 text-xs text-white/60">
-          Share this invite code with friends. They&apos;ll paste it under &quot;Have an
-          invite?&quot; to join.
+          Share this invite code with the people you want in. They&apos;ll paste it
+          under &quot;Have an invite?&quot; to join.
         </p>
         <div className="mt-3 flex items-center gap-2 rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 font-mono text-lg tracking-widest">
           <span className="flex-1 select-all">{created.code}</span>
@@ -77,6 +119,7 @@ function CreateRoomCard() {
               setCreated(null);
               setName("");
               setDescription("");
+              setVisibility("public");
             }}
             className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white/80 hover:bg-white/10"
           >
@@ -92,6 +135,7 @@ function CreateRoomCard() {
       <h3 className="font-display text-base font-semibold">Create a room</h3>
       <form onSubmit={submit} className="mt-3 space-y-3">
         <input
+          id="create-room-name"
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={60}
@@ -105,35 +149,36 @@ function CreateRoomCard() {
           placeholder="What's this room about? (optional)"
           className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm outline-none focus:border-neon-blue/60"
         />
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => setIsPublic(true)}
-            className={`rounded-xl border px-3 py-2 text-xs transition ${
-              isPublic
-                ? "border-neon-blue/60 bg-neon-blue/10 text-white"
-                : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
-            }`}
-          >
-            🌍 Public
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsPublic(false)}
-            className={`rounded-xl border px-3 py-2 text-xs transition ${
-              !isPublic
-                ? "border-neon-purple/60 bg-neon-purple/10 text-white"
-                : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
-            }`}
-          >
-            🔒 Private
-          </button>
-        </div>
-        <p className="text-[11px] text-white/40">
-          {isPublic
-            ? "Public: anyone can find this room and join."
-            : "Private: only people with the invite code can join."}
-        </p>
+        <fieldset className="space-y-1.5">
+          <legend className="text-[10px] uppercase tracking-widest text-white/40">
+            Visibility
+          </legend>
+          {VIS_OPTIONS.map((opt) => (
+            <label
+              key={opt.value}
+              className={`flex cursor-pointer items-start gap-2 rounded-xl border px-3 py-2 text-xs transition ${
+                visibility === opt.value
+                  ? "border-neon-blue/60 bg-neon-blue/10"
+                  : "border-white/10 bg-white/5 hover:bg-white/10"
+              }`}
+            >
+              <input
+                type="radio"
+                name="visibility"
+                value={opt.value}
+                checked={visibility === opt.value}
+                onChange={() => setVisibility(opt.value)}
+                className="mt-0.5 accent-neon-blue"
+              />
+              <div>
+                <div className="font-medium text-white">
+                  {opt.icon} {opt.label}
+                </div>
+                <p className="mt-0.5 text-white/55">{opt.description}</p>
+              </div>
+            </label>
+          ))}
+        </fieldset>
         {error && <p className="text-xs text-neon-red">{error}</p>}
         <Button type="submit" disabled={pending} className="w-full">
           {pending ? "Creating…" : "Create room"}
@@ -174,7 +219,7 @@ function JoinByInviteCard() {
     <section className="surface-glass p-5">
       <h3 className="font-display text-base font-semibold">Have an invite?</h3>
       <p className="mt-1 text-xs text-white/60">
-        Paste an 8-character code to join a private room.
+        Paste an 8-character code to join an unlisted room.
       </p>
       <form onSubmit={submit} className="mt-3 space-y-3">
         <input
@@ -193,10 +238,23 @@ function JoinByInviteCard() {
   );
 }
 
-export function JoinPublic({ roomId }: { roomId: string }) {
+export function JoinPublic({
+  roomId,
+  visibility
+}: {
+  roomId: string;
+  visibility: "public" | "listed";
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [requested, setRequested] = useState(false);
+
   function onClick() {
+    if (visibility === "listed") {
+      // request flow lands in Phase B
+      setRequested(true);
+      return;
+    }
     startTransition(async () => {
       const supabase = createSupabaseBrowserClient();
       const { data, error } = await supabase.rpc("join_public_room", {
@@ -207,6 +265,24 @@ export function JoinPublic({ roomId }: { roomId: string }) {
       router.refresh();
     });
   }
+
+  if (visibility === "listed") {
+    return (
+      <button
+        onClick={onClick}
+        disabled={requested}
+        title={
+          requested
+            ? "Request-to-join flow lands next session — for now this is a placeholder."
+            : "Request to join this private room"
+        }
+        className="rounded-lg border border-neon-amber/40 bg-neon-amber/10 px-3 py-1.5 text-xs font-medium text-neon-amber transition hover:bg-neon-amber/20 disabled:opacity-60"
+      >
+        {requested ? "Requested" : "Request"}
+      </button>
+    );
+  }
+
   return (
     <button
       onClick={onClick}

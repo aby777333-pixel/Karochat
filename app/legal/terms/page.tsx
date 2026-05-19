@@ -104,7 +104,11 @@ export default function TermsPage() {
       <h2>10. Contact</h2>
       <p>
         Questions or concerns? Reach out to the team operating Karochat (GHL
-        India Ventures) at the email address listed on the project README.
+        India Ventures) at{" "}
+        <a href="mailto:info@karochat.co" className="text-neon-blue underline">
+          info@karochat.co
+        </a>
+        .
       </p>
 
       <hr className="my-8 border-white/10" />

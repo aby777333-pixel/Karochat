@@ -75,8 +75,13 @@ export default async function Home() {
         </div>
       </section>
 
-      <footer className="mt-16 text-xs text-white/40">
-        © {new Date().getFullYear()} Karochat · Be kind. Be real.
+      <footer className="mt-16 space-y-1 text-xs text-white/40">
+        <p>© {new Date().getFullYear()} Karochat · Be kind. Be real.</p>
+        <p>
+          <a href="mailto:info@karochat.co" className="hover:text-white">
+            info@karochat.co
+          </a>
+        </p>
       </footer>
     </main>
   );
