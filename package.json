@@ -8,8 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "port:catalog": "tsx scripts/port-catalog.ts",
-    "port:catalog:dry": "tsx scripts/port-catalog.ts --dry-run"
+    "port:catalog": "npx -y tsx scripts/port-catalog.ts",
+    "port:catalog:dry": "npx -y tsx scripts/port-catalog.ts --dry-run"
   },
   "dependencies": {
     "@livekit/components-react": "^2.9.21",
@@ -32,6 +32,7 @@
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.13",
+    "tsx": "^4.22.3",
     "typescript": "^5.6.2"
   }
 }
