@@ -629,7 +629,12 @@ function MessageBubble({
         </button>
       )}
 
-      <div className={clsx("group/bubble relative", mine ? "self-end" : "self-start")}>
+      <div
+        className={clsx(
+          "group/bubble relative w-fit max-w-[78%] min-w-0",
+          mine ? "self-end" : "self-start"
+        )}
+      >
         {/* Actions row */}
         {!isDeleted && !isEditing && (
           <div
@@ -703,7 +708,7 @@ function MessageBubble({
         {isDeleted ? (
           <p
             className={clsx(
-              "max-w-[78%] rounded-2xl border border-white/10 bg-white/5 px-3.5 py-2 text-xs italic text-white/40",
+              "rounded-2xl border border-white/10 bg-white/5 px-3.5 py-2 text-xs italic text-white/40",
               mine ? "rounded-br-sm" : "rounded-bl-sm"
             )}
           >
@@ -758,7 +763,7 @@ function MessageBubble({
             {m.content && (
               <div
                 className={clsx(
-                  "max-w-[78%] whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-sm shadow-sm",
+                  "whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-sm shadow-sm",
                   mine
                     ? "rounded-br-sm bg-neon-blue text-ink-900"
                     : "rounded-bl-sm border border-white/10 bg-white/5 text-white"
