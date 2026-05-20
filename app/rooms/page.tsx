@@ -11,8 +11,8 @@ import { UserSearch } from "./UserSearch";
 import { StoriesStrip, type StoryRow } from "./StoriesStrip";
 import { DismissibleSection, RestoreHiddenSections } from "./DismissibleSection";
 import { FriendsAndRequests } from "./FriendsList";
-import { DailyPrompt } from "./DailyPrompt";
 import { InviteFriendsCard } from "./InviteFriendsCard";
+// import { DailyPrompt } from "./DailyPrompt"; // hidden by request — keep file for re-enable
 
 export const dynamic = "force-dynamic";
 
@@ -186,11 +186,15 @@ export default async function RoomsPage({
           </div>
         )}
 
+        {/* Karo's daily prompt is hidden by request — keep the route +
+            component so we can re-enable it later by uncommenting this. */}
+        {/*
         <DismissibleSection id="daily-prompt">
           <div className="mt-3">
             <DailyPrompt />
           </div>
         </DismissibleSection>
+        */}
 
         <DismissibleSection id="stories">
           <StoriesStrip initialStories={liveStories} currentUserId={user.id} />

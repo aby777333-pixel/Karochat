@@ -58,6 +58,8 @@ create unique index if not exists profiles_invite_slug_idx
   where invite_slug is not null;
 
 -- get_or_create_invite_slug: returns the caller's slug, minting one if missing.
+-- Uses the built-in gen_random_uuid() (no pgcrypto dependency — Supabase
+-- installs pgcrypto in `extensions`, which isn't on search_path here).
 create or replace function public.get_or_create_invite_slug()
 returns text
 language plpgsql security definer set search_path = public
@@ -73,10 +75,7 @@ begin
   if v_existing is not null then return v_existing; end if;
   loop
     v_attempt := v_attempt + 1;
-    v_slug := lower(
-      regexp_replace(encode(gen_random_bytes(5), 'base64'), '[^a-zA-Z0-9]', '', 'g')
-    );
-    v_slug := substr(v_slug, 1, 6);
+    v_slug := substr(replace(gen_random_uuid()::text, '-', ''), 1, 6);
     exit when length(v_slug) = 6
       and not exists (select 1 from public.profiles where invite_slug = v_slug);
     if v_attempt > 20 then raise exception 'could not allocate invite slug'; end if;
