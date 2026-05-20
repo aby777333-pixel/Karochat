@@ -10,6 +10,7 @@ import { usePresenceHeartbeat } from "@/lib/usePresenceHeartbeat";
 import { useNotifyOnNewMessage } from "@/lib/useBrowserNotifications";
 import { SmartReplies } from "./SmartReplies";
 import { MemberActionPopover } from "./MemberActionPopover";
+import { QuoteCard } from "./QuoteCard";
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
@@ -590,6 +591,7 @@ export function RoomChat({
             currentUserId={currentUserId}
             currentUsername={currentUsername}
             roomId={roomId}
+            roomName={roomName}
             roomInviteCode={roomInviteCode ?? null}
             onAuthorNavigate={(roomDestId) => {
               router.push(`/rooms/${roomDestId}`);
@@ -804,6 +806,7 @@ function MessageBubble({
   currentUserId,
   currentUsername,
   roomId,
+  roomName,
   roomInviteCode,
   onAuthorNavigate,
   isEditing,
@@ -826,6 +829,7 @@ function MessageBubble({
   currentUserId: string;
   currentUsername: string;
   roomId: string;
+  roomName: string;
   roomInviteCode: string | null;
   onAuthorNavigate: (roomId: string) => void;
   isEditing: boolean;
@@ -845,6 +849,7 @@ function MessageBubble({
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [showTranslate, setShowTranslate] = useState(false);
   const [showAuthorMenu, setShowAuthorMenu] = useState(false);
+  const [showShareCard, setShowShareCard] = useState(false);
   const [translating, setTranslating] = useState(false);
   const [translation, setTranslation] = useState<{ lang: string; text: string } | null>(null);
   const [translateError, setTranslateError] = useState<string | null>(null);
@@ -1097,6 +1102,16 @@ function MessageBubble({
                 title="Translate"
               >
                 🌐
+              </button>
+            )}
+            {m.content && (
+              <button
+                onClick={() => setShowShareCard(true)}
+                className="rounded px-1.5 py-0.5 text-xs hover:bg-white/10"
+                aria-label="Share as card"
+                title="Share as card"
+              >
+                📤
               </button>
             )}
             {canEdit && m.content && (
@@ -1362,6 +1377,17 @@ function MessageBubble({
       )}
 
       <p className="mt-1 px-1 text-[10px] text-white/30">{formatTime(m.created_at)}</p>
+
+      {showShareCard && m.content && !isDeleted && (
+        <QuoteCard
+          authorName={m.sender_display_name ?? m.sender_username ?? "Someone"}
+          authorHandle={m.sender_username ?? "anon"}
+          content={m.content}
+          roomName={roomName}
+          createdAt={m.created_at}
+          onClose={() => setShowShareCard(false)}
+        />
+      )}
     </div>
   );
 }

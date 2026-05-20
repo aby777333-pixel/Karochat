@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Logo, Wordmark } from "@/components/Brand";
@@ -10,6 +11,8 @@ import { UserSearch } from "./UserSearch";
 import { StoriesStrip, type StoryRow } from "./StoriesStrip";
 import { DismissibleSection, RestoreHiddenSections } from "./DismissibleSection";
 import { FriendsAndRequests } from "./FriendsList";
+import { DailyPrompt } from "./DailyPrompt";
+import { InviteFriendsCard } from "./InviteFriendsCard";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +56,13 @@ export default async function RoomsPage({
     .maybeSingle();
   if (!profile?.username) redirect("/onboarding");
   if (!profile.terms_accepted_at) redirect("/terms");
+
+  // v5 AA1 — if the user arrived via /i/<slug>, attribute the invite once.
+  const inviteCookie = cookies().get("karochat_invite");
+  if (inviteCookie?.value) {
+    await supabase.rpc("record_inviter", { p_slug: inviteCookie.value });
+    cookies().set({ name: "karochat_invite", value: "", path: "/", maxAge: 0 });
+  }
 
   const { data: memberships } = await supabase
     .from("room_members")
@@ -176,6 +186,12 @@ export default async function RoomsPage({
           </div>
         )}
 
+        <DismissibleSection id="daily-prompt">
+          <div className="mt-3">
+            <DailyPrompt />
+          </div>
+        </DismissibleSection>
+
         <DismissibleSection id="stories">
           <StoriesStrip initialStories={liveStories} currentUserId={user.id} />
         </DismissibleSection>
@@ -226,6 +242,9 @@ export default async function RoomsPage({
           <aside className="space-y-5">
             <DismissibleSection id="search">
               <UserSearch />
+            </DismissibleSection>
+            <DismissibleSection id="invite-friends">
+              <InviteFriendsCard />
             </DismissibleSection>
             <RoomsClient />
           </aside>
