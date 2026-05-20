@@ -7,6 +7,7 @@ import { AdRails } from "@/components/AdRails";
 import { RoomsClient, JoinPublic } from "./RoomsClient";
 import { SavedRoomButton } from "./SavedRoomButton";
 import { UserSearch } from "./UserSearch";
+import { StoriesStrip, type StoryRow } from "./StoriesStrip";
 
 export const dynamic = "force-dynamic";
 
@@ -129,6 +130,15 @@ export default async function RoomsPage({
   const missingId = searchParams?.missing;
   const joinNotice = searchParams?.join;
 
+  // Live (un-expired) stories for the top strip. RLS filters out expired.
+  const { data: storiesRaw } = await supabase
+    .from("stories_with_author")
+    .select("*")
+    .gt("expires_at", new Date().toISOString())
+    .order("created_at", { ascending: false })
+    .limit(30);
+  const liveStories = (storiesRaw ?? []) as StoryRow[];
+
   return (
     <AdRails>
       <main className="mx-auto flex min-h-[100dvh] max-w-6xl flex-col px-1 py-5 md:py-7">
@@ -163,6 +173,8 @@ export default async function RoomsPage({
             That room is private. Enter the invite code in the panel on the right.
           </div>
         )}
+
+        <StoriesStrip initialStories={liveStories} currentUserId={user.id} />
 
         <div className="mt-5 grid flex-1 grid-cols-1 gap-5 lg:grid-cols-[1fr_340px]">
           <div className="space-y-5">

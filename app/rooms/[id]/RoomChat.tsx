@@ -78,8 +78,28 @@ export function RoomChat({
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [messages, setMessages] = useState<MessageRow[]>(initialMessages);
-  const [draft, setDraft] = useState("");
+  const draftStorageKey = `karochat:draft:${currentUserId}:${roomId}`;
+  const [draft, setDraft] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    try {
+      return window.localStorage.getItem(draftStorageKey) ?? "";
+    } catch {
+      return "";
+    }
+  });
   const [intentChoice, setIntentChoice] = useState<string | null>(null);
+
+  // Persist the draft so users can refresh or hop between rooms without
+  // losing what they were typing. Cleared on successful send below.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      if (draft) window.localStorage.setItem(draftStorageKey, draft);
+      else window.localStorage.removeItem(draftStorageKey);
+    } catch {
+      // localStorage can be disabled — ignore.
+    }
+  }, [draft, draftStorageKey]);
   const [intentMenuOpen, setIntentMenuOpen] = useState(false);
   const [replyTo, setReplyTo] = useState<MessageRow | null>(null);
   const [editing, setEditing] = useState<{ id: string; content: string } | null>(null);
@@ -293,6 +313,44 @@ export function RoomChat({
     setDraft("");
     setReplyTo(null);
     setIntentChoice(null);
+
+    // @karo summons the AI co-pilot. Fire-and-forget: the response is
+    // inserted as a type='system' message with intent='karo'.
+    if (/^@karo\b/i.test(text)) {
+      void summonKaro(text);
+    }
+  }
+
+  async function summonKaro(prompt: string) {
+    try {
+      const res = await fetch("/api/ai/karo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roomId, prompt })
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.reply) {
+        const { error: insertErr } = await supabase.from("messages").insert({
+          sender_id: currentUserId,
+          room_id: roomId,
+          content: "Karo couldn't answer that just now.",
+          type: "system",
+          intent: "karo"
+        });
+        if (insertErr) console.warn("[karo] failed to post fallback:", insertErr);
+        return;
+      }
+      const { error: insertErr } = await supabase.from("messages").insert({
+        sender_id: currentUserId,
+        room_id: roomId,
+        content: String(data.reply),
+        type: "system",
+        intent: "karo"
+      });
+      if (insertErr) console.warn("[karo] failed to post reply:", insertErr);
+    } catch (err) {
+      console.warn("[karo] threw", err);
+    }
   }
 
   async function castPollVote(messageId: string, optionIndex: number) {
@@ -707,8 +765,10 @@ export function RoomChat({
         <p className="mt-1.5 px-1 text-[10px] text-white/30">
           Enter to send · Shift+Enter for newline · 📎 share · ⚡ nudge · paste images ·{" "}
           <code className="rounded bg-white/5 px-1 text-white/40">
-            /poll question | option | option
-          </code>
+            /poll q | a | b
+          </code>{" "}
+          ·{" "}
+          <code className="rounded bg-white/5 px-1 text-white/40">@karo …</code>
         </p>
       </div>
     </section>
@@ -789,6 +849,25 @@ function MessageBubble({
       setTranslating(false);
       setShowTranslate(false);
     }
+  }
+
+  // Karo: AI-generated system reply, rendered as a centered card.
+  if (m.type === "system" && m.intent === "karo") {
+    return (
+      <div
+        ref={(el) => registerRef(m.id, el)}
+        className="flex animate-rise justify-center"
+      >
+        <div className="w-full max-w-md rounded-2xl border border-neon-mint/35 bg-neon-mint/5 px-3.5 py-2.5 shadow-sm">
+          <p className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-neon-mint">
+            <span aria-hidden>✨</span> Karo
+          </p>
+          <p className="mt-1 whitespace-pre-wrap break-words text-sm text-white/90">
+            {m.content}
+          </p>
+        </div>
+      </div>
+    );
   }
 
   // Nudge: render as a centered system pill.

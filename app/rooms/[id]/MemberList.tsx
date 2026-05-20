@@ -16,7 +16,27 @@ type Member = {
   status_text: string | null;
   status_emoji: string | null;
   role: string | null;
+  mood?: string | null;
+  mood_expires_at?: string | null;
 };
+
+const MOOD_EMOJI: Record<string, string> = {
+  chatty: "💬",
+  quiet: "🤫",
+  flirty: "😘",
+  focused: "🎯",
+  low: "🌧️",
+  celebrating: "🎉",
+  lonely: "🌒",
+  horny: "🔥",
+  processing: "🌀"
+};
+
+function moodLive(m: Member) {
+  if (!m.mood) return null;
+  if (m.mood_expires_at && new Date(m.mood_expires_at) <= new Date()) return null;
+  return m.mood;
+}
 
 export function MemberList({
   roomId,
@@ -144,6 +164,11 @@ export function MemberList({
                     {m.is_guest && (
                       <span className="ml-1 rounded-sm bg-white/10 px-1 text-[9px] uppercase tracking-widest text-white/50">
                         guest
+                      </span>
+                    )}
+                    {moodLive(m) && (
+                      <span className="ml-1 rounded-sm bg-neon-purple/15 px-1 text-[9px] uppercase tracking-widest text-neon-purple">
+                        {MOOD_EMOJI[moodLive(m)!] ?? "·"} {moodLive(m)}
                       </span>
                     )}
                   </p>

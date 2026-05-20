@@ -15,15 +15,39 @@ const PRESETS: { label: string; emoji?: string; text: string }[] = [
 
 const STATES: PresenceState[] = ["online", "away", "busy", "invisible"];
 
+const MOODS: { value: string; label: string; emoji: string }[] = [
+  { value: "chatty",       label: "chatty",       emoji: "💬" },
+  { value: "quiet",        label: "quiet",        emoji: "🤫" },
+  { value: "flirty",       label: "flirty",       emoji: "😘" },
+  { value: "focused",      label: "focused",      emoji: "🎯" },
+  { value: "low",          label: "low",          emoji: "🌧️" },
+  { value: "celebrating",  label: "celebrating",  emoji: "🎉" },
+  { value: "lonely",       label: "lonely",       emoji: "🌒" },
+  { value: "horny",        label: "horny",        emoji: "🔥" },
+  { value: "processing",   label: "processing",   emoji: "🌀" }
+];
+
+const MOOD_EXPIRY_CHOICES = [
+  { minutes: 60,        label: "1h"  },
+  { minutes: 4 * 60,    label: "4h"  },
+  { minutes: 12 * 60,   label: "12h" },
+  { minutes: 24 * 60,   label: "24h" },
+  { minutes: 0,         label: "Until I clear it" }
+];
+
 export function StatusPicker({
   currentState,
   currentText,
   currentEmoji,
+  currentMood,
+  currentMoodExpiresAt,
   displayName
 }: {
   currentState: PresenceState | string;
   currentText: string | null;
   currentEmoji: string | null;
+  currentMood?: string | null;
+  currentMoodExpiresAt?: string | null;
   displayName: string;
 }) {
   const router = useRouter();
@@ -33,8 +57,15 @@ export function StatusPicker({
   );
   const [emoji, setEmoji] = useState(currentEmoji ?? "");
   const [text, setText] = useState(currentText ?? "");
+  const [mood, setMood] = useState<string | null>(currentMood ?? null);
+  const [moodExpiryMinutes, setMoodExpiryMinutes] = useState<number>(240);
   const [pending, startTransition] = useTransition();
   const ref = useRef<HTMLDivElement>(null);
+
+  const moodPreset = MOODS.find((m) => m.value === mood);
+  const moodActive =
+    !!currentMood &&
+    (!currentMoodExpiresAt || new Date(currentMoodExpiresAt) > new Date());
 
   useEffect(() => {
     function onDoc(e: MouseEvent) {
@@ -52,6 +83,10 @@ export function StatusPicker({
         p_text: text || null,
         p_emoji: emoji || null,
         p_expires_at: null
+      });
+      await supabase.rpc("set_mood", {
+        p_mood: mood,
+        p_expires_in_minutes: mood ? moodExpiryMinutes : 0
       });
       setOpen(false);
       router.refresh();
@@ -73,7 +108,14 @@ export function StatusPicker({
         aria-expanded={open}
       >
         <PresenceDot state={state} pulse />
-        <span className="hidden md:inline">{currentEmoji} {currentText || PRESENCE_LABEL[state]}</span>
+        <span className="hidden md:inline">
+          {currentEmoji} {currentText || PRESENCE_LABEL[state]}
+          {moodActive && (
+            <span className="ml-1.5 rounded-sm bg-neon-purple/20 px-1 text-[10px] uppercase tracking-widest text-neon-purple">
+              {MOODS.find((mm) => mm.value === currentMood)?.emoji ?? ""} {currentMood}
+            </span>
+          )}
+        </span>
         <span className="md:hidden">{displayName}</span>
       </button>
 
@@ -124,6 +166,44 @@ export function StatusPicker({
               </button>
             ))}
           </div>
+
+          <p className="mt-4 text-xs uppercase tracking-widest text-white/40">Mood</p>
+          <div className="mt-2 grid grid-cols-3 gap-1.5">
+            {MOODS.map((m) => {
+              const active = mood === m.value;
+              return (
+                <button
+                  key={m.value}
+                  type="button"
+                  onClick={() => setMood(active ? null : m.value)}
+                  className={`flex flex-col items-center gap-0.5 rounded-lg border px-1.5 py-1.5 text-[11px] transition ${
+                    active
+                      ? "border-neon-purple/60 bg-neon-purple/15 text-white"
+                      : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
+                  }`}
+                >
+                  <span aria-hidden className="text-base">{m.emoji}</span>
+                  <span className="capitalize">{m.label}</span>
+                </button>
+              );
+            })}
+          </div>
+          {mood && (
+            <div className="mt-2 flex items-center gap-2 text-[11px] text-white/55">
+              <span>Expires in</span>
+              <select
+                value={moodExpiryMinutes}
+                onChange={(e) => setMoodExpiryMinutes(Number(e.target.value))}
+                className="flex-1 rounded-md border border-white/10 bg-black/30 px-2 py-1 text-xs outline-none focus:border-neon-purple/60"
+              >
+                {MOOD_EXPIRY_CHOICES.map((c) => (
+                  <option key={c.minutes} value={c.minutes}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="mt-3 flex gap-2">
             <button
