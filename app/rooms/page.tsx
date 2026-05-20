@@ -5,7 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Logo, Wordmark } from "@/components/Brand";
 import { SignOutButton } from "@/components/SignOutButton";
 import { AdRails } from "@/components/AdRails";
-import { RoomsClient, JoinPublic } from "./RoomsClient";
+import { RoomsClient } from "./RoomsClient";
 import { SavedRoomButton } from "./SavedRoomButton";
 import { UserSearch } from "./UserSearch";
 import { StoriesStrip, type StoryRow } from "./StoriesStrip";
@@ -131,14 +131,9 @@ export default async function RoomsPage({
     });
   }
 
-  const { data: discoverRaw } = await supabase
-    .from("rooms_browse")
-    .select("id, name, description, visibility, owner_id, member_count")
-    .order("member_count", { ascending: false })
-    .limit(40);
-
-  const memberSet = new Set(memberIds);
-  const discover = ((discoverRaw ?? []) as RoomRow[]).filter((r) => !memberSet.has(r.id));
+  // (The old "Discover rooms" grid has been replaced by the catalog tree —
+  // every public/listed room shows up there, so this query is no longer
+  // needed on the lobby render.)
 
   const missingId = searchParams?.missing;
   const joinNotice = searchParams?.join;
@@ -256,16 +251,6 @@ export default async function RoomsPage({
                 />
               )}
             </DismissibleSection>
-
-            <DismissibleSection id="discover">
-              <section className="surface-glass tint-amber p-5">
-                <div className="mb-3 flex items-baseline justify-between">
-                  <h2 className="font-display text-lg font-semibold">Discover rooms</h2>
-                  <span className="text-xs text-white/40">{discover.length}</span>
-                </div>
-                <RoomList rooms={discover} variant="discover" />
-              </section>
-            </DismissibleSection>
           </div>
 
           <aside className="space-y-5">
@@ -302,14 +287,12 @@ function RoomList({
   variant
 }: {
   rooms: RoomRow[];
-  variant: "member" | "discover";
+  variant: "member";
 }) {
   if (rooms.length === 0) {
     return (
       <p className="text-sm text-white/40">
-        {variant === "member"
-          ? "You haven't joined any rooms yet."
-          : "No rooms to discover yet. Be the first to make one!"}
+        You haven&apos;t joined any rooms yet — browse the catalog below to find your first.
       </p>
     );
   }
@@ -329,19 +312,12 @@ function RoomList({
               <p className="truncate text-xs text-white/50">{r.description}</p>
             )}
           </div>
-          {variant === "member" ? (
-            <Link
-              href={`/rooms/${r.id}`}
-              className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/80 transition hover:bg-white/10 hover:text-white"
-            >
-              Enter →
-            </Link>
-          ) : (
-            <JoinPublic
-              roomId={r.id}
-              visibility={r.visibility === "listed" ? "listed" : "public"}
-            />
-          )}
+          <Link
+            href={`/rooms/${r.id}`}
+            className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/80 transition hover:bg-white/10 hover:text-white"
+          >
+            Enter →
+          </Link>
         </li>
       ))}
     </ul>

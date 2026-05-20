@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -22,6 +21,12 @@ export type Subcategory = {
   position: number;
 };
 
+type CountRow = {
+  category_slug: string;
+  subcategory_slug: string;
+  room_count: number;
+};
+
 type CatalogRow = {
   id: string;
   name: string;
@@ -40,9 +45,14 @@ type CatalogRow = {
 };
 
 /**
- * Yahoo-Chat-style catalog tree. Categories on the left (chips), the
- * selected category's subcategories listed top → official rooms below.
- * Live member counts come from the browse_catalog RPC.
+ * Yahoo-Chat-reborn catalog tree.
+ *
+ * Top level: 20 categories. Click a category → expand subcategories.
+ * Click a subcategory → lazy-load rooms via browse_catalog.
+ * Click a room → join (public) and navigate.
+ *
+ * Counts come from a cheap catalog_counts() roll-up so the initial render
+ * doesn't fetch any rooms.
  */
 export function CategoryBrowser({
   categories,
@@ -53,63 +63,101 @@ export function CategoryBrowser({
 }) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const router = useRouter();
-  const [activeCategory, setActiveCategory] = useState<string | null>(
-    categories[0]?.slug ?? null
-  );
-  const [rooms, setRooms] = useState<CatalogRow[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  const [counts, setCounts] = useState<CountRow[]>([]);
+  const [openCats, setOpenCats] = useState<Set<string>>(new Set());
+  const [openSubs, setOpenSubs] = useState<Set<string>>(new Set());
+  const [roomCache, setRoomCache] = useState<
+    Record<string, CatalogRow[] | "loading">
+  >({});
+  const [filter, setFilter] = useState("");
   const [joining, setJoining] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!activeCategory) return;
-    let cancelled = false;
     (async () => {
-      setLoading(true);
-      setError(null);
-      const { data, error: rpcErr } = await supabase.rpc("browse_catalog", {
-        p_category_slug: activeCategory,
-        p_subcategory_slug: null,
-        p_limit: 300
-      });
-      if (cancelled) return;
-      setLoading(false);
+      const { data, error: rpcErr } = await supabase.rpc("catalog_counts");
       if (rpcErr) {
         setError(rpcErr.message);
         return;
       }
-      setRooms((data ?? []) as CatalogRow[]);
+      setCounts((data ?? []) as CountRow[]);
     })();
-    return () => {
-      cancelled = true;
-    };
-  }, [supabase, activeCategory]);
+  }, [supabase]);
 
-  // Group rooms by subcategory for display.
-  const subsForCategory = useMemo(
-    () =>
-      subcategories
-        .filter((s) => s.category_slug === activeCategory)
-        .sort((a, b) => a.position - b.position),
-    [subcategories, activeCategory]
-  );
-  const grouped = useMemo(() => {
-    const map = new Map<string, CatalogRow[]>();
-    for (const r of rooms) {
-      const list = map.get(r.subcategory_slug) ?? [];
-      list.push(r);
-      map.set(r.subcategory_slug, list);
+  // category-level totals
+  const catTotals = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const c of counts) {
+      map.set(c.category_slug, (map.get(c.category_slug) ?? 0) + c.room_count);
     }
     return map;
-  }, [rooms]);
+  }, [counts]);
+
+  // (cat, sub) → count
+  const subCount = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const c of counts) {
+      map.set(`${c.category_slug}/${c.subcategory_slug}`, c.room_count);
+    }
+    return map;
+  }, [counts]);
+
+  // subcategories indexed by category
+  const subsByCategory = useMemo(() => {
+    const map = new Map<string, Subcategory[]>();
+    for (const s of subcategories) {
+      const list = map.get(s.category_slug) ?? [];
+      list.push(s);
+      map.set(s.category_slug, list);
+    }
+    for (const list of map.values()) list.sort((a, b) => a.position - b.position);
+    return map;
+  }, [subcategories]);
+
+  function toggleCat(slug: string) {
+    setOpenCats((prev) => {
+      const next = new Set(prev);
+      if (next.has(slug)) next.delete(slug);
+      else next.add(slug);
+      return next;
+    });
+  }
+
+  async function toggleSub(catSlug: string, subSlug: string) {
+    const key = `${catSlug}/${subSlug}`;
+    const isOpen = openSubs.has(key);
+    setOpenSubs((prev) => {
+      const next = new Set(prev);
+      if (isOpen) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+    if (!isOpen && !roomCache[key]) {
+      setRoomCache((prev) => ({ ...prev, [key]: "loading" }));
+      const { data, error: rpcErr } = await supabase.rpc("browse_catalog", {
+        p_category_slug: catSlug,
+        p_subcategory_slug: subSlug,
+        p_limit: 200
+      });
+      if (rpcErr) {
+        setError(rpcErr.message);
+        setRoomCache((prev) => {
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        });
+        return;
+      }
+      setRoomCache((prev) => ({ ...prev, [key]: (data ?? []) as CatalogRow[] }));
+    }
+  }
 
   async function enter(room: CatalogRow) {
     if (joining) return;
     setJoining(room.id);
     setError(null);
     if (room.visibility === "public") {
-      // Auto-join then navigate (existing room page also auto-joins, but
-      // doing it here keeps the URL clean).
       const { error: rpcErr } = await supabase.rpc("join_public_room", {
         p_room_id: room.id
       });
@@ -123,37 +171,48 @@ export function CategoryBrowser({
     router.refresh();
   }
 
+  // Search expansion: if filter is non-empty, auto-expand any subcategory
+  // whose loaded rooms match. Initial-render UX: empty filter → user drives
+  // expansion themselves.
+  const filterLower = filter.trim().toLowerCase();
+  function matches(text: string | null | undefined) {
+    if (!filterLower) return true;
+    return (text ?? "").toLowerCase().includes(filterLower);
+  }
+
+  const sortedCategories = useMemo(
+    () => [...categories].sort((a, b) => a.position - b.position),
+    [categories]
+  );
+
   return (
     <section className="surface-glass tint-purple p-5">
-      <div className="mb-3 flex items-baseline justify-between">
-        <h2 className="font-display text-lg font-semibold">Karochat rooms</h2>
+      <div className="mb-3 flex items-baseline justify-between gap-3">
+        <h2 className="font-display text-lg font-semibold">Browse rooms</h2>
         <span className="text-xs text-white/40">
-          Browse · {categories.length} categories
+          {sortedCategories.length} categories ·{" "}
+          {Array.from(catTotals.values()).reduce((a, b) => a + b, 0)} rooms
         </span>
       </div>
 
-      {/* Category chips */}
-      <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-3">
-        {categories.map((c) => {
-          const active = c.slug === activeCategory;
-          return (
-            <button
-              key={c.slug}
-              type="button"
-              onClick={() => setActiveCategory(c.slug)}
-              className={clsx(
-                "shrink-0 rounded-full border px-3 py-1.5 text-xs transition",
-                active
-                  ? "border-neon-purple/60 bg-neon-purple/15 text-white"
-                  : "border-white/10 bg-white/5 text-white/75 hover:bg-white/10"
-              )}
-              title={c.description ?? c.label}
-            >
-              <span aria-hidden className="mr-1">{c.icon ?? "·"}</span>
-              {c.label}
-            </button>
-          );
-        })}
+      <div className="mb-3 flex items-center gap-2 rounded-xl border border-white/10 bg-black/30 px-3 py-2 focus-within:border-neon-purple/60">
+        <span aria-hidden className="text-white/40">🔎</span>
+        <input
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder="Filter loaded rooms by name or topic…"
+          className="flex-1 bg-transparent text-sm outline-none placeholder:text-white/30"
+        />
+        {filter && (
+          <button
+            type="button"
+            onClick={() => setFilter("")}
+            aria-label="Clear"
+            className="text-xs text-white/40 hover:text-white/70"
+          >
+            ✕
+          </button>
+        )}
       </div>
 
       {error && (
@@ -162,79 +221,122 @@ export function CategoryBrowser({
         </p>
       )}
 
-      {/* Subcategory → rooms */}
-      <div className="space-y-4">
-        {loading ? (
-          <p className="text-xs text-white/40">Loading rooms…</p>
-        ) : subsForCategory.length === 0 ? (
-          <p className="text-xs text-white/40">No subcategories here yet.</p>
-        ) : (
-          subsForCategory.map((sub) => {
-            const list = grouped.get(sub.slug) ?? [];
-            if (list.length === 0) return null;
-            return (
-              <SubcategoryBlock
-                key={sub.slug}
-                sub={sub}
-                rooms={list}
-                joining={joining}
-                onEnter={enter}
-              />
-            );
-          })
-        )}
-      </div>
+      <ul className="font-mono text-sm">
+        {sortedCategories.map((cat) => {
+          const total = catTotals.get(cat.slug) ?? 0;
+          const open = openCats.has(cat.slug);
+          const subs = subsByCategory.get(cat.slug) ?? [];
+          return (
+            <li key={cat.slug} className="border-b border-white/5 last:border-b-0">
+              <button
+                type="button"
+                onClick={() => toggleCat(cat.slug)}
+                aria-expanded={open}
+                className="flex w-full items-center gap-2 py-2 text-left transition hover:bg-white/[0.03]"
+              >
+                <span
+                  aria-hidden
+                  className="inline-block w-3 text-white/40"
+                  style={{ fontFamily: "monospace" }}
+                >
+                  {open ? "▾" : "▸"}
+                </span>
+                <span className="text-base">{cat.icon ?? "·"}</span>
+                <span className="font-sans font-medium text-white">{cat.label}</span>
+                <span className="font-mono text-[11px] text-white/40">
+                  · {total} rooms
+                </span>
+              </button>
+              {open && (
+                <ul className="ml-5 border-l border-white/5 pl-3">
+                  {subs.length === 0 ? (
+                    <li className="py-1 font-sans text-[11px] italic text-white/40">
+                      (empty)
+                    </li>
+                  ) : (
+                    subs.map((sub) => {
+                      const key = `${cat.slug}/${sub.slug}`;
+                      const subTotal = subCount.get(key) ?? 0;
+                      if (subTotal === 0) return null;
+                      const subOpen = openSubs.has(key);
+                      const rooms = roomCache[key];
+                      return (
+                        <li
+                          key={sub.slug}
+                          className="border-b border-white/5 last:border-b-0"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => void toggleSub(cat.slug, sub.slug)}
+                            aria-expanded={subOpen}
+                            className="flex w-full items-center gap-2 py-1.5 text-left transition hover:bg-white/[0.03]"
+                          >
+                            <span
+                              aria-hidden
+                              className="inline-block w-3 text-white/40"
+                            >
+                              {subOpen ? "▾" : "▸"}
+                            </span>
+                            <span className="font-sans text-sm text-white/85">
+                              {sub.label}
+                            </span>
+                            <span className="font-mono text-[11px] text-white/40">
+                              · {subTotal}
+                            </span>
+                          </button>
+                          {subOpen && (
+                            <ul className="ml-5 border-l border-white/5 pl-3">
+                              {rooms === undefined || rooms === "loading" ? (
+                                <li className="py-1 font-sans text-[11px] italic text-white/40">
+                                  Loading rooms…
+                                </li>
+                              ) : (
+                                rooms
+                                  .filter(
+                                    (r) =>
+                                      matches(r.name) ||
+                                      matches(r.topic)
+                                  )
+                                  .map((room) => (
+                                    <TreeRoomRow
+                                      key={room.id}
+                                      room={room}
+                                      joining={joining === room.id}
+                                      onEnter={() => enter(room)}
+                                    />
+                                  ))
+                              )}
+                              {rooms !== undefined &&
+                                rooms !== "loading" &&
+                                rooms.filter(
+                                  (r) => matches(r.name) || matches(r.topic)
+                                ).length === 0 &&
+                                filterLower && (
+                                  <li className="py-1 font-sans text-[11px] italic text-white/40">
+                                    No rooms here match &ldquo;{filter}&rdquo;.
+                                  </li>
+                                )}
+                            </ul>
+                          )}
+                        </li>
+                      );
+                    })
+                  )}
+                </ul>
+              )}
+            </li>
+          );
+        })}
+      </ul>
 
       <p className="mt-4 text-[10px] text-white/30">
         ◦ Empty rooms are scaffolding — they populate when people join.
-        ◦ <Link href="/rooms?create=1" className="underline hover:text-white">Create a room</Link> if you don&apos;t see your scene yet.
       </p>
     </section>
   );
 }
 
-function SubcategoryBlock({
-  sub,
-  rooms,
-  joining,
-  onEnter
-}: {
-  sub: Subcategory;
-  rooms: CatalogRow[];
-  joining: string | null;
-  onEnter: (room: CatalogRow) => void;
-}) {
-  const [expanded, setExpanded] = useState(true);
-  return (
-    <div>
-      <button
-        type="button"
-        onClick={() => setExpanded((s) => !s)}
-        className="mb-1 flex w-full items-baseline justify-between rounded-md px-1 py-0.5 text-left hover:bg-white/5"
-        aria-expanded={expanded}
-      >
-        <span className="text-[10px] uppercase tracking-widest text-white/45">
-          {sub.label} · {rooms.length}
-        </span>
-        <span className="text-[10px] text-white/30">{expanded ? "▾" : "▸"}</span>
-      </button>
-      {expanded && (
-        <ul className="divide-y divide-white/5">
-          {rooms.map((r) => (
-            <RoomRow
-              key={r.id}
-              room={r}
-              joining={joining === r.id}
-              onEnter={() => onEnter(r)}
-            />
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-function RoomRow({
+function TreeRoomRow({
   room,
   joining,
   onEnter
@@ -247,67 +349,76 @@ function RoomRow({
   return (
     <li
       className={clsx(
-        "flex items-center justify-between gap-3 py-2",
+        "group flex items-center justify-between gap-2 py-1",
         empty && "opacity-60"
       )}
     >
-      <div className="min-w-0">
-        <p className="flex items-center gap-1.5 truncate text-sm">
-          <span className="truncate text-white">{room.name}</span>
-          <span className="font-mono text-[10px] text-white/45">
-            ({room.member_count})
+      <button
+        type="button"
+        onClick={onEnter}
+        disabled={joining}
+        className="flex min-w-0 flex-1 items-center gap-2 text-left"
+        title={room.topic ?? room.name}
+      >
+        <span
+          aria-hidden
+          className="inline-block w-3 text-white/30 group-hover:text-white/55"
+        >
+          └
+        </span>
+        <span className="truncate font-mono text-[13px] text-white/85 group-hover:text-white">
+          {room.name}
+        </span>
+        <span className="shrink-0 font-mono text-[11px] text-white/45">
+          ({room.member_count})
+        </span>
+        {room.voice_enabled && (
+          <span
+            className="rounded-sm bg-neon-blue/15 px-1 text-[9px] text-neon-blue"
+            title="Voice enabled"
+          >
+            🎙️v
           </span>
-          {room.voice_enabled && (
-            <span
-              className="rounded-sm bg-neon-blue/15 px-1 text-[9px] text-neon-blue"
-              title="Voice enabled"
-            >
-              🎙️v
-            </span>
-          )}
-          {room.cam_enabled && (
-            <span
-              className="rounded-sm bg-neon-amber/15 px-1 text-[9px] text-neon-amber"
-              title="Cam enabled"
-            >
-              📹w
-            </span>
-          )}
-          {room.verified_only && (
-            <span
-              className="rounded-sm bg-neon-purple/15 px-1 text-[9px] uppercase tracking-widest text-neon-purple"
-              title={`Verified ${room.verified_kind ?? ""} only`}
-            >
-              ✓ {room.verified_kind ?? "verified"}
-            </span>
-          )}
-          {room.is_adult && (
-            <span
-              className="rounded-sm bg-neon-red/15 px-1 text-[9px] uppercase tracking-widest text-neon-red"
-              title="Adult — 18+"
-            >
-              18+
-            </span>
-          )}
-          {room.visibility === "listed" && (
-            <span
-              className="rounded-sm bg-white/10 px-1 text-[9px] uppercase tracking-widest text-white/55"
-              title="Listed — request to join"
-            >
-              🔒
-            </span>
-          )}
-        </p>
-        {room.topic && (
-          <p className="truncate text-[11px] text-white/50">{room.topic}</p>
         )}
-      </div>
+        {room.cam_enabled && (
+          <span
+            className="rounded-sm bg-neon-amber/15 px-1 text-[9px] text-neon-amber"
+            title="Cam enabled"
+          >
+            📹w
+          </span>
+        )}
+        {room.verified_only && (
+          <span
+            className="rounded-sm bg-neon-purple/15 px-1 text-[9px] uppercase tracking-widest text-neon-purple"
+            title={`Verified ${room.verified_kind ?? ""} only`}
+          >
+            ✓
+          </span>
+        )}
+        {room.is_adult && (
+          <span
+            className="rounded-sm bg-neon-red/15 px-1 text-[9px] uppercase tracking-widest text-neon-red"
+            title="Adult — 18+"
+          >
+            18+
+          </span>
+        )}
+        {room.visibility === "listed" && (
+          <span
+            className="rounded-sm bg-white/10 px-1 text-[9px] uppercase tracking-widest text-white/55"
+            title="Listed — request to join"
+          >
+            🔒
+          </span>
+        )}
+      </button>
       <button
         type="button"
         onClick={onEnter}
         disabled={joining}
         className={clsx(
-          "shrink-0 rounded-lg border px-3 py-1.5 text-xs transition",
+          "shrink-0 rounded-md border px-2 py-0.5 text-[11px] transition",
           empty
             ? "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
             : "border-neon-blue/30 bg-neon-blue/10 text-neon-blue hover:bg-neon-blue/20"
