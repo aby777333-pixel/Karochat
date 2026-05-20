@@ -43,6 +43,16 @@ export function CallButton({
     };
   }, []);
 
+  // ESC closes the call mode picker.
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
+
   // Show a disabled placeholder if the upstream isn't configured, instead of
   // hiding silently — that way users know calls exist and why this one's off.
   if (available === null) return null;
@@ -79,41 +89,80 @@ export function CallButton({
 
       {menuOpen && (
         <div
-          className="surface-glass absolute right-0 top-full z-30 mt-2 w-48 p-1.5 shadow-xl"
-          onMouseLeave={() => setMenuOpen(false)}
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/80 p-4 backdrop-blur-sm sm:items-center"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setMenuOpen(false);
+          }}
         >
-          <div className="flex items-center justify-between px-2 pb-1">
-            <p className="text-[10px] uppercase tracking-widest text-white/40">
-              Call
-            </p>
-            <button
-              type="button"
-              onClick={() => setMenuOpen(false)}
-              aria-label="Close"
-              title="Close"
-              className="rounded-md border border-white/10 bg-white/5 px-1.5 text-[10px] text-white/60 hover:bg-white/10"
-            >
-              ✕
-            </button>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="call-mode-title"
+            className="surface-glass my-auto w-[min(360px,92vw)] p-5"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 items-start gap-2">
+                <button
+                  type="button"
+                  onClick={() => setMenuOpen(false)}
+                  aria-label="Back"
+                  title="Back"
+                  className="mt-0.5 rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-xs text-white/60 hover:bg-white/10"
+                >
+                  ←
+                </button>
+                <div className="min-w-0">
+                  <p
+                    id="call-mode-title"
+                    className="font-display text-base font-semibold"
+                  >
+                    Start a call in {roomName}
+                  </p>
+                  <p className="mt-0.5 text-xs text-white/55">
+                    Pick voice or video. Others in the room can join in.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMenuOpen(false)}
+                aria-label="Close"
+                title="Close (Esc)"
+                className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-xs text-white/60 hover:bg-white/10"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button
+                onClick={() => {
+                  setMode("audio");
+                  setMenuOpen(false);
+                }}
+                className="flex flex-col items-center gap-1 rounded-xl border border-neon-blue/40 bg-neon-blue/10 px-4 py-4 text-sm text-neon-blue hover:bg-neon-blue/20"
+              >
+                <span aria-hidden className="text-2xl">📞</span>
+                <span>Voice call</span>
+              </button>
+              <button
+                onClick={() => {
+                  setMode("video");
+                  setMenuOpen(false);
+                }}
+                className="flex flex-col items-center gap-1 rounded-xl border border-neon-purple/40 bg-neon-purple/10 px-4 py-4 text-sm text-neon-purple hover:bg-neon-purple/20"
+              >
+                <span aria-hidden className="text-2xl">📹</span>
+                <span>Video call</span>
+              </button>
+            </div>
+
+            {launchError && (
+              <p className="mt-3 rounded-md bg-neon-red/10 px-2 py-1 text-xs text-neon-red">
+                {launchError}
+              </p>
+            )}
           </div>
-          <button
-            onClick={() => {
-              setMode("audio");
-              setMenuOpen(false);
-            }}
-            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm hover:bg-white/10"
-          >
-            <span>📞</span> Voice call
-          </button>
-          <button
-            onClick={() => {
-              setMode("video");
-              setMenuOpen(false);
-            }}
-            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm hover:bg-white/10"
-          >
-            <span>📹</span> Video call
-          </button>
         </div>
       )}
 

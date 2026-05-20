@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { InvitePeoplePicker } from "./InvitePeoplePicker";
 
 type Visibility = "public" | "listed" | "unlisted" | "secret";
 
@@ -275,6 +276,13 @@ export function InviteButton({
                   {error}
                 </p>
               )}
+
+              <div className="mt-4 border-t border-white/10 pt-4">
+                <p className="mb-2 text-[10px] uppercase tracking-widest text-white/40">
+                  Or invite people directly
+                </p>
+                <InvitePeoplePicker roomId={roomId} isOwner={isOwner} />
+              </div>
             </div>
           </div>
         </div>
