@@ -13,7 +13,7 @@ import { DismissibleSection, RestoreHiddenSections } from "./DismissibleSection"
 import { FriendsAndRequests } from "./FriendsList";
 import { InviteFriendsCard } from "./InviteFriendsCard";
 import { CategoryBrowser, type Category, type Subcategory } from "./CategoryBrowser";
-import { UserRoomsBrowser } from "./UserRoomsBrowser";
+// UserRoomsBrowser is now embedded as a tab inside CategoryBrowser.
 import { OwnedRoomDeleteButton } from "./OwnedRoomDeleteButton";
 // import { DailyPrompt } from "./DailyPrompt"; // hidden by request — keep file for re-enable
 
@@ -266,10 +266,6 @@ export default async function RoomsPage({
                   subcategories={subcategories}
                 />
               )}
-            </DismissibleSection>
-
-            <DismissibleSection id="user-rooms">
-              <UserRoomsBrowser />
             </DismissibleSection>
           </div>
 

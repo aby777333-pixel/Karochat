@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { UserRoomsBrowser } from "./UserRoomsBrowser";
 
 export type Category = {
   slug: string;
@@ -64,6 +65,7 @@ export function CategoryBrowser({
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const router = useRouter();
 
+  const [tab, setTab] = useState<"official" | "user">("official");
   const [counts, setCounts] = useState<CountRow[]>([]);
   const [openCats, setOpenCats] = useState<Set<string>>(new Set());
   const [openSubs, setOpenSubs] = useState<Set<string>>(new Set());
@@ -185,43 +187,74 @@ export function CategoryBrowser({
     [categories]
   );
 
+  const totalOfficial = Array.from(catTotals.values()).reduce((a, b) => a + b, 0);
+
   return (
     <section className="surface-glass tint-purple p-5">
       <div className="mb-3 flex items-baseline justify-between gap-3">
         <h2 className="font-display text-lg font-semibold">Browse rooms</h2>
-        <span className="text-xs text-white/40">
-          {sortedCategories.length} categories ·{" "}
-          {Array.from(catTotals.values()).reduce((a, b) => a + b, 0)} rooms
-        </span>
-      </div>
-
-      <div className="mb-3 flex items-center gap-2 rounded-xl border border-white/10 bg-black/30 px-3 py-2 focus-within:border-neon-purple/60">
-        <span aria-hidden className="text-white/40">🔎</span>
-        <input
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          placeholder="Filter loaded rooms by name or topic…"
-          className="flex-1 bg-transparent text-sm outline-none placeholder:text-white/30"
-        />
-        {filter && (
-          <button
-            type="button"
-            onClick={() => setFilter("")}
-            aria-label="Clear"
-            className="text-xs text-white/40 hover:text-white/70"
-          >
-            ✕
-          </button>
+        {tab === "official" && (
+          <span className="text-xs text-white/40">
+            {sortedCategories.length} categories · {totalOfficial} rooms
+          </span>
         )}
       </div>
 
-      {error && (
-        <p className="mb-2 rounded-md bg-neon-red/10 px-2 py-1 text-xs text-neon-red">
-          {error}
-        </p>
+      {/* Yahoo!-style two-tab switcher: Karochat (official) vs User rooms */}
+      <div className="mb-3 -mx-1 flex gap-1 border-b border-white/10 px-1">
+        <TabButton
+          active={tab === "official"}
+          onClick={() => setTab("official")}
+          label="Karochat rooms"
+          hint="The official catalog tree"
+        />
+        <TabButton
+          active={tab === "user"}
+          onClick={() => setTab("user")}
+          label="User rooms"
+          hint="Rooms created by people"
+        />
+      </div>
+
+      {/* USER ROOMS TAB — render the existing UserRoomsBrowser inline.
+          We hide its own outer surface by keeping a wrapper that resets the
+          tint, so the inner card looks at home inside the tabs. */}
+      {tab === "user" && (
+        <div className="-m-5 mt-0 [&>section]:!border-0 [&>section]:!bg-transparent [&>section]:!bg-none [&>section]:!shadow-none">
+          <UserRoomsBrowser />
+        </div>
       )}
 
-      <ul className="font-mono text-sm">
+      {/* OFFICIAL CATALOG TAB — the existing XML-style tree */}
+      {tab === "official" && (
+        <>
+          <div className="mb-3 flex items-center gap-2 rounded-xl border border-white/10 bg-black/30 px-3 py-2 focus-within:border-neon-purple/60">
+            <span aria-hidden className="text-white/40">🔎</span>
+            <input
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              placeholder="Filter loaded rooms by name or topic…"
+              className="flex-1 bg-transparent text-sm outline-none placeholder:text-white/30"
+            />
+            {filter && (
+              <button
+                type="button"
+                onClick={() => setFilter("")}
+                aria-label="Clear"
+                className="text-xs text-white/40 hover:text-white/70"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          {error && (
+            <p className="mb-2 rounded-md bg-neon-red/10 px-2 py-1 text-xs text-neon-red">
+              {error}
+            </p>
+          )}
+
+          <ul className="font-mono text-sm">
         {sortedCategories.map((cat) => {
           const total = catTotals.get(cat.slug) ?? 0;
           const open = openCats.has(cat.slug);
@@ -327,12 +360,42 @@ export function CategoryBrowser({
             </li>
           );
         })}
-      </ul>
+          </ul>
 
-      <p className="mt-4 text-[10px] text-white/30">
-        ◦ Empty rooms are scaffolding — they populate when people join.
-      </p>
+          <p className="mt-4 text-[10px] text-white/30">
+            ◦ Empty rooms are scaffolding — they populate when people join.
+          </p>
+        </>
+      )}
     </section>
+  );
+}
+
+function TabButton({
+  active,
+  label,
+  hint,
+  onClick
+}: {
+  active: boolean;
+  label: string;
+  hint?: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={hint}
+      className={clsx(
+        "-mb-px rounded-t-md border-b-2 px-3 py-1.5 text-sm transition",
+        active
+          ? "border-neon-purple text-white"
+          : "border-transparent text-white/55 hover:text-white"
+      )}
+    >
+      {label}
+    </button>
   );
 }
 

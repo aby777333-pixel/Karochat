@@ -6,28 +6,47 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 /**
  * v5 AA1 — personal invite link. Lazily mints a slug for the current user
  * via get_or_create_invite_slug, builds the full URL, and offers copy/share.
+ * Also shows the v7 personal Meet URL (karochat.co/meet/<handle>) so users
+ * can share a one-tap "open a DM with me" link too.
  */
 export function InviteFriendsCard() {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [slug, setSlug] = useState<string | null>(null);
+  const [handle, setHandle] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<"invite" | "meet" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setBusy(true);
-      const { data, error: rpcErr } = await supabase.rpc(
-        "get_or_create_invite_slug"
-      );
+
+      // Mint / fetch the invite slug.
+      const slugResp = await supabase.rpc("get_or_create_invite_slug");
       if (cancelled) return;
-      setBusy(false);
-      if (rpcErr) {
-        setError(rpcErr.message);
-        return;
+      if (slugResp.error) {
+        setError(slugResp.error.message);
+      } else {
+        setSlug((slugResp.data as string) ?? null);
       }
-      setSlug((data as string) ?? null);
+
+      // Look up caller's username for the personal Meet URL.
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
+      if (user) {
+        const profileResp = await supabase
+          .from("profiles")
+          .select("username")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (!cancelled) {
+          setHandle((profileResp.data as any)?.username ?? null);
+        }
+      }
+
+      if (!cancelled) setBusy(false);
     })();
     return () => {
       cancelled = true;
@@ -38,13 +57,17 @@ export function InviteFriendsCard() {
     slug && typeof window !== "undefined"
       ? `${window.location.origin}/i/${slug}`
       : "";
+  const meetLink =
+    handle && typeof window !== "undefined"
+      ? `${window.location.origin}/meet/${handle}`
+      : "";
 
-  async function copy() {
-    if (!link) return;
+  async function copy(value: string, which: "invite" | "meet") {
+    if (!value) return;
     try {
-      await navigator.clipboard.writeText(link);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      await navigator.clipboard.writeText(value);
+      setCopied(which);
+      setTimeout(() => setCopied(null), 1500);
     } catch {
       // ignore — user can long-press to copy
     }
@@ -63,7 +86,7 @@ export function InviteFriendsCard() {
         // user cancelled
       }
     } else {
-      void copy();
+      void copy(link, "invite");
     }
   }
 
@@ -91,11 +114,11 @@ export function InviteFriendsCard() {
       <div className="mt-3 flex gap-2">
         <button
           type="button"
-          onClick={() => void copy()}
+          onClick={() => void copy(link, "invite")}
           disabled={!link}
           className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/85 hover:bg-white/10 disabled:opacity-50"
         >
-          {copied ? "copied" : "copy link"}
+          {copied === "invite" ? "copied" : "copy link"}
         </button>
         <button
           type="button"
@@ -106,8 +129,37 @@ export function InviteFriendsCard() {
           share
         </button>
       </div>
-      <p className="mt-2 text-[10px] text-white/40">
-        No follower counts, no growth-hacky walls. Just a link that says: you brought them here.
+
+      {/* v7 6.1 — personal Meet URL */}
+      <div className="mt-5 border-t border-white/10 pt-4">
+        <p className="text-[10px] uppercase tracking-widest text-white/40">
+          Or your personal meet link
+        </p>
+        <p className="mt-1 text-[11px] text-white/55">
+          Opens a private chat with you — perfect for bios + dating profiles.
+        </p>
+        <div className="mt-2 flex items-center gap-2 rounded-xl border border-white/10 bg-black/30 px-3 py-2">
+          <span aria-hidden className="text-white/40">📞</span>
+          <span
+            className="flex-1 select-all truncate font-mono text-xs text-white/85"
+            title={meetLink || ""}
+          >
+            {handle === null ? "Loading…" : meetLink || "—"}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => void copy(meetLink, "meet")}
+          disabled={!meetLink}
+          className="mt-2 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/85 hover:bg-white/10 disabled:opacity-50"
+        >
+          {copied === "meet" ? "copied" : "copy meet link"}
+        </button>
+      </div>
+
+      <p className="mt-3 text-[10px] text-white/40">
+        No follower counts, no growth-hacky walls. Just two links that say:
+        come find me.
       </p>
     </section>
   );

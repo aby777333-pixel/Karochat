@@ -113,6 +113,7 @@ export function RoomChat({
     }
   }, [draft, draftStorageKey]);
   const [intentMenuOpen, setIntentMenuOpen] = useState(false);
+  const [lightsOut, setLightsOut] = useState(false);
   const [replyTo, setReplyTo] = useState<MessageRow | null>(null);
   const [editing, setEditing] = useState<{ id: string; content: string } | null>(null);
   const [sending, setSending] = useState(false);
@@ -558,8 +559,9 @@ export function RoomChat({
   return (
     <section
       className={clsx(
-        "surface-glass tint-blue mt-3 flex flex-1 flex-col overflow-hidden",
-        shaking && "animate-nudgeShake"
+        "surface-glass tint-blue mt-3 flex flex-1 flex-col overflow-hidden transition-[filter,opacity] duration-700",
+        shaking && "animate-nudgeShake",
+        lightsOut && "[filter:brightness(0.55)_saturate(0.8)]"
       )}
     >
       <div className="flex items-center justify-between border-b border-white/5 px-4 py-2 text-xs text-white/50">
@@ -567,7 +569,28 @@ export function RoomChat({
           <PresenceDot state="online" pulse />
           <span>{onlineCount} here now</span>
         </div>
-        <span className="font-mono uppercase tracking-widest">realtime</span>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setLightsOut((s) => !s)}
+            aria-pressed={lightsOut}
+            title={
+              lightsOut
+                ? "Turn the lights back on"
+                : "Lights out — slow, intimate mode for this session"
+            }
+            aria-label="Toggle lights-out mode"
+            className={clsx(
+              "rounded-md border px-2 py-0.5 text-[10px] uppercase tracking-widest transition",
+              lightsOut
+                ? "border-neon-amber/40 bg-neon-amber/10 text-neon-amber"
+                : "border-white/10 bg-white/5 text-white/55 hover:bg-white/10"
+            )}
+          >
+            {lightsOut ? "🕯 lights out" : "🕯 lights"}
+          </button>
+          <span className="font-mono uppercase tracking-widest">realtime</span>
+        </div>
       </div>
 
       <div

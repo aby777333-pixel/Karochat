@@ -41,6 +41,8 @@ export function StatusPicker({
   currentEmoji,
   currentMood,
   currentMoodExpiresAt,
+  currentTravelCity,
+  currentTravelUntil,
   displayName
 }: {
   currentState: PresenceState | string;
@@ -48,6 +50,8 @@ export function StatusPicker({
   currentEmoji: string | null;
   currentMood?: string | null;
   currentMoodExpiresAt?: string | null;
+  currentTravelCity?: string | null;
+  currentTravelUntil?: string | null;
   displayName: string;
 }) {
   const router = useRouter();
@@ -59,8 +63,14 @@ export function StatusPicker({
   const [text, setText] = useState(currentText ?? "");
   const [mood, setMood] = useState<string | null>(currentMood ?? null);
   const [moodExpiryMinutes, setMoodExpiryMinutes] = useState<number>(240);
+  const [travelCity, setTravelCity] = useState<string>(currentTravelCity ?? "");
+  const [travelDays, setTravelDays] = useState<number>(7);
   const [pending, startTransition] = useTransition();
   const ref = useRef<HTMLDivElement>(null);
+
+  const travelActive =
+    !!currentTravelCity &&
+    (!currentTravelUntil || new Date(currentTravelUntil) > new Date());
 
   const moodPreset = MOODS.find((m) => m.value === mood);
   const moodActive =
@@ -88,6 +98,15 @@ export function StatusPicker({
         p_mood: mood,
         p_expires_in_minutes: mood ? moodExpiryMinutes : 0
       });
+      const cleanCity = travelCity.trim();
+      const until =
+        cleanCity && travelDays > 0
+          ? new Date(Date.now() + travelDays * 24 * 60 * 60 * 1000).toISOString()
+          : null;
+      await supabase.rpc("set_travel", {
+        p_city: cleanCity || null,
+        p_until_iso: until
+      });
       setOpen(false);
       router.refresh();
     });
@@ -113,6 +132,11 @@ export function StatusPicker({
           {moodActive && (
             <span className="ml-1.5 rounded-sm bg-neon-purple/20 px-1 text-[10px] uppercase tracking-widest text-neon-purple">
               {MOODS.find((mm) => mm.value === currentMood)?.emoji ?? ""} {currentMood}
+            </span>
+          )}
+          {travelActive && (
+            <span className="ml-1.5 rounded-sm bg-neon-amber/20 px-1 text-[10px] uppercase tracking-widest text-neon-amber">
+              🧳 {currentTravelCity}
             </span>
           )}
         </span>
@@ -201,6 +225,49 @@ export function StatusPicker({
                     {c.label}
                   </option>
                 ))}
+              </select>
+            </div>
+          )}
+
+          <p className="mt-4 text-xs uppercase tracking-widest text-white/40">
+            Travel mode
+          </p>
+          <p className="mt-1 text-[11px] text-white/45">
+            Show up in a city&apos;s rooms while you&apos;re visiting.
+          </p>
+          <div className="mt-2 flex items-center gap-2 rounded-xl border border-white/10 bg-black/30 px-2">
+            <span aria-hidden className="text-white/40">🧳</span>
+            <input
+              value={travelCity}
+              onChange={(e) => setTravelCity(e.target.value.slice(0, 60))}
+              placeholder="visiting Chennai…"
+              className="flex-1 bg-transparent py-2 text-sm outline-none placeholder:text-white/30"
+            />
+            {travelCity && (
+              <button
+                type="button"
+                onClick={() => setTravelCity("")}
+                aria-label="Clear travel city"
+                className="text-xs text-white/40 hover:text-white/70"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+          {travelCity && (
+            <div className="mt-2 flex items-center gap-2 text-[11px] text-white/55">
+              <span>For</span>
+              <select
+                value={travelDays}
+                onChange={(e) => setTravelDays(Number(e.target.value))}
+                className="flex-1 rounded-md border border-white/10 bg-black/30 px-2 py-1 text-xs outline-none focus:border-neon-amber/60"
+              >
+                <option value={1}>1 day</option>
+                <option value={3}>3 days</option>
+                <option value={7}>a week</option>
+                <option value={14}>2 weeks</option>
+                <option value={30}>a month</option>
+                <option value={0}>until I clear it</option>
               </select>
             </div>
           )}

@@ -18,6 +18,8 @@ type Member = {
   role: string | null;
   mood?: string | null;
   mood_expires_at?: string | null;
+  traveling_in_city?: string | null;
+  traveling_until?: string | null;
 };
 
 const MOOD_EMOJI: Record<string, string> = {
@@ -36,6 +38,12 @@ function moodLive(m: Member) {
   if (!m.mood) return null;
   if (m.mood_expires_at && new Date(m.mood_expires_at) <= new Date()) return null;
   return m.mood;
+}
+
+function travelLive(m: Member) {
+  if (!m.traveling_in_city) return null;
+  if (m.traveling_until && new Date(m.traveling_until) <= new Date()) return null;
+  return m.traveling_in_city;
 }
 
 export function MemberList({
@@ -169,6 +177,14 @@ export function MemberList({
                     {moodLive(m) && (
                       <span className="ml-1 rounded-sm bg-neon-purple/15 px-1 text-[9px] uppercase tracking-widest text-neon-purple">
                         {MOOD_EMOJI[moodLive(m)!] ?? "·"} {moodLive(m)}
+                      </span>
+                    )}
+                    {travelLive(m) && (
+                      <span
+                        className="ml-1 rounded-sm bg-neon-amber/15 px-1 text-[9px] uppercase tracking-widest text-neon-amber"
+                        title={`Visiting ${travelLive(m)}`}
+                      >
+                        🧳 {travelLive(m)}
                       </span>
                     )}
                   </p>
