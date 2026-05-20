@@ -9,7 +9,7 @@ type NotifyMessage = {
   sender_username: string | null;
   content: string | null;
   image_url: string | null;
-  type: "text" | "image" | "nudge" | "system";
+  type: "text" | "image" | "nudge" | "system" | "poll";
   created_at: string;
 };
 

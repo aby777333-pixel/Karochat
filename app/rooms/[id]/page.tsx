@@ -14,6 +14,7 @@ import { CopyCode } from "./CopyCode";
 import { LeaveRoomButton } from "./LeaveRoomButton";
 import { MemberList } from "./MemberList";
 import { InviteButton } from "./InviteButton";
+import { RoomRulesPanel } from "./RoomRulesPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -61,7 +62,7 @@ export default async function RoomPage({
 
   const roomResp = await supabase
     .from("rooms")
-    .select("id, name, description, is_public, invite_code, owner_id, is_dm, is_saved")
+    .select("id, name, description, is_public, invite_code, owner_id, is_dm, is_saved, rules_markdown")
     .eq("id", params.id)
     .maybeSingle();
   const room = roomResp.data as
@@ -74,6 +75,7 @@ export default async function RoomPage({
         owner_id: string | null;
         is_dm: boolean | null;
         is_saved: boolean | null;
+        rules_markdown: string | null;
       }
     | null;
   if (!room) {
@@ -88,7 +90,7 @@ export default async function RoomPage({
 
   const { data: membership } = await supabase
     .from("room_members")
-    .select("role")
+    .select("role, rules_acknowledged_at")
     .eq("room_id", room.id)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -230,6 +232,17 @@ export default async function RoomPage({
               roomName={headerName}
               initialCode={room.invite_code ?? null}
               isOwner={isOwner}
+            />
+          )}
+          {!room.is_dm && !room.is_saved && (
+            <RoomRulesPanel
+              roomId={room.id}
+              roomName={headerName}
+              isOwner={isOwner}
+              initialRules={room.rules_markdown ?? null}
+              initiallyAcknowledged={
+                !!(membership as any)?.rules_acknowledged_at
+              }
             />
           )}
           <CallButton roomId={room.id} roomName={room.name} />

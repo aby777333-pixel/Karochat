@@ -30,11 +30,14 @@ const TRANSLATE_LANGS = [
   "Spanish", "Portuguese", "French", "German", "Japanese", "Korean", "Mandarin", "Arabic"
 ];
 
+type PollOption = { text: string; votes: string[] };
+type PollData = { question: string; options: PollOption[] };
+
 type MessageRow = {
   id: string;
   room_id: string;
   sender_id: string;
-  type: "text" | "image" | "nudge" | "system";
+  type: "text" | "image" | "nudge" | "system" | "poll";
   content: string | null;
   image_url: string | null;
   reply_to_id: string | null;
@@ -42,6 +45,8 @@ type MessageRow = {
   deleted_at: string | null;
   reactions: Record<string, string[]> | null;
   intent: string | null;
+  regretted_at: string | null;
+  poll_data: PollData | null;
   created_at: string;
   sender_username: string | null;
   sender_display_name: string | null;
@@ -172,7 +177,9 @@ export function RoomChat({
                     image_url: m.image_url,
                     reactions: m.reactions,
                     edited_at: m.edited_at,
-                    deleted_at: m.deleted_at
+                    deleted_at: m.deleted_at,
+                    regretted_at: m.regretted_at,
+                    poll_data: m.poll_data
                   }
                 : x
             )
@@ -230,6 +237,39 @@ export function RoomChat({
   async function sendText() {
     const text = draft.trim();
     if (!text || sending) return;
+
+    // /poll question | option 1 | option 2 | ... → publish as a poll message.
+    if (text.toLowerCase().startsWith("/poll ")) {
+      const rest = text.slice("/poll ".length);
+      const parts = rest.split("|").map((p) => p.trim()).filter(Boolean);
+      if (parts.length < 3) {
+        setError("Use /poll question | option 1 | option 2 (add more options after).");
+        return;
+      }
+      const question = parts[0]!;
+      const options = parts.slice(1, 9).map((text) => ({ text, votes: [] as string[] }));
+      setSending(true);
+      setError(null);
+      const { error: insertErr } = await supabase.from("messages").insert({
+        sender_id: currentUserId,
+        room_id: roomId,
+        content: question,
+        reply_to_id: replyTo?.id ?? null,
+        intent: intentChoice,
+        type: "poll",
+        poll_data: { question, options } as any
+      });
+      setSending(false);
+      if (insertErr) {
+        setError(insertErr.message);
+        return;
+      }
+      setDraft("");
+      setReplyTo(null);
+      setIntentChoice(null);
+      return;
+    }
+
     setSending(true);
     setError(null);
     const { error: insertErr } = await supabase.from("messages").insert({
@@ -248,6 +288,38 @@ export function RoomChat({
     setDraft("");
     setReplyTo(null);
     setIntentChoice(null);
+  }
+
+  async function castPollVote(messageId: string, optionIndex: number) {
+    setError(null);
+    // Optimistic toggle: clear caller from all options, set on the chosen one
+    // (or none if same option clicked again to un-vote).
+    setMessages((prev) =>
+      prev.map((msg) => {
+        if (msg.id !== messageId || !msg.poll_data) return msg;
+        const currentIndex = msg.poll_data.options.findIndex((o) =>
+          o.votes.includes(currentUserId)
+        );
+        const target = currentIndex === optionIndex ? -1 : optionIndex;
+        const newOptions = msg.poll_data.options.map((o, i) => ({
+          ...o,
+          votes:
+            i === target
+              ? Array.from(new Set([...o.votes, currentUserId]))
+              : o.votes.filter((v) => v !== currentUserId)
+        }));
+        return { ...msg, poll_data: { ...msg.poll_data, options: newOptions } };
+      })
+    );
+    const current = messages.find((m) => m.id === messageId);
+    const currentIndex =
+      current?.poll_data?.options.findIndex((o) => o.votes.includes(currentUserId)) ?? -1;
+    const target = currentIndex === optionIndex ? -1 : optionIndex;
+    const { error: rpcErr } = await supabase.rpc("cast_poll_vote", {
+      p_message_id: messageId,
+      p_option_index: target
+    });
+    if (rpcErr) setError(rpcErr.message);
   }
 
   async function sendImage(file: File) {
@@ -362,6 +434,20 @@ export function RoomChat({
     if (updErr) setError(updErr.message);
   }
 
+  async function markRegretted(messageId: string) {
+    if (
+      !confirm(
+        "Mark this message as regretted? Everyone will see a note that you'd phrase it differently — the original stays visible."
+      )
+    )
+      return;
+    const { error: updErr } = await supabase
+      .from("messages")
+      .update({ regretted_at: new Date().toISOString() })
+      .eq("id", messageId);
+    if (updErr) setError(updErr.message);
+  }
+
   function jumpToMessage(id: string) {
     const el = messageRefs.current.get(id);
     if (el) {
@@ -438,6 +524,8 @@ export function RoomChat({
             onCancelEdit={() => setEditing(null)}
             onSaveEdit={saveEdit}
             onDelete={softDelete}
+            onRegret={markRegretted}
+            onPollVote={castPollVote}
             onReply={(msg) => setReplyTo(msg)}
             onReact={toggleReaction}
             onJump={jumpToMessage}
@@ -606,7 +694,10 @@ export function RoomChat({
           </Button>
         </div>
         <p className="mt-1.5 px-1 text-[10px] text-white/30">
-          Enter to send · Shift+Enter for newline · 📎 share · ⚡ nudge · paste images
+          Enter to send · Shift+Enter for newline · 📎 share · ⚡ nudge · paste images ·{" "}
+          <code className="rounded bg-white/5 px-1 text-white/40">
+            /poll question | option | option
+          </code>
         </p>
       </div>
     </section>
@@ -626,6 +717,8 @@ function MessageBubble({
   onCancelEdit,
   onSaveEdit,
   onDelete,
+  onRegret,
+  onPollVote,
   onReply,
   onReact,
   onJump,
@@ -643,6 +736,8 @@ function MessageBubble({
   onCancelEdit: () => void;
   onSaveEdit: () => void | Promise<void>;
   onDelete: (id: string) => void | Promise<void>;
+  onRegret: (id: string) => void | Promise<void>;
+  onPollVote: (id: string, optionIndex: number) => void | Promise<void>;
   onReply: (m: MessageRow) => void;
   onReact: (id: string, emoji: string) => void | Promise<void>;
   onJump: (id: string) => void;
@@ -685,6 +780,71 @@ function MessageBubble({
         <span className="rounded-full border border-neon-red/40 bg-neon-red/10 px-3 py-1 text-xs text-neon-red">
           ⚡ {m.sender_display_name ?? m.sender_username ?? "Someone"} sent a nudge
         </span>
+      </div>
+    );
+  }
+
+  // Poll: centered card with voteable options.
+  if (m.type === "poll" && m.poll_data) {
+    const data = m.poll_data;
+    const totalVotes = data.options.reduce((acc, o) => acc + o.votes.length, 0);
+    const myChoice = data.options.findIndex((o) => o.votes.includes(currentUserId));
+    return (
+      <div
+        ref={(el) => registerRef(m.id, el)}
+        className="flex animate-rise justify-center"
+      >
+        <div className="w-full max-w-md rounded-2xl border border-neon-purple/30 bg-white/5 p-3.5 shadow-sm">
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="text-[10px] uppercase tracking-widest text-neon-purple">
+              📊 Poll · {m.sender_display_name ?? m.sender_username ?? "someone"}
+            </p>
+            <p className="text-[10px] text-white/40">
+              {totalVotes} vote{totalVotes === 1 ? "" : "s"}
+            </p>
+          </div>
+          <p className="mt-1.5 text-sm font-medium text-white">{data.question}</p>
+          <ul className="mt-2 space-y-1.5">
+            {data.options.map((opt, i) => {
+              const count = opt.votes.length;
+              const pct = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
+              const isMine = myChoice === i;
+              return (
+                <li key={i}>
+                  <button
+                    type="button"
+                    onClick={() => void onPollVote(m.id, i)}
+                    aria-pressed={isMine}
+                    className={clsx(
+                      "relative w-full overflow-hidden rounded-lg border px-3 py-1.5 text-left text-sm transition",
+                      isMine
+                        ? "border-neon-purple/60 bg-neon-purple/15 text-white"
+                        : "border-white/10 bg-black/20 text-white/85 hover:bg-white/10"
+                    )}
+                  >
+                    <span
+                      aria-hidden
+                      className={clsx(
+                        "absolute inset-y-0 left-0 transition-[width]",
+                        isMine ? "bg-neon-purple/25" : "bg-white/10"
+                      )}
+                      style={{ width: `${pct}%` }}
+                    />
+                    <span className="relative flex items-center justify-between gap-2">
+                      <span className="truncate">{opt.text}</span>
+                      <span className="shrink-0 font-mono text-[11px] text-white/60">
+                        {count} · {pct}%
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="mt-2 text-[10px] text-white/30">
+            Tap an option to vote · tap again to clear · everyone sees who voted what.
+          </p>
+        </div>
       </div>
     );
   }
@@ -786,6 +946,16 @@ function MessageBubble({
                 title="Edit"
               >
                 ✎
+              </button>
+            )}
+            {mine && !m.regretted_at && (
+              <button
+                onClick={() => void onRegret(m.id)}
+                className="rounded px-1.5 py-0.5 text-xs hover:bg-white/10"
+                aria-label="Mark as regretted"
+                title="I wish I'd phrased this differently"
+              >
+                😔
               </button>
             )}
             {mine && (
@@ -932,6 +1102,16 @@ function MessageBubble({
                     </span>
                   )}
                 </div>
+                {m.regretted_at && (
+                  <p
+                    className={clsx(
+                      "mt-1 rounded-xl border border-dashed border-neon-amber/40 bg-neon-amber/5 px-3 py-1 text-[11px] italic",
+                      mine ? "self-end text-neon-amber/90" : "text-neon-amber/90"
+                    )}
+                  >
+                    😔 the sender wishes they'd phrased this differently
+                  </p>
+                )}
                 {(translating || translation || translateError) && (
                   <div
                     className={clsx(

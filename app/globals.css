@@ -51,3 +51,27 @@ body::before {
 .scroll-thin::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 8px; }
 .scroll-thin::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.16); }
 .scroll-thin::-webkit-scrollbar-track { background: transparent; }
+
+/* Respect prefers-reduced-motion: kill the loud animations (shake, rise,
+   radial pulse, shimmer) and downgrade the nudge to a soft border pulse so
+   incoming nudges are still visible without slamming the window around. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .animate-nudgeShake { animation: none !important; }
+  .animate-nudgePulse {
+    animation: none !important;
+    box-shadow: 0 0 0 2px rgba(255, 45, 85, 0.55) inset;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .animate-rise { animation: none !important; opacity: 1 !important; transform: none !important; }
+  .animate-pulseDot { animation: none !important; }
+  .animate-shimmer  { animation: none !important; }
+}
