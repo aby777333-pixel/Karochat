@@ -15,6 +15,7 @@ import { InviteFriendsCard } from "./InviteFriendsCard";
 import { CategoryBrowser, type Category, type Subcategory } from "./CategoryBrowser";
 // UserRoomsBrowser is now embedded as a tab inside CategoryBrowser.
 import { OwnedRoomDeleteButton } from "./OwnedRoomDeleteButton";
+import { MoodMatchedRooms } from "./MoodMatchedRooms";
 // import { DailyPrompt } from "./DailyPrompt"; // hidden by request — keep file for re-enable
 
 export const dynamic = "force-dynamic";
@@ -259,6 +260,10 @@ export default async function RoomsPage({
               </section>
             </DismissibleSection>
 
+            <DismissibleSection id="mood-matched">
+              <MoodMatchedRooms />
+            </DismissibleSection>
+
             <DismissibleSection id="catalog">
               {categories.length > 0 && (
                 <CategoryBrowser
@@ -273,6 +278,31 @@ export default async function RoomsPage({
             <DismissibleSection id="search">
               <UserSearch />
             </DismissibleSection>
+
+            <DismissibleSection id="quick-actions">
+              <section className="surface-glass tint-amber p-4 text-sm">
+                <p className="text-[10px] uppercase tracking-widest text-white/40">
+                  Spontaneous
+                </p>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <Link
+                    href="/meet/now"
+                    className="rounded-xl bg-neon-amber/15 px-3 py-2 text-center text-xs font-medium text-neon-amber hover:bg-neon-amber/25"
+                    title="5-minute random one-on-one"
+                  >
+                    ⚡ Meet now
+                  </Link>
+                  <Link
+                    href="/handshake"
+                    className="rounded-xl bg-neon-mint/15 px-3 py-2 text-center text-xs font-medium text-neon-mint hover:bg-neon-mint/25"
+                    title="Bump phones to become DM buddies"
+                  >
+                    🤝 Handshake
+                  </Link>
+                </div>
+              </section>
+            </DismissibleSection>
+
             <DismissibleSection id="invite-friends">
               <InviteFriendsCard />
             </DismissibleSection>

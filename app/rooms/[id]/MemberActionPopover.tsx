@@ -46,7 +46,7 @@ export function MemberActionPopover({
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const ref = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState<
-    null | "dm" | "invite-here" | "load-rooms" | "invite-to" | "vibe" | "friend"
+    null | "dm" | "vault" | "invite-here" | "load-rooms" | "invite-to" | "vibe" | "friend"
   >(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -252,6 +252,20 @@ export function MemberActionPopover({
     onNavigate(data as string);
   }
 
+  async function openVaultDM() {
+    setBusy("vault");
+    setError(null);
+    const { data, error: rpcErr } = await supabase.rpc("create_vault_dm", {
+      p_other: target.user_id
+    });
+    setBusy(null);
+    if (rpcErr || !data) {
+      setError(rpcErr?.message ?? "Could not open vault.");
+      return;
+    }
+    onNavigate(data as string);
+  }
+
   async function inviteToThisRoom() {
     setBusy("invite-here");
     setError(null);
@@ -343,6 +357,17 @@ export function MemberActionPopover({
       >
         <span aria-hidden>💬</span>
         <span>{busy === "dm" ? "Opening…" : "Send private message"}</span>
+      </button>
+
+      <button
+        type="button"
+        onClick={() => void openVaultDM()}
+        disabled={busy !== null}
+        className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-neon-purple hover:bg-neon-purple/10 disabled:opacity-50"
+        title="End-to-end encrypted DM"
+      >
+        <span aria-hidden>🔐</span>
+        <span>{busy === "vault" ? "Opening…" : "Open vault (E2EE)"}</span>
       </button>
 
       {friendState === "none" && (

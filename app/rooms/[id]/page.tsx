@@ -62,7 +62,7 @@ export default async function RoomPage({
 
   const roomResp = await supabase
     .from("rooms")
-    .select("id, name, description, is_public, invite_code, owner_id, is_dm, is_saved, rules_markdown, visibility")
+    .select("id, name, description, is_public, invite_code, owner_id, is_dm, is_saved, is_vault, rules_markdown, visibility, parent_room_id, recording_started_at")
     .eq("id", params.id)
     .maybeSingle();
   const room = roomResp.data as
@@ -75,8 +75,11 @@ export default async function RoomPage({
         owner_id: string | null;
         is_dm: boolean | null;
         is_saved: boolean | null;
+        is_vault: boolean | null;
         rules_markdown: string | null;
         visibility: "public" | "listed" | "unlisted" | "secret";
+        parent_room_id: string | null;
+        recording_started_at: string | null;
       }
     | null;
   if (!room) {
@@ -206,6 +209,7 @@ export default async function RoomPage({
   const dmPartner = room.is_dm
     ? ((initialMembers as any[]) ?? []).find((m) => m.user_id !== profile.id) ?? null
     : null;
+  const vaultPeerId = (room.is_vault && dmPartner?.user_id) || null;
   const headerName = dmPartner
     ? dmPartner.display_name ?? dmPartner.username ?? "Direct Message"
     : room.name;
@@ -324,6 +328,13 @@ export default async function RoomPage({
             currentDisplayName={profile.display_name}
             currentPresence={presenceState}
             currentAutoTranslate={(profile as any).auto_translate_to ?? null}
+            isVault={!!room.is_vault}
+            vaultPeerId={vaultPeerId}
+            parentRoomId={room.parent_room_id}
+            recordingStartedAt={room.recording_started_at}
+            isOwner={isOwner}
+            isDm={!!room.is_dm}
+            isSaved={!!room.is_saved}
             initialMessages={(initialMessages as any[]) ?? []}
           />
         </div>

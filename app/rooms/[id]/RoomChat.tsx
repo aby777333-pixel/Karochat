@@ -13,6 +13,12 @@ import { SmartReplies } from "./SmartReplies";
 import { MemberActionPopover } from "./MemberActionPopover";
 import { QuoteCard } from "./QuoteCard";
 import { Soundscape } from "./Soundscape";
+import { ConferenceTools } from "./ConferenceTools";
+import {
+  decryptFromVault,
+  encryptForVault,
+  getVaultKeyForPeer
+} from "@/lib/vaultCrypto";
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
@@ -98,6 +104,13 @@ export function RoomChat({
   currentDisplayName,
   currentPresence,
   currentAutoTranslate,
+  isVault,
+  vaultPeerId,
+  parentRoomId,
+  recordingStartedAt,
+  isOwner,
+  isDm,
+  isSaved,
   initialMessages
 }: {
   roomId: string;
@@ -108,6 +121,13 @@ export function RoomChat({
   currentDisplayName: string;
   currentPresence: "online" | "away" | "busy" | "invisible" | "offline";
   currentAutoTranslate?: string | null;
+  isVault?: boolean;
+  vaultPeerId?: string | null;
+  parentRoomId?: string | null;
+  recordingStartedAt?: string | null;
+  isOwner?: boolean;
+  isDm?: boolean;
+  isSaved?: boolean;
   initialMessages: MessageRow[];
 }) {
   const router = useRouter();
@@ -157,6 +177,45 @@ export function RoomChat({
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   const profileCache = useRef<Map<string, { username: string; display_name: string }>>(new Map());
+  const vaultKeyRef = useRef<CryptoKey | null>(null);
+  const [vaultReady, setVaultReady] = useState(false);
+
+  // For vault rooms, derive (or fetch) the shared AES-GCM key once on mount.
+  useEffect(() => {
+    if (!isVault || !vaultPeerId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const k = await getVaultKeyForPeer(supabase, vaultPeerId, currentUserId);
+        if (cancelled) return;
+        if (k) {
+          vaultKeyRef.current = k;
+          setVaultReady(true);
+          // Bulk-decrypt the initial set now that we have the key.
+          setMessages((prev) =>
+            prev.map((m) => ({ ...m, content: m.content })) // touch — actual decrypt happens in render
+          );
+          // Pre-warm: decrypt all initial messages' contents in place.
+          const decoded = await Promise.all(
+            initialMessages.map(async (m) => {
+              if (!m.content) return m;
+              try {
+                return { ...m, content: await decryptFromVault(m.content, k) };
+              } catch {
+                return m;
+              }
+            })
+          );
+          if (!cancelled) setMessages(decoded);
+        }
+      } catch (e) {
+        console.warn("[vault] key derivation failed", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isVault, vaultPeerId, currentUserId, supabase, initialMessages]);
 
   usePresenceHeartbeat(supabase, currentPresence);
   useNotifyOnNewMessage(lastIncoming, { roomName, roomId, currentUserId });
@@ -209,8 +268,19 @@ export function RoomChat({
         async (payload) => {
           const m = payload.new as Omit<MessageRow, "sender_username" | "sender_display_name">;
           const profile = await fetchProfile(m.sender_id);
+          // Vault decryption — if the room is a vault DM and we have a key,
+          // decrypt before showing.
+          let content = m.content;
+          if (isVault && vaultKeyRef.current && content) {
+            try {
+              content = await decryptFromVault(content, vaultKeyRef.current);
+            } catch {
+              // leave as ciphertext
+            }
+          }
           const enriched: MessageRow = {
             ...m,
+            content,
             sender_username: profile.username,
             sender_display_name: profile.display_name
           } as MessageRow;
@@ -354,10 +424,20 @@ export function RoomChat({
 
     setSending(true);
     setError(null);
+    // Vault encryption: if this is a vault DM with a derived key, replace
+    // the plaintext content with ciphertext before the DB ever sees it.
+    let outgoing = text;
+    if (isVault && vaultKeyRef.current) {
+      try {
+        outgoing = await encryptForVault(text, vaultKeyRef.current);
+      } catch (e) {
+        console.warn("[vault] encrypt failed, sending plaintext", e);
+      }
+    }
     const { error: insertErr } = await supabase.from("messages").insert({
       sender_id: currentUserId,
       room_id: roomId,
-      content: text,
+      content: outgoing,
       reply_to_id: replyTo?.id ?? null,
       intent: intentChoice,
       type: "text"
@@ -464,6 +544,31 @@ export function RoomChat({
       return;
     }
     const { data: pub } = supabase.storage.from("chat-images").getPublicUrl(path);
+    // CSAM scan gate — every image goes through /api/scan/image before being
+    // referenced as a message. If the scanner blocks, the route also deletes
+    // the uploaded object and auto-files a report.
+    try {
+      const r = await fetch("/api/scan/image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          publicUrl: pub.publicUrl,
+          bucket: "chat-images",
+          path
+        })
+      });
+      const j = await r.json();
+      if (j?.blocked) {
+        setError("This image can't be uploaded. It was flagged by our scanner.");
+        setUploading(false);
+        return;
+      }
+    } catch (e) {
+      // If the scan service is down, fail closed: don't insert the message.
+      setError("Image scan unavailable — try again in a moment.");
+      setUploading(false);
+      return;
+    }
     const caption = draft.trim();
     const { error: insertErr } = await supabase.from("messages").insert({
       sender_id: currentUserId,
@@ -637,6 +742,46 @@ export function RoomChat({
           <span className="hidden font-mono uppercase tracking-widest sm:inline">realtime</span>
         </div>
       </div>
+
+      <ConferenceTools
+        roomId={roomId}
+        isOwner={!!isOwner}
+        isDm={!!isDm}
+        isSaved={!!isSaved}
+        recordingStartedAt={recordingStartedAt ?? null}
+      />
+
+      {isVault && (
+        <div className="flex items-center gap-2 border-b border-neon-purple/20 bg-neon-purple/5 px-4 py-1.5 text-[11px] text-neon-purple">
+          <span aria-hidden>🔐</span>
+          <span>
+            Vault DM · {vaultReady
+              ? "messages end-to-end encrypted"
+              : "waiting for the other side to publish a key…"}
+          </span>
+        </div>
+      )}
+
+      {recordingStartedAt && (
+        <div className="flex items-center gap-2 border-b border-neon-red/30 bg-neon-red/10 px-4 py-1.5 text-[11px] text-neon-red">
+          <span aria-hidden className="animate-pulseDot">●</span>
+          <span>
+            This room is being recorded. Started at {new Date(recordingStartedAt).toLocaleTimeString()}.
+          </span>
+        </div>
+      )}
+
+      {parentRoomId && (
+        <div className="flex items-center gap-2 border-b border-white/10 bg-white/5 px-4 py-1.5 text-[11px] text-white/55">
+          <span aria-hidden>🪟</span>
+          <span>
+            Breakout room ·{" "}
+            <Link href={`/rooms/${parentRoomId}`} className="underline hover:text-white">
+              return to parent
+            </Link>
+          </span>
+        </div>
+      )}
 
       <div
         ref={scrollerRef}

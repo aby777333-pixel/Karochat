@@ -58,6 +58,20 @@ export function StoryUpload({ currentUserId }: { currentUserId: string }) {
           .upload(path, file, { contentType: file.type, upsert: false });
         if (upErr) throw upErr;
         const { data: pub } = supabase.storage.from("chat-images").getPublicUrl(path);
+        // CSAM scan gate — applies to story uploads too.
+        const scanResp = await fetch("/api/scan/image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            publicUrl: pub.publicUrl,
+            bucket: "chat-images",
+            path
+          })
+        });
+        const scanData = await scanResp.json();
+        if (scanData?.blocked) {
+          throw new Error("Image flagged by our scanner — not uploaded.");
+        }
         const { error: insertErr } = await supabase.from("stories").insert({
           author_id: currentUserId,
           kind: "image",
