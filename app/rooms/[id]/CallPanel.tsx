@@ -29,6 +29,18 @@ export function CallPanel({
   const [token, setToken] = useState<TokenResp | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // While the call panel is mounted, freeze the body scroll behind it so
+  // the chat doesn't peek/scroll under the call.
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.documentElement.dataset.callActive = "true";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      delete document.documentElement.dataset.callActive;
+    };
+  }, []);
+
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -63,8 +75,13 @@ export function CallPanel({
   }, [roomId]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-stretch justify-center bg-black/80 backdrop-blur-sm">
-      <div className="relative flex h-full w-full max-w-6xl flex-col bg-ink-900 md:m-6 md:rounded-2xl md:border md:border-white/10">
+    <div
+      className="fixed inset-0 z-50 flex items-stretch justify-center bg-ink-900"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${mode} call in ${roomName}`}
+    >
+      <div className="relative flex h-full w-full max-w-6xl flex-col bg-ink-900">
         <header className="flex items-center justify-between border-b border-white/10 px-4 py-3">
           <div className="flex items-center gap-2 text-sm">
             <span className="relative inline-flex h-2 w-2">

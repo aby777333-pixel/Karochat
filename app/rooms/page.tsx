@@ -14,6 +14,7 @@ import { FriendsAndRequests } from "./FriendsList";
 import { InviteFriendsCard } from "./InviteFriendsCard";
 import { CategoryBrowser, type Category, type Subcategory } from "./CategoryBrowser";
 import { UserRoomsBrowser } from "./UserRoomsBrowser";
+import { OwnedRoomDeleteButton } from "./OwnedRoomDeleteButton";
 // import { DailyPrompt } from "./DailyPrompt"; // hidden by request — keep file for re-enable
 
 export const dynamic = "force-dynamic";
@@ -250,7 +251,11 @@ export default async function RoomsPage({
                   <h2 className="font-display text-lg font-semibold">Your rooms</h2>
                   <span className="text-xs text-white/40">{yourRoomsWithCounts.length}</span>
                 </div>
-                <RoomList rooms={yourRoomsWithCounts} variant="member" />
+                <RoomList
+                  rooms={yourRoomsWithCounts}
+                  variant="member"
+                  currentUserId={user.id}
+                />
               </section>
             </DismissibleSection>
 
@@ -297,6 +302,14 @@ export default async function RoomsPage({
             <a href="mailto:info@karochat.co" className="hover:text-white">
               info@karochat.co
             </a>
+            <span aria-hidden>·</span>
+            <a
+              href="mailto:ads@karochat.co?subject=Advertise%20on%20Karochat"
+              className="hover:text-white"
+              title="Sponsor a room or place a creative in our rails"
+            >
+              📣 Advertise: ads@karochat.co
+            </a>
           </p>
         </footer>
       </main>
@@ -306,10 +319,12 @@ export default async function RoomsPage({
 
 function RoomList({
   rooms,
-  variant
+  variant,
+  currentUserId
 }: {
   rooms: RoomRow[];
   variant: "member";
+  currentUserId: string;
 }) {
   if (rooms.length === 0) {
     return (
@@ -320,28 +335,44 @@ function RoomList({
   }
   return (
     <ul className="divide-y divide-white/5">
-      {rooms.map((r) => (
-        <li key={r.id} className="flex items-center justify-between gap-3 py-2.5">
-          <div className="min-w-0">
-            <p className="flex items-center gap-2 truncate font-medium">
-              <span className="text-xs">{VIS_GLYPH[r.visibility] ?? "🌍"}</span>
-              <span className="truncate">{r.name}</span>
-              <span className="text-xs text-white/40">
-                · {r.member_count} member{r.member_count === 1 ? "" : "s"}
-              </span>
-            </p>
-            {r.description && (
-              <p className="truncate text-xs text-white/50">{r.description}</p>
-            )}
-          </div>
-          <Link
-            href={`/rooms/${r.id}`}
-            className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/80 transition hover:bg-white/10 hover:text-white"
+      {rooms.map((r) => {
+        const youOwn = r.owner_id === currentUserId;
+        return (
+          <li
+            key={r.id}
+            className="flex items-center justify-between gap-3 py-2.5"
           >
-            Enter →
-          </Link>
-        </li>
-      ))}
+            <div className="min-w-0">
+              <p className="flex items-center gap-2 truncate font-medium">
+                <span className="text-xs">{VIS_GLYPH[r.visibility] ?? "🌍"}</span>
+                <span className="truncate">{r.name}</span>
+                <span className="text-xs text-white/40">
+                  · {r.member_count} member{r.member_count === 1 ? "" : "s"}
+                </span>
+                {youOwn && (
+                  <span className="rounded-sm bg-neon-purple/20 px-1 text-[9px] uppercase tracking-widest text-neon-purple">
+                    owner
+                  </span>
+                )}
+              </p>
+              {r.description && (
+                <p className="truncate text-xs text-white/50">{r.description}</p>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-1.5">
+              {youOwn && (
+                <OwnedRoomDeleteButton roomId={r.id} roomName={r.name} />
+              )}
+              <Link
+                href={`/rooms/${r.id}`}
+                className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/80 transition hover:bg-white/10 hover:text-white"
+              >
+                Enter →
+              </Link>
+            </div>
+          </li>
+        );
+      })}
     </ul>
   );
 }

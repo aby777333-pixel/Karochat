@@ -77,9 +77,17 @@ export default async function Home() {
 
       <footer className="mt-16 space-y-1 text-xs text-white/40">
         <p>© {new Date().getFullYear()} Karochat · Be kind. Be real.</p>
-        <p>
+        <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
           <a href="mailto:info@karochat.co" className="hover:text-white">
             info@karochat.co
+          </a>
+          <span aria-hidden>·</span>
+          <a
+            href="mailto:ads@karochat.co?subject=Advertise%20on%20Karochat"
+            className="hover:text-white"
+            title="Sponsor a room or place a creative in our rails"
+          >
+            📣 Advertise
           </a>
         </p>
       </footer>
