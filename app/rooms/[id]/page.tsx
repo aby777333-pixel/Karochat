@@ -61,7 +61,7 @@ export default async function RoomPage({
 
   const roomResp = await supabase
     .from("rooms")
-    .select("id, name, description, is_public, invite_code, owner_id, is_dm")
+    .select("id, name, description, is_public, invite_code, owner_id, is_dm, is_saved")
     .eq("id", params.id)
     .maybeSingle();
   const room = roomResp.data as
@@ -73,6 +73,7 @@ export default async function RoomPage({
         invite_code: string | null;
         owner_id: string | null;
         is_dm: boolean | null;
+        is_saved: boolean | null;
       }
     | null;
   if (!room) {
@@ -201,7 +202,14 @@ export default async function RoomPage({
               <Wordmark className="text-base" />
               <span className="hidden text-white/40 md:inline">·</span>
               <span className="truncate font-mono text-xs uppercase tracking-widest text-white/60">
-                {room.is_dm ? "💬" : room.is_public ? "#" : "🔒"} {headerName}
+                {room.is_saved
+                  ? "💾"
+                  : room.is_dm
+                  ? "💬"
+                  : room.is_public
+                  ? "#"
+                  : "🔒"}{" "}
+                {headerName}
               </span>
               {headerHandle && (
                 <span className="hidden truncate text-[11px] text-white/40 md:inline">
@@ -216,7 +224,7 @@ export default async function RoomPage({
         </div>
         <div className="flex items-center gap-2">
           <NewRoomButton from="room" />
-          {!room.is_dm && (
+          {!room.is_dm && !room.is_saved && (
             <InviteButton
               roomId={room.id}
               roomName={headerName}
@@ -242,7 +250,7 @@ export default async function RoomPage({
         </div>
       </header>
 
-      {!room.is_dm && !room.is_public && isOwner && room.invite_code && (
+      {!room.is_dm && !room.is_saved && !room.is_public && isOwner && room.invite_code && (
         <div className="surface-glass mt-3 flex items-center justify-between gap-3 px-4 py-2 text-xs">
           <span className="text-white/60">Invite code for this private room:</span>
           <CopyCode code={room.invite_code} />

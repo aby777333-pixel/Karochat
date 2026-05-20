@@ -14,6 +14,22 @@ const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 const REACTION_PALETTE = ["👍", "❤️", "😂", "😮", "😢", "🔥", "🎉", "🙌"];
 const EDIT_WINDOW_MS = 15 * 60 * 1000;
 
+const INTENT_OPTIONS: { value: string; label: string; emoji: string }[] = [
+  { value: "thinking",  label: "thinking out loud", emoji: "🤔" },
+  { value: "work",      label: "work",              emoji: "💼" },
+  { value: "care",      label: "care",              emoji: "❤️" },
+  { value: "horny",     label: "horny",             emoji: "🔥" },
+  { value: "urgent",    label: "urgent",            emoji: "🆘" },
+  { value: "late_night",label: "late night",        emoji: "🌙" },
+  { value: "decision",  label: "decision needed",   emoji: "🎯" }
+];
+
+const TRANSLATE_LANGS = [
+  "English", "Hindi", "Tamil", "Telugu", "Malayalam", "Kannada",
+  "Marathi", "Bengali", "Gujarati", "Punjabi", "Odia",
+  "Spanish", "Portuguese", "French", "German", "Japanese", "Korean", "Mandarin", "Arabic"
+];
+
 type MessageRow = {
   id: string;
   room_id: string;
@@ -25,6 +41,7 @@ type MessageRow = {
   edited_at: string | null;
   deleted_at: string | null;
   reactions: Record<string, string[]> | null;
+  intent: string | null;
   created_at: string;
   sender_username: string | null;
   sender_display_name: string | null;
@@ -52,6 +69,8 @@ export function RoomChat({
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [messages, setMessages] = useState<MessageRow[]>(initialMessages);
   const [draft, setDraft] = useState("");
+  const [intentChoice, setIntentChoice] = useState<string | null>(null);
+  const [intentMenuOpen, setIntentMenuOpen] = useState(false);
   const [replyTo, setReplyTo] = useState<MessageRow | null>(null);
   const [editing, setEditing] = useState<{ id: string; content: string } | null>(null);
   const [sending, setSending] = useState(false);
@@ -218,6 +237,7 @@ export function RoomChat({
       room_id: roomId,
       content: text,
       reply_to_id: replyTo?.id ?? null,
+      intent: intentChoice,
       type: "text"
     });
     setSending(false);
@@ -227,6 +247,7 @@ export function RoomChat({
     }
     setDraft("");
     setReplyTo(null);
+    setIntentChoice(null);
   }
 
   async function sendImage(file: File) {
@@ -258,6 +279,7 @@ export function RoomChat({
       content: caption || null,
       image_url: pub.publicUrl,
       reply_to_id: replyTo?.id ?? null,
+      intent: intentChoice,
       type: "image"
     });
     setUploading(false);
@@ -267,6 +289,7 @@ export function RoomChat({
     }
     setDraft("");
     setReplyTo(null);
+    setIntentChoice(null);
   }
 
   async function sendNudge() {
@@ -478,7 +501,65 @@ export function RoomChat({
             </button>
           </div>
         )}
-        <div className="flex items-end gap-2">
+        <div className="relative flex items-end gap-2">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIntentMenuOpen((s) => !s)}
+              aria-label="Set message intent"
+              title={
+                intentChoice
+                  ? `Intent: ${INTENT_OPTIONS.find((i) => i.value === intentChoice)?.label ?? intentChoice}`
+                  : "Tag this message with an intent"
+              }
+              className={clsx(
+                "grid h-11 w-11 shrink-0 place-items-center rounded-xl border text-sm transition",
+                intentChoice
+                  ? "border-neon-blue/60 bg-neon-blue/10 text-neon-blue"
+                  : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
+              )}
+            >
+              {intentChoice
+                ? INTENT_OPTIONS.find((i) => i.value === intentChoice)?.emoji ?? "·"
+                : "·"}
+            </button>
+            {intentMenuOpen && (
+              <div className="absolute bottom-12 left-0 z-20 w-52 rounded-xl border border-white/10 bg-ink-800/95 p-1.5 shadow-xl backdrop-blur">
+                <p className="px-2 pb-1 text-[10px] uppercase tracking-widest text-white/40">
+                  Intent
+                </p>
+                {INTENT_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => {
+                      setIntentChoice((cur) => (cur === opt.value ? null : opt.value));
+                      setIntentMenuOpen(false);
+                    }}
+                    className={clsx(
+                      "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-white/10",
+                      intentChoice === opt.value && "bg-neon-blue/10 text-neon-blue"
+                    )}
+                  >
+                    <span aria-hidden>{opt.emoji}</span>
+                    <span>{opt.label}</span>
+                  </button>
+                ))}
+                {intentChoice && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIntentChoice(null);
+                      setIntentMenuOpen(false);
+                    }}
+                    className="mt-1 w-full rounded-md border border-white/10 px-2 py-1 text-[11px] text-white/60 hover:bg-white/10"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
@@ -568,6 +649,34 @@ function MessageBubble({
   registerRef: (id: string, el: HTMLDivElement | null) => void;
 }) {
   const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [showTranslate, setShowTranslate] = useState(false);
+  const [translating, setTranslating] = useState(false);
+  const [translation, setTranslation] = useState<{ lang: string; text: string } | null>(null);
+  const [translateError, setTranslateError] = useState<string | null>(null);
+
+  async function runTranslate(target: string) {
+    if (!m.content) return;
+    setTranslating(true);
+    setTranslateError(null);
+    try {
+      const r = await fetch("/api/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: m.content, target })
+      });
+      const data = await r.json();
+      if (!r.ok || !data?.translated) {
+        setTranslateError(data?.error ?? "Could not translate.");
+      } else {
+        setTranslation({ lang: target, text: String(data.translated) });
+      }
+    } catch (e: any) {
+      setTranslateError(e?.message ?? "Network error.");
+    } finally {
+      setTranslating(false);
+      setShowTranslate(false);
+    }
+  }
 
   // Nudge: render as a centered system pill.
   if (m.type === "nudge") {
@@ -659,6 +768,16 @@ function MessageBubble({
             >
               ↪
             </button>
+            {m.content && (
+              <button
+                onClick={() => setShowTranslate((s) => !s)}
+                className="rounded px-1.5 py-0.5 text-xs hover:bg-white/10"
+                aria-label="Translate"
+                title="Translate"
+              >
+                🌐
+              </button>
+            )}
             {canEdit && m.content && (
               <button
                 onClick={() => onStartEdit(m)}
@@ -700,6 +819,28 @@ function MessageBubble({
                 aria-label={`React ${e}`}
               >
                 {e}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {showTranslate && !isDeleted && m.content && (
+          <div
+            className={clsx(
+              "absolute -top-12 z-20 max-h-44 w-44 overflow-y-auto rounded-xl border border-white/10 bg-ink-800/95 p-1.5 shadow-lg backdrop-blur",
+              mine ? "right-0" : "left-0"
+            )}
+          >
+            <p className="px-1.5 pb-1 text-[10px] uppercase tracking-widest text-white/40">
+              Translate to
+            </p>
+            {TRANSLATE_LANGS.map((lang) => (
+              <button
+                key={lang}
+                onClick={() => void runTranslate(lang)}
+                className="block w-full rounded-md px-1.5 py-1 text-left text-xs text-white/85 hover:bg-white/10"
+              >
+                {lang}
               </button>
             ))}
           </div>
@@ -761,21 +902,73 @@ function MessageBubble({
               </a>
             )}
             {m.content && (
-              <div
-                className={clsx(
-                  "whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-sm shadow-sm",
-                  mine
-                    ? "rounded-br-sm bg-neon-blue text-ink-900"
-                    : "rounded-bl-sm border border-white/10 bg-white/5 text-white"
+              <>
+                <div
+                  className={clsx(
+                    "whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-sm shadow-sm",
+                    mine
+                      ? "rounded-br-sm bg-neon-blue text-ink-900"
+                      : "rounded-bl-sm border border-white/10 bg-white/5 text-white"
+                  )}
+                >
+                  {m.intent && (() => {
+                    const opt = INTENT_OPTIONS.find((i) => i.value === m.intent);
+                    return (
+                      <span
+                        className={clsx(
+                          "mr-1.5 inline-block rounded-sm px-1 text-[10px] uppercase tracking-widest",
+                          mine ? "bg-ink-900/15 text-ink-900/80" : "bg-white/10 text-white/60"
+                        )}
+                        title={`Intent: ${opt?.label ?? m.intent}`}
+                      >
+                        {opt?.emoji ?? "·"} {opt?.label ?? m.intent}
+                      </span>
+                    );
+                  })()}
+                  {m.content}
+                  {m.edited_at && (
+                    <span className={clsx("ml-1.5 text-[10px]", mine ? "text-ink-900/60" : "text-white/40")}>
+                      (edited)
+                    </span>
+                  )}
+                </div>
+                {(translating || translation || translateError) && (
+                  <div
+                    className={clsx(
+                      "mt-1 whitespace-pre-wrap break-words rounded-xl border border-dashed px-3 py-1.5 text-[12px]",
+                      mine
+                        ? "border-neon-blue/40 bg-neon-blue/5 text-white/80"
+                        : "border-white/20 bg-white/[0.03] text-white/80"
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[9px] uppercase tracking-widest text-white/40">
+                        {translating
+                          ? "Translating…"
+                          : translation
+                          ? `→ ${translation.lang}`
+                          : "Translate"}
+                      </span>
+                      {(translation || translateError) && (
+                        <button
+                          onClick={() => {
+                            setTranslation(null);
+                            setTranslateError(null);
+                          }}
+                          className="text-[10px] text-white/40 hover:text-white/70"
+                          aria-label="Dismiss translation"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                    {translation && <p className="mt-0.5">{translation.text}</p>}
+                    {translateError && (
+                      <p className="mt-0.5 text-neon-red">{translateError}</p>
+                    )}
+                  </div>
                 )}
-              >
-                {m.content}
-                {m.edited_at && (
-                  <span className={clsx("ml-1.5 text-[10px]", mine ? "text-ink-900/60" : "text-white/40")}>
-                    (edited)
-                  </span>
-                )}
-              </div>
+              </>
             )}
           </>
         )}

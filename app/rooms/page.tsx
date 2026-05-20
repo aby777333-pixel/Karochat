@@ -5,6 +5,7 @@ import { Logo, Wordmark } from "@/components/Brand";
 import { SignOutButton } from "@/components/SignOutButton";
 import { AdRails } from "@/components/AdRails";
 import { RoomsClient, JoinPublic } from "./RoomsClient";
+import { SavedRoomButton } from "./SavedRoomButton";
 
 export const dynamic = "force-dynamic";
 
@@ -61,12 +62,16 @@ export default async function RoomsPage({
   const { data: yourRoomsRaw } = memberIds.length
     ? await supabase
         .from("rooms")
-        .select("id, name, description, visibility, owner_id, is_dm")
+        .select("id, name, description, visibility, owner_id, is_dm, is_saved")
         .in("id", memberIds)
-    : { data: [] as Array<Omit<RoomRow, "member_count">> };
+    : { data: [] as Array<Omit<RoomRow, "member_count"> & { is_saved?: boolean | null }> };
 
-  const dmRoomsRaw = (yourRoomsRaw ?? []).filter((r) => r.is_dm === true);
-  const nonDmRoomsRaw = (yourRoomsRaw ?? []).filter((r) => r.is_dm !== true);
+  const dmRoomsRaw = (yourRoomsRaw ?? []).filter(
+    (r: any) => r.is_dm === true && !r.is_saved
+  );
+  const nonDmRoomsRaw = (yourRoomsRaw ?? []).filter(
+    (r: any) => r.is_dm !== true && !r.is_saved
+  );
 
   // Hydrate member_count for non-DM rooms.
   const yourRoomsWithCounts: RoomRow[] = await Promise.all(
@@ -154,6 +159,8 @@ export default async function RoomsPage({
 
         <div className="mt-5 grid flex-1 grid-cols-1 gap-5 lg:grid-cols-[1fr_340px]">
           <div className="space-y-5">
+            <SavedRoomButton />
+
             {dms.length > 0 && (
               <section className="surface-glass p-5">
                 <div className="mb-3 flex items-baseline justify-between">
