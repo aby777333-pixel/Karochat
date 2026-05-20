@@ -13,6 +13,7 @@ import { DismissibleSection, RestoreHiddenSections } from "./DismissibleSection"
 import { FriendsAndRequests } from "./FriendsList";
 import { InviteFriendsCard } from "./InviteFriendsCard";
 import { CategoryBrowser, type Category, type Subcategory } from "./CategoryBrowser";
+import { UserRoomsBrowser } from "./UserRoomsBrowser";
 // import { DailyPrompt } from "./DailyPrompt"; // hidden by request — keep file for re-enable
 
 export const dynamic = "force-dynamic";
@@ -59,10 +60,20 @@ export default async function RoomsPage({
   if (!profile.terms_accepted_at) redirect("/terms");
 
   // v5 AA1 — if the user arrived via /i/<slug>, attribute the invite once.
-  const inviteCookie = cookies().get("karochat_invite");
-  if (inviteCookie?.value) {
-    await supabase.rpc("record_inviter", { p_slug: inviteCookie.value });
-    cookies().set({ name: "karochat_invite", value: "", path: "/", maxAge: 0 });
+  // Wrapped defensively because the lobby must never crash if the RPC blips.
+  try {
+    const inviteCookie = cookies().get("karochat_invite");
+    if (inviteCookie?.value) {
+      const resp = await supabase.rpc("record_inviter", {
+        p_slug: inviteCookie.value
+      });
+      if (resp.error) {
+        console.warn("[rooms lobby] record_inviter failed", resp.error.message);
+      }
+      cookies().set({ name: "karochat_invite", value: "", path: "/", maxAge: 0 });
+    }
+  } catch (e) {
+    console.warn("[rooms lobby] invite cookie consume threw", e);
   }
 
   const { data: memberships } = await supabase
@@ -251,6 +262,10 @@ export default async function RoomsPage({
                 />
               )}
             </DismissibleSection>
+
+            <DismissibleSection id="user-rooms">
+              <UserRoomsBrowser />
+            </DismissibleSection>
           </div>
 
           <aside className="space-y-5">
@@ -270,8 +285,15 @@ export default async function RoomsPage({
 
         <footer className="mt-8 space-y-1 text-center text-[11px] text-white/30">
           <p>Be kind. Be real. Live and let live.</p>
-          <p>
-            Questions? Reports?{" "}
+          <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+            <Link href="/charter" className="hover:text-white">
+              The People&apos;s Charter
+            </Link>
+            <span aria-hidden>·</span>
+            <Link href="/legal/terms" className="hover:text-white">
+              Terms
+            </Link>
+            <span aria-hidden>·</span>
             <a href="mailto:info@karochat.co" className="hover:text-white">
               info@karochat.co
             </a>

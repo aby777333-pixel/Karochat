@@ -98,13 +98,37 @@ export default async function RoomPage({
 
   if (!membership) {
     if (room.is_public) {
-      await supabase.rpc("join_public_room", { p_room_id: room.id });
+      // Auto-join public rooms. Swallow + log any RPC error so a transient
+      // upstream blip doesn't crash the entire room render — the membership
+      // policy below will simply gate visibility if we couldn't join.
+      const joinResp = await supabase.rpc("join_public_room", {
+        p_room_id: room.id
+      });
+      if (joinResp.error) {
+        console.warn("[rooms/[id]] join_public_room failed", {
+          roomId: room.id,
+          userId: user.id,
+          message: joinResp.error.message,
+          code: joinResp.error.code
+        });
+      }
     } else if (
       searchParams?.invite &&
       room.invite_code &&
       searchParams.invite === room.invite_code
     ) {
-      await supabase.rpc("join_room_by_invite", { p_code: room.invite_code });
+      const inviteResp = await supabase.rpc("join_room_by_invite", {
+        p_code: room.invite_code
+      });
+      if (inviteResp.error) {
+        console.warn("[rooms/[id]] join_room_by_invite failed", {
+          roomId: room.id,
+          userId: user.id,
+          message: inviteResp.error.message,
+          code: inviteResp.error.code
+        });
+        redirect(`/rooms?join=required`);
+      }
     } else {
       redirect("/rooms?join=required");
     }
