@@ -15,6 +15,7 @@ import { InviteFriendsCard } from "./InviteFriendsCard";
 import { CategoryBrowser, type Category, type Subcategory } from "./CategoryBrowser";
 // UserRoomsBrowser is now embedded as a tab inside CategoryBrowser.
 import { OwnedRoomDeleteButton } from "./OwnedRoomDeleteButton";
+import { LobbyLeaveButton } from "./LobbyLeaveButton";
 import { MoodMatchedRooms } from "./MoodMatchedRooms";
 // import { DailyPrompt } from "./DailyPrompt"; // hidden by request — keep file for re-enable
 
@@ -386,8 +387,10 @@ function RoomList({
               )}
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
-              {youOwn && (
+              {youOwn ? (
                 <OwnedRoomDeleteButton roomId={r.id} roomName={r.name} />
+              ) : (
+                <LobbyLeaveButton roomId={r.id} roomName={r.name} />
               )}
               <Link
                 href={`/rooms/${r.id}`}
