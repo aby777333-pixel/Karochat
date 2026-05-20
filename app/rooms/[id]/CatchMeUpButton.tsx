@@ -56,11 +56,11 @@ export function CatchMeUpButton({ roomId }: { roomId: string }) {
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/80 p-4 backdrop-blur-sm sm:items-center"
           onClick={() => setOpen(false)}
         >
           <div
-            className="surface-glass mx-4 w-full max-w-md p-5 shadow-2xl"
+            className="surface-glass my-auto w-full max-w-md max-h-[90vh] overflow-y-auto p-5 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-3 flex items-center justify-between gap-2">

@@ -5,7 +5,17 @@ import dynamic from "next/dynamic";
 
 const CallPanel = dynamic(
   () => import("./CallPanel").then((m) => m.CallPanel),
-  { ssr: false }
+  {
+    ssr: false,
+    loading: () => (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm">
+        <p className="rounded-xl border border-white/10 bg-ink-800/95 px-4 py-3 text-sm text-white/80">
+          <span className="mr-2 inline-block animate-pulseDot">●</span>
+          Loading call…
+        </p>
+      </div>
+    )
+  }
 );
 
 export function CallButton({
@@ -18,6 +28,7 @@ export function CallButton({
   const [available, setAvailable] = useState<boolean | null>(null);
   const [mode, setMode] = useState<"audio" | "video" | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [launchError, setLaunchError] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -32,8 +43,24 @@ export function CallButton({
     };
   }, []);
 
+  // Show a disabled placeholder if the upstream isn't configured, instead of
+  // hiding silently — that way users know calls exist and why this one's off.
   if (available === null) return null;
-  if (!available) return null;
+  if (!available) {
+    return (
+      <button
+        type="button"
+        disabled
+        title="Calls aren't configured on this site yet."
+        aria-label="Calls unavailable"
+        className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/5 text-white/30"
+      >
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.37 1.9.72 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.35 1.85.59 2.81.72A2 2 0 0 1 22 16.92Z" />
+        </svg>
+      </button>
+    );
+  }
 
   return (
     <div className="relative shrink-0">

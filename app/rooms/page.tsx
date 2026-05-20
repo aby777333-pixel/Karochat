@@ -9,6 +9,7 @@ import { SavedRoomButton } from "./SavedRoomButton";
 import { UserSearch } from "./UserSearch";
 import { StoriesStrip, type StoryRow } from "./StoriesStrip";
 import { DismissibleSection, RestoreHiddenSections } from "./DismissibleSection";
+import { FriendsAndRequests } from "./FriendsList";
 
 export const dynamic = "force-dynamic";
 
@@ -183,6 +184,10 @@ export default async function RoomsPage({
           <div className="space-y-5">
             <DismissibleSection id="saved">
               <SavedRoomButton />
+            </DismissibleSection>
+
+            <DismissibleSection id="friends">
+              <FriendsAndRequests currentUserId={user.id} />
             </DismissibleSection>
 
             {dms.length > 0 && (

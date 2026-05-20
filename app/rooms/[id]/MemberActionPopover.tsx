@@ -46,7 +46,7 @@ export function MemberActionPopover({
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const ref = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState<
-    null | "dm" | "invite-here" | "load-rooms" | "invite-to" | "vibe"
+    null | "dm" | "invite-here" | "load-rooms" | "invite-to" | "vibe" | "friend"
   >(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -57,6 +57,9 @@ export function MemberActionPopover({
     realness: number;
     quality: number;
   } | null>(null);
+  const [friendState, setFriendState] = useState<
+    "none" | "pending_out" | "pending_in" | "friends" | "self" | null
+  >(null);
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
@@ -94,6 +97,93 @@ export function MemberActionPopover({
       cancelled = true;
     };
   }, [supabase, target.user_id]);
+
+  // Friendship state — render the right CTA depending on it.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.rpc("friendship_status", {
+        p_other_user_id: target.user_id
+      });
+      if (!cancelled) {
+        setFriendState((data as any) ?? "none");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase, target.user_id]);
+
+  async function requestFriend() {
+    setBusy("friend");
+    setError(null);
+    setNotice(null);
+    const { data, error: rpcErr } = await supabase.rpc("request_friend", {
+      p_target_user_id: target.user_id
+    });
+    setBusy(null);
+    if (rpcErr) {
+      setError(rpcErr.message);
+      return;
+    }
+    const status = (data as string) ?? "pending";
+    if (status === "accepted") {
+      setFriendState("friends");
+      setNotice("You're friends now.");
+    } else {
+      setFriendState("pending_out");
+      setNotice("Friend request sent.");
+    }
+  }
+
+  async function acceptFriend() {
+    setBusy("friend");
+    setError(null);
+    setNotice(null);
+    const { error: rpcErr } = await supabase.rpc("accept_friend", {
+      p_requester_user_id: target.user_id
+    });
+    setBusy(null);
+    if (rpcErr) {
+      setError(rpcErr.message);
+      return;
+    }
+    setFriendState("friends");
+    setNotice("Friend request accepted.");
+  }
+
+  async function declineFriend() {
+    setBusy("friend");
+    setError(null);
+    setNotice(null);
+    const { error: rpcErr } = await supabase.rpc("decline_friend", {
+      p_requester_user_id: target.user_id
+    });
+    setBusy(null);
+    if (rpcErr) {
+      setError(rpcErr.message);
+      return;
+    }
+    setFriendState("none");
+    setNotice("Request declined.");
+  }
+
+  async function removeFriend() {
+    if (!confirm("Remove this friend?")) return;
+    setBusy("friend");
+    setError(null);
+    setNotice(null);
+    const { error: rpcErr } = await supabase.rpc("remove_friend", {
+      p_other_user_id: target.user_id
+    });
+    setBusy(null);
+    if (rpcErr) {
+      setError(rpcErr.message);
+      return;
+    }
+    setFriendState("none");
+    setNotice("Removed.");
+  }
 
   async function giveVibe(dim: "kindness" | "realness" | "quality") {
     setBusy("vibe");
@@ -220,6 +310,64 @@ export function MemberActionPopover({
         <span aria-hidden>💬</span>
         <span>{busy === "dm" ? "Opening…" : "Send private message"}</span>
       </button>
+
+      {friendState === "none" && (
+        <button
+          type="button"
+          onClick={() => void requestFriend()}
+          disabled={busy !== null}
+          className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-white/85 hover:bg-white/10 disabled:opacity-50"
+        >
+          <span aria-hidden>🤝</span>
+          <span>{busy === "friend" ? "Sending…" : "Add friend"}</span>
+        </button>
+      )}
+      {friendState === "pending_out" && (
+        <button
+          type="button"
+          onClick={() => void removeFriend()}
+          disabled={busy !== null}
+          className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-white/60 hover:bg-white/10 disabled:opacity-50"
+          title="Cancel friend request"
+        >
+          <span aria-hidden>⏳</span>
+          <span>Friend request sent · tap to cancel</span>
+        </button>
+      )}
+      {friendState === "pending_in" && (
+        <div className="flex w-full items-center gap-1 px-1 py-1">
+          <button
+            type="button"
+            onClick={() => void acceptFriend()}
+            disabled={busy !== null}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-neon-mint/15 px-2 py-1.5 text-xs text-neon-mint hover:bg-neon-mint/25 disabled:opacity-50"
+          >
+            <span aria-hidden>✅</span>
+            <span>Accept</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => void declineFriend()}
+            disabled={busy !== null}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs text-white/70 hover:bg-white/10 disabled:opacity-50"
+          >
+            <span aria-hidden>✕</span>
+            <span>Decline</span>
+          </button>
+        </div>
+      )}
+      {friendState === "friends" && (
+        <button
+          type="button"
+          onClick={() => void removeFriend()}
+          disabled={busy !== null}
+          className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-neon-mint hover:bg-white/10 disabled:opacity-50"
+          title="Remove friend"
+        >
+          <span aria-hidden>✓</span>
+          <span>Friends · tap to remove</span>
+        </button>
+      )}
 
       <button
         type="button"

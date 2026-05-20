@@ -227,7 +227,7 @@ export default async function RoomPage({
             )}
           </div>
         </div>
-        <div className="scroll-thin -mr-1 flex shrink-0 items-center gap-1.5 overflow-x-auto pr-1 md:gap-2">
+        <div className="-mr-1 flex shrink-0 items-center gap-1.5 overflow-x-clip overflow-y-visible pr-1 md:gap-2">
           <Link
             href="/shorts"
             className="shrink-0 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-white/80 transition hover:bg-white/10 hover:text-white"
