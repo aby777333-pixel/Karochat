@@ -15,6 +15,14 @@ type RoomRow = {
   visibility: "public" | "listed" | "unlisted" | "secret";
   owner_id: string | null;
   member_count: number;
+  is_dm?: boolean | null;
+};
+
+type DMRow = {
+  id: string;
+  partner_username: string | null;
+  partner_display_name: string | null;
+  partner_presence: string | null;
 };
 
 const VIS_GLYPH: Record<RoomRow["visibility"], string> = {
@@ -53,13 +61,16 @@ export default async function RoomsPage({
   const { data: yourRoomsRaw } = memberIds.length
     ? await supabase
         .from("rooms")
-        .select("id, name, description, visibility, owner_id")
+        .select("id, name, description, visibility, owner_id, is_dm")
         .in("id", memberIds)
     : { data: [] as Array<Omit<RoomRow, "member_count">> };
 
-  // Hydrate member_count for "your rooms" with one extra query.
+  const dmRoomsRaw = (yourRoomsRaw ?? []).filter((r) => r.is_dm === true);
+  const nonDmRoomsRaw = (yourRoomsRaw ?? []).filter((r) => r.is_dm !== true);
+
+  // Hydrate member_count for non-DM rooms.
   const yourRoomsWithCounts: RoomRow[] = await Promise.all(
-    (yourRoomsRaw ?? []).map(async (r) => {
+    nonDmRoomsRaw.map(async (r) => {
       const { count } = await supabase
         .from("room_members")
         .select("user_id", { count: "exact", head: true })
@@ -68,6 +79,37 @@ export default async function RoomsPage({
     })
   );
   yourRoomsWithCounts.sort((a, b) => b.member_count - a.member_count);
+
+  // Build DM list: for each DM room, find the OTHER participant.
+  let dms: DMRow[] = [];
+  if (dmRoomsRaw.length > 0) {
+    const dmIds = dmRoomsRaw.map((r) => r.id);
+    const { data: partners } = await supabase
+      .from("room_members_view")
+      .select("room_id, user_id, username, display_name, presence_state")
+      .in("room_id", dmIds)
+      .neq("user_id", user.id);
+    const partnerByRoom = new Map<string, any>();
+    for (const p of partners ?? []) partnerByRoom.set(p.room_id, p);
+    dms = dmRoomsRaw.map((r) => {
+      const p = partnerByRoom.get(r.id);
+      return {
+        id: r.id,
+        partner_username: p?.username ?? null,
+        partner_display_name: p?.display_name ?? null,
+        partner_presence: p?.presence_state ?? null
+      };
+    });
+    const presenceRank: Record<string, number> = {
+      online: 0, busy: 1, away: 2, invisible: 3, offline: 4
+    };
+    dms.sort((a, b) => {
+      const ap = presenceRank[a.partner_presence ?? "offline"] ?? 5;
+      const bp = presenceRank[b.partner_presence ?? "offline"] ?? 5;
+      if (ap !== bp) return ap - bp;
+      return (a.partner_display_name ?? "").localeCompare(b.partner_display_name ?? "");
+    });
+  }
 
   const { data: discoverRaw } = await supabase
     .from("rooms_browse")
@@ -112,6 +154,16 @@ export default async function RoomsPage({
 
         <div className="mt-5 grid flex-1 grid-cols-1 gap-5 lg:grid-cols-[1fr_340px]">
           <div className="space-y-5">
+            {dms.length > 0 && (
+              <section className="surface-glass p-5">
+                <div className="mb-3 flex items-baseline justify-between">
+                  <h2 className="font-display text-lg font-semibold">Direct messages</h2>
+                  <span className="text-xs text-white/40">{dms.length}</span>
+                </div>
+                <DMList dms={dms} />
+              </section>
+            )}
+
             <section className="surface-glass p-5">
               <div className="mb-3 flex items-baseline justify-between">
                 <h2 className="font-display text-lg font-semibold">Your rooms</h2>
@@ -195,6 +247,40 @@ function RoomList({
           )}
         </li>
       ))}
+    </ul>
+  );
+}
+
+function DMList({ dms }: { dms: DMRow[] }) {
+  return (
+    <ul className="divide-y divide-white/5">
+      {dms.map((d) => {
+        const name = d.partner_display_name ?? d.partner_username ?? "Unknown";
+        const handle = d.partner_username ?? "anon";
+        const presenceColor =
+          d.partner_presence === "online"
+            ? "bg-neon-mint"
+            : d.partner_presence === "busy"
+            ? "bg-neon-red"
+            : d.partner_presence === "away"
+            ? "bg-neon-amber"
+            : "bg-white/30";
+        return (
+          <li key={d.id} className="flex items-center justify-between gap-3 py-2.5">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className={`h-2 w-2 rounded-full ${presenceColor}`} aria-hidden />
+              <p className="truncate font-medium text-white">{name}</p>
+              <span className="truncate text-xs text-white/40">@{handle}</span>
+            </div>
+            <Link
+              href={`/rooms/${d.id}`}
+              className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/80 transition hover:bg-white/10 hover:text-white"
+            >
+              Open →
+            </Link>
+          </li>
+        );
+      })}
     </ul>
   );
 }

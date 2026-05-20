@@ -13,12 +13,19 @@ import { RoomChat } from "./RoomChat";
 import { CopyCode } from "./CopyCode";
 import { LeaveRoomButton } from "./LeaveRoomButton";
 import { MemberList } from "./MemberList";
+import { InviteButton } from "./InviteButton";
 
 export const dynamic = "force-dynamic";
 
 type PresenceState = "online" | "away" | "busy" | "invisible" | "offline";
 
-export default async function RoomPage({ params }: { params: { id: string } }) {
+export default async function RoomPage({
+  params,
+  searchParams
+}: {
+  params: { id: string };
+  searchParams?: { invite?: string };
+}) {
   const supabase = createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/");
@@ -54,10 +61,20 @@ export default async function RoomPage({ params }: { params: { id: string } }) {
 
   const roomResp = await supabase
     .from("rooms")
-    .select("id, name, description, is_public, invite_code, owner_id")
+    .select("id, name, description, is_public, invite_code, owner_id, is_dm")
     .eq("id", params.id)
     .maybeSingle();
-  const room = roomResp.data;
+  const room = roomResp.data as
+    | {
+        id: string;
+        name: string;
+        description: string | null;
+        is_public: boolean;
+        invite_code: string | null;
+        owner_id: string | null;
+        is_dm: boolean | null;
+      }
+    | null;
   if (!room) {
     console.error("[rooms/[id]] room not visible to user", {
       paramsId: params.id,
@@ -78,6 +95,12 @@ export default async function RoomPage({ params }: { params: { id: string } }) {
   if (!membership) {
     if (room.is_public) {
       await supabase.rpc("join_public_room", { p_room_id: room.id });
+    } else if (
+      searchParams?.invite &&
+      room.invite_code &&
+      searchParams.invite === room.invite_code
+    ) {
+      await supabase.rpc("join_room_by_invite", { p_code: room.invite_code });
     } else {
       redirect("/rooms?join=required");
     }
@@ -150,6 +173,16 @@ export default async function RoomPage({ params }: { params: { id: string } }) {
   const presenceState: PresenceState =
     ((profile as any).presence_state as PresenceState | undefined) ?? "online";
 
+  // For 1:1 DMs, show the other participant's name/handle instead of the
+  // generic "Direct Message" room name.
+  const dmPartner = room.is_dm
+    ? ((initialMembers as any[]) ?? []).find((m) => m.user_id !== profile.id) ?? null
+    : null;
+  const headerName = dmPartner
+    ? dmPartner.display_name ?? dmPartner.username ?? "Direct Message"
+    : room.name;
+  const headerHandle = dmPartner ? `@${dmPartner.username ?? "anon"}` : null;
+
   return (
     <AdRails>
     <main className="mx-auto flex h-[100dvh] max-w-6xl flex-col px-1 py-4 md:py-6">
@@ -168,16 +201,29 @@ export default async function RoomPage({ params }: { params: { id: string } }) {
               <Wordmark className="text-base" />
               <span className="hidden text-white/40 md:inline">·</span>
               <span className="truncate font-mono text-xs uppercase tracking-widest text-white/60">
-                {room.is_public ? "#" : "🔒"} {room.name}
+                {room.is_dm ? "💬" : room.is_public ? "#" : "🔒"} {headerName}
               </span>
+              {headerHandle && (
+                <span className="hidden truncate text-[11px] text-white/40 md:inline">
+                  {headerHandle}
+                </span>
+              )}
             </div>
-            {room.description && (
+            {!room.is_dm && room.description && (
               <p className="truncate text-[11px] text-white/40">{room.description}</p>
             )}
           </div>
         </div>
         <div className="flex items-center gap-2">
           <NewRoomButton from="room" />
+          {!room.is_dm && (
+            <InviteButton
+              roomId={room.id}
+              roomName={headerName}
+              initialCode={room.invite_code ?? null}
+              isOwner={isOwner}
+            />
+          )}
           <CallButton roomId={room.id} roomName={room.name} />
           <CatchMeUpButton roomId={room.id} />
           <NotificationsButton />
@@ -196,7 +242,7 @@ export default async function RoomPage({ params }: { params: { id: string } }) {
         </div>
       </header>
 
-      {!room.is_public && isOwner && room.invite_code && (
+      {!room.is_dm && !room.is_public && isOwner && room.invite_code && (
         <div className="surface-glass mt-3 flex items-center justify-between gap-3 px-4 py-2 text-xs">
           <span className="text-white/60">Invite code for this private room:</span>
           <CopyCode code={room.invite_code} />
@@ -207,7 +253,7 @@ export default async function RoomPage({ params }: { params: { id: string } }) {
         <div className="flex flex-1 flex-col">
           <RoomChat
             roomId={room.id}
-            roomName={room.name}
+            roomName={headerName}
             currentUserId={profile.id}
             currentUsername={profile.username}
             currentDisplayName={profile.display_name}
@@ -218,6 +264,7 @@ export default async function RoomPage({ params }: { params: { id: string } }) {
         <MemberList
           roomId={room.id}
           currentUserId={profile.id}
+          roomInviteCode={room.invite_code ?? null}
           initial={(initialMembers as any[]) ?? []}
         />
       </div>

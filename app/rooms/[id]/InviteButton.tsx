@@ -1,0 +1,193 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+
+export function InviteButton({
+  roomId,
+  roomName,
+  initialCode,
+  isOwner
+}: {
+  roomId: string;
+  roomName: string;
+  initialCode: string | null;
+  isOwner: boolean;
+}) {
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const [open, setOpen] = useState(false);
+  const [code, setCode] = useState<string | null>(initialCode);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [copiedKind, setCopiedKind] = useState<"link" | "code" | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const roomLink = `${origin}/rooms/${roomId}${code ? `?invite=${encodeURIComponent(code)}` : ""}`;
+
+  async function copy(text: string, kind: "link" | "code") {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedKind(kind);
+      setTimeout(() => setCopiedKind(null), 1500);
+    } catch {
+      setError("Clipboard blocked. Long-press to copy.");
+    }
+  }
+
+  async function regenerate() {
+    setBusy(true);
+    setError(null);
+    const { data, error: rpcErr } = await supabase.rpc("regenerate_invite_code", {
+      p_room_id: roomId
+    });
+    setBusy(false);
+    if (rpcErr || !data) {
+      setError(rpcErr?.message ?? "Could not generate a new code.");
+      return;
+    }
+    setCode(data as string);
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        title="Invite people"
+        aria-label="Invite people"
+        className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-white/80 transition hover:bg-white/10 hover:text-white"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          className="h-4 w-4"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <line x1="19" y1="8" x2="19" y2="14" />
+          <line x1="22" y1="11" x2="16" y2="11" />
+        </svg>
+        <span>Invite</span>
+      </button>
+
+      {open && (
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setOpen(false);
+          }}
+        >
+          <div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="invite-title"
+            className="surface-glass w-[min(420px,92vw)] p-5"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p
+                  id="invite-title"
+                  className="font-display text-base font-semibold"
+                >
+                  Invite to {roomName}
+                </p>
+                <p className="mt-0.5 text-xs text-white/55">
+                  Share this link. Anyone who opens it will be able to join.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                aria-label="Close"
+                className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-xs text-white/60 hover:bg-white/10"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              <div>
+                <p className="mb-1 text-[10px] uppercase tracking-widest text-white/40">
+                  Invite link
+                </p>
+                <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/30 px-3 py-2">
+                  <span className="flex-1 truncate text-xs text-white/80" title={roomLink}>
+                    {roomLink}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void copy(roomLink, "link")}
+                    className="shrink-0 rounded-md border border-white/10 bg-white/5 px-2 py-1 text-[10px] uppercase tracking-widest text-white/70 hover:bg-white/10"
+                  >
+                    {copiedKind === "link" ? "copied" : "copy"}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <p className="mb-1 text-[10px] uppercase tracking-widest text-white/40">
+                  Invite code
+                </p>
+                {code ? (
+                  <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/30 px-3 py-2 font-mono text-base tracking-widest">
+                    <span className="flex-1 select-all">{code}</span>
+                    <button
+                      type="button"
+                      onClick={() => void copy(code, "code")}
+                      className="shrink-0 rounded-md border border-white/10 bg-white/5 px-2 py-1 text-[10px] uppercase tracking-widest text-white/70 hover:bg-white/10"
+                    >
+                      {copiedKind === "code" ? "copied" : "copy"}
+                    </button>
+                  </div>
+                ) : (
+                  <p className="rounded-xl border border-dashed border-white/10 bg-black/20 px-3 py-2 text-xs text-white/50">
+                    No code yet. {isOwner
+                      ? "Generate one below to share a short code instead of the link."
+                      : "Ask the room owner to generate one."}
+                  </p>
+                )}
+              </div>
+
+              {isOwner && (
+                <button
+                  type="button"
+                  onClick={() => void regenerate()}
+                  disabled={busy}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/85 hover:bg-white/10 disabled:opacity-50"
+                >
+                  {busy
+                    ? "Generating…"
+                    : code
+                    ? "Generate new code"
+                    : "Generate code"}
+                </button>
+              )}
+
+              {error && (
+                <p className="rounded-md bg-neon-red/10 px-2 py-1 text-xs text-neon-red">
+                  {error}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
