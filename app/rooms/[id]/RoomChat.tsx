@@ -32,6 +32,17 @@ const TRANSLATE_LANGS = [
   "Spanish", "Portuguese", "French", "German", "Japanese", "Korean", "Mandarin", "Arabic"
 ];
 
+// Stable per-user hue so each speaker gets a recognisable bubble colour.
+// djb2-ish hash → 0..359. Same seed = same colour everywhere.
+function userHue(seed: string | null | undefined): number {
+  if (!seed) return 220;
+  let h = 5381;
+  for (let i = 0; i < seed.length; i++) {
+    h = ((h << 5) + h + seed.charCodeAt(i)) >>> 0;
+  }
+  return h % 360;
+}
+
 type PollOption = { text: string; votes: string[] };
 type PollData = { question: string; options: PollOption[] };
 
@@ -953,6 +964,22 @@ function MessageBubble({
   const canEdit =
     mine && !isDeleted && Date.now() - new Date(m.created_at).getTime() < EDIT_WINDOW_MS;
 
+  // Per-user bubble colour — sender_username is the most stable visible seed;
+  // fall back to sender_id (a UUID) so the colour is still deterministic.
+  const bubbleHue = userHue(m.sender_username ?? m.sender_id);
+  const bubbleStyle: React.CSSProperties = mine
+    ? {
+        background: `hsl(${bubbleHue}, 72%, 58%)`,
+        color: "rgb(10 10 12)",
+        borderColor: `hsl(${bubbleHue}, 80%, 70%)`
+      }
+    : {
+        background: `hsl(${bubbleHue}, 48%, 18%)`,
+        color: "rgb(245 245 247)",
+        borderColor: `hsl(${bubbleHue}, 65%, 42%)`
+      };
+  const editedColor = mine ? "rgba(10,10,12,0.6)" : "rgba(245,245,247,0.5)";
+
   return (
     <div
       ref={(el) => registerRef(m.id, el)}
@@ -1198,11 +1225,10 @@ function MessageBubble({
               <>
                 <div
                   className={clsx(
-                    "whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-sm shadow-sm",
-                    mine
-                      ? "rounded-br-sm bg-neon-blue text-ink-900"
-                      : "rounded-bl-sm border border-white/10 bg-white/5 text-white"
+                    "whitespace-pre-wrap break-words rounded-2xl border px-3.5 py-2 text-sm shadow-sm",
+                    mine ? "rounded-br-sm" : "rounded-bl-sm"
                   )}
+                  style={bubbleStyle}
                 >
                   {m.intent && (() => {
                     const opt = INTENT_OPTIONS.find((i) => i.value === m.intent);
@@ -1220,7 +1246,10 @@ function MessageBubble({
                   })()}
                   {m.content}
                   {m.edited_at && (
-                    <span className={clsx("ml-1.5 text-[10px]", mine ? "text-ink-900/60" : "text-white/40")}>
+                    <span
+                      className="ml-1.5 text-[10px]"
+                      style={{ color: editedColor }}
+                    >
                       (edited)
                     </span>
                   )}
