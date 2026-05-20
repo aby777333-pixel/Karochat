@@ -94,7 +94,7 @@ function CreateRoomCard() {
 
   if (created && created.code) {
     return (
-      <section className="surface-glass p-5">
+      <section className="surface-glass tint-mint p-5">
         <h3 className="font-display text-base font-semibold">Room created</h3>
         <p className="mt-1 text-xs text-white/60">
           Share this invite code with the people you want in. They&apos;ll paste it
@@ -131,7 +131,7 @@ function CreateRoomCard() {
   }
 
   return (
-    <section className="surface-glass p-5">
+    <section className="surface-glass tint-blue p-5">
       <h3 className="font-display text-base font-semibold">Create a room</h3>
       <form onSubmit={submit} className="mt-3 space-y-3">
         <input
@@ -216,7 +216,7 @@ function JoinByInviteCard() {
   }
 
   return (
-    <section className="surface-glass p-5">
+    <section className="surface-glass tint-purple p-5">
       <h3 className="font-display text-base font-semibold">Have an invite?</h3>
       <p className="mt-1 text-xs text-white/60">
         Paste an 8-character code to join an unlisted room.

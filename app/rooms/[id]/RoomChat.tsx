@@ -557,7 +557,7 @@ export function RoomChat({
   return (
     <section
       className={clsx(
-        "surface-glass mt-3 flex flex-1 flex-col overflow-hidden",
+        "surface-glass tint-blue mt-3 flex flex-1 flex-col overflow-hidden",
         shaking && "animate-nudgeShake"
       )}
     >
@@ -693,9 +693,20 @@ export function RoomChat({
             </button>
             {intentMenuOpen && (
               <div className="absolute bottom-12 left-0 z-20 w-52 rounded-xl border border-white/10 bg-ink-800/95 p-1.5 shadow-xl backdrop-blur">
-                <p className="px-2 pb-1 text-[10px] uppercase tracking-widest text-white/40">
-                  Intent
-                </p>
+                <div className="flex items-center justify-between px-2 pb-1">
+                  <p className="text-[10px] uppercase tracking-widest text-white/40">
+                    Intent
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setIntentMenuOpen(false)}
+                    aria-label="Close"
+                    title="Close"
+                    className="rounded-md border border-white/10 bg-white/5 px-1.5 text-[10px] text-white/60 hover:bg-white/10"
+                  >
+                    ✕
+                  </button>
+                </div>
                 {INTENT_OPTIONS.map((opt) => (
                   <button
                     key={opt.value}
@@ -1124,7 +1135,7 @@ function MessageBubble({
         {showReactionPicker && !isDeleted && (
           <div
             className={clsx(
-              "absolute -top-12 z-20 flex gap-1 rounded-full border border-white/10 bg-ink-800/95 px-2 py-1 shadow-lg backdrop-blur",
+              "absolute -top-12 z-20 flex items-center gap-1 rounded-full border border-white/10 bg-ink-800/95 px-2 py-1 shadow-lg backdrop-blur",
               mine ? "right-0" : "left-0"
             )}
           >
@@ -1141,6 +1152,15 @@ function MessageBubble({
                 {e}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => setShowReactionPicker(false)}
+              aria-label="Close reaction picker"
+              title="Close"
+              className="ml-1 rounded-full border border-white/10 bg-white/5 px-1.5 text-[10px] text-white/60 hover:bg-white/10"
+            >
+              ✕
+            </button>
           </div>
         )}
 
@@ -1151,9 +1171,20 @@ function MessageBubble({
               mine ? "right-0" : "left-0"
             )}
           >
-            <p className="px-1.5 pb-1 text-[10px] uppercase tracking-widest text-white/40">
-              Translate to
-            </p>
+            <div className="flex items-center justify-between px-1.5 pb-1">
+              <p className="text-[10px] uppercase tracking-widest text-white/40">
+                Translate to
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowTranslate(false)}
+                aria-label="Close translate picker"
+                title="Close"
+                className="rounded-md border border-white/10 bg-white/5 px-1.5 text-[10px] text-white/60 hover:bg-white/10"
+              >
+                ✕
+              </button>
+            </div>
             {TRANSLATE_LANGS.map((lang) => (
               <button
                 key={lang}

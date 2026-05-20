@@ -119,21 +119,35 @@ export function RoomRulesPanel({
             className="surface-glass w-[min(520px,94vw)] p-5"
           >
             <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p id="rules-title" className="font-display text-base font-semibold">
-                  {mustAck ? "Read the rules before you chat" : `Rules · ${roomName}`}
-                </p>
-                {mustAck && (
-                  <p className="mt-0.5 text-xs text-neon-amber">
-                    The owner has set rules for this room. Tap “Got it” to continue.
-                  </p>
+              <div className="flex min-w-0 items-start gap-2">
+                {!mustAck && (
+                  <button
+                    type="button"
+                    onClick={() => setOpen(false)}
+                    aria-label="Back"
+                    title="Back"
+                    className="mt-0.5 rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-xs text-white/60 hover:bg-white/10"
+                  >
+                    ←
+                  </button>
                 )}
+                <div className="min-w-0">
+                  <p id="rules-title" className="font-display text-base font-semibold">
+                    {mustAck ? "Read the rules before you chat" : `Rules · ${roomName}`}
+                  </p>
+                  {mustAck && (
+                    <p className="mt-0.5 text-xs text-neon-amber">
+                      The owner has set rules for this room. Tap “Got it” to continue.
+                    </p>
+                  )}
+                </div>
               </div>
               {!mustAck && (
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
                   aria-label="Close"
+                  title="Close (Esc)"
                   className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-xs text-white/60 hover:bg-white/10"
                 >
                   ✕

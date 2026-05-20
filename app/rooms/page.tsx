@@ -181,7 +181,7 @@ export default async function RoomsPage({
             <SavedRoomButton />
 
             {dms.length > 0 && (
-              <section className="surface-glass p-5">
+              <section className="surface-glass tint-purple p-5">
                 <div className="mb-3 flex items-baseline justify-between">
                   <h2 className="font-display text-lg font-semibold">Direct messages</h2>
                   <span className="text-xs text-white/40">{dms.length}</span>
@@ -190,7 +190,7 @@ export default async function RoomsPage({
               </section>
             )}
 
-            <section className="surface-glass p-5">
+            <section className="surface-glass tint-blue p-5">
               <div className="mb-3 flex items-baseline justify-between">
                 <h2 className="font-display text-lg font-semibold">Your rooms</h2>
                 <span className="text-xs text-white/40">{yourRoomsWithCounts.length}</span>
@@ -198,7 +198,7 @@ export default async function RoomsPage({
               <RoomList rooms={yourRoomsWithCounts} variant="member" />
             </section>
 
-            <section className="surface-glass p-5">
+            <section className="surface-glass tint-amber p-5">
               <div className="mb-3 flex items-baseline justify-between">
                 <h2 className="font-display text-lg font-semibold">Discover rooms</h2>
                 <span className="text-xs text-white/40">{discover.length}</span>

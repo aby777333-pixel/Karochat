@@ -141,21 +141,33 @@ export function InviteButton({
             className="surface-glass w-[min(420px,92vw)] p-5"
           >
             <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p
-                  id="invite-title"
-                  className="font-display text-base font-semibold"
+              <div className="flex min-w-0 items-start gap-2">
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  aria-label="Back"
+                  title="Back"
+                  className="mt-0.5 rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-xs text-white/60 hover:bg-white/10"
                 >
-                  Invite to {roomName}
-                </p>
-                <p className="mt-0.5 text-xs text-white/55">
-                  Share this link. Anyone who opens it will be able to join.
-                </p>
+                  ←
+                </button>
+                <div className="min-w-0">
+                  <p
+                    id="invite-title"
+                    className="font-display text-base font-semibold"
+                  >
+                    Invite to {roomName}
+                  </p>
+                  <p className="mt-0.5 text-xs text-white/55">
+                    Share this link. Anyone who opens it will be able to join.
+                  </p>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
                 aria-label="Close"
+                title="Close (Esc)"
                 className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-xs text-white/60 hover:bg-white/10"
               >
                 ✕

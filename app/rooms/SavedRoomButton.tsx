@@ -30,7 +30,7 @@ export function SavedRoomButton() {
         onClick={open}
         disabled={pending}
         title="Your private notes & saved messages"
-        className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-left transition hover:border-neon-blue/30 hover:bg-white/10 disabled:opacity-60"
+        className="surface-glass tint-mint flex items-center justify-between gap-3 px-4 py-3 text-left transition hover:border-neon-mint/40 disabled:opacity-60"
       >
         <span className="flex items-center gap-2">
           <span aria-hidden className="text-base">💾</span>

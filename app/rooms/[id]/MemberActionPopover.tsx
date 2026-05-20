@@ -196,9 +196,20 @@ export function MemberActionPopover({
       role="menu"
       className={`absolute z-30 mt-1 w-64 rounded-xl border border-white/10 bg-ink-800/95 p-2 shadow-xl backdrop-blur ${alignClasses}`}
     >
-      <p className="px-2 pb-1.5 text-[10px] uppercase tracking-widest text-white/40">
-        {targetName}
-      </p>
+      <div className="flex items-center justify-between gap-2 px-2 pb-1.5">
+        <p className="truncate text-[10px] uppercase tracking-widest text-white/40">
+          {targetName}
+        </p>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          title="Close (Esc)"
+          className="rounded-md border border-white/10 bg-white/5 px-1.5 text-[10px] text-white/60 hover:bg-white/10"
+        >
+          ✕
+        </button>
+      </div>
 
       <button
         type="button"

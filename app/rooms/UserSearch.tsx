@@ -65,7 +65,7 @@ export function UserSearch() {
   }
 
   return (
-    <section className="surface-glass p-5">
+    <section className="surface-glass tint-pink p-5">
       <h3 className="font-display text-base font-semibold">Find a person</h3>
       <p className="mt-1 text-xs text-white/60">
         Search by @handle or display name. Tap a result to start a private chat.

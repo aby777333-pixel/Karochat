@@ -52,7 +52,7 @@ export function StoriesStrip({
 
   if (stories.length === 0) {
     return (
-      <section className="surface-glass mt-3 flex items-center gap-3 overflow-x-auto px-4 py-3">
+      <section className="surface-glass tint-purple mt-3 flex items-center gap-3 overflow-x-auto px-4 py-3">
         <Link
           href="/stories/new"
           className="flex shrink-0 items-center gap-2 rounded-xl border border-dashed border-neon-blue/40 bg-neon-blue/5 px-3 py-2 text-xs text-neon-blue hover:bg-neon-blue/10"
@@ -67,7 +67,7 @@ export function StoriesStrip({
 
   return (
     <>
-      <section className="surface-glass mt-3 flex items-center gap-2 overflow-x-auto px-3 py-3">
+      <section className="surface-glass tint-purple mt-3 flex items-center gap-2 overflow-x-auto px-3 py-3">
         <Link
           href="/stories/new"
           className="flex shrink-0 flex-col items-center gap-1 rounded-xl border border-dashed border-neon-blue/40 bg-neon-blue/5 px-3 py-2 text-[11px] text-neon-blue hover:bg-neon-blue/10"
@@ -171,10 +171,20 @@ function StoryViewer({
     >
       <div className="relative flex w-full max-w-md flex-col gap-2">
         <div className="flex items-center justify-between gap-3 text-xs text-white/70">
-          <p className="min-w-0 truncate">
-            <span className="text-white">{author}</span>
-            <span className="ml-2 text-white/40">@{story.author_username ?? "anon"}</span>
-          </p>
+          <div className="flex min-w-0 items-center gap-2">
+            <button
+              onClick={onClose}
+              className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-white/60 hover:bg-white/10"
+              aria-label="Back"
+              title="Back"
+            >
+              ←
+            </button>
+            <p className="min-w-0 truncate">
+              <span className="text-white">{author}</span>
+              <span className="ml-2 text-white/40">@{story.author_username ?? "anon"}</span>
+            </p>
+          </div>
           <div className="flex items-center gap-2 text-white/40">
             <span>{expiresIn}m left</span>
             {onDelete && (
@@ -190,6 +200,7 @@ function StoryViewer({
               onClick={onClose}
               className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-white/60 hover:bg-white/10"
               aria-label="Close"
+              title="Close (Esc)"
             >
               ✕
             </button>
