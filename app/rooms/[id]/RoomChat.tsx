@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/Button";
@@ -8,6 +9,7 @@ import { PresenceDot } from "@/components/PresenceDot";
 import { usePresenceHeartbeat } from "@/lib/usePresenceHeartbeat";
 import { useNotifyOnNewMessage } from "@/lib/useBrowserNotifications";
 import { SmartReplies } from "./SmartReplies";
+import { MemberActionPopover } from "./MemberActionPopover";
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
@@ -57,6 +59,7 @@ type MessageRow = {
 export function RoomChat({
   roomId,
   roomName,
+  roomInviteCode,
   currentUserId,
   currentUsername,
   currentDisplayName,
@@ -65,12 +68,14 @@ export function RoomChat({
 }: {
   roomId: string;
   roomName: string;
+  roomInviteCode?: string | null;
   currentUserId: string;
   currentUsername: string;
   currentDisplayName: string;
   currentPresence: "online" | "away" | "busy" | "invisible" | "offline";
   initialMessages: MessageRow[];
 }) {
+  const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [messages, setMessages] = useState<MessageRow[]>(initialMessages);
   const [draft, setDraft] = useState("");
@@ -515,6 +520,12 @@ export function RoomChat({
             allMessages={messages}
             currentUserId={currentUserId}
             currentUsername={currentUsername}
+            roomId={roomId}
+            roomInviteCode={roomInviteCode ?? null}
+            onAuthorNavigate={(roomDestId) => {
+              router.push(`/rooms/${roomDestId}`);
+              router.refresh();
+            }}
             isEditing={editing?.id === m.id}
             editingDraft={editing?.id === m.id ? editing.content : null}
             onEditDraft={(content) => setEditing((s) => (s ? { ...s, content } : s))}
@@ -710,6 +721,9 @@ function MessageBubble({
   allMessages,
   currentUserId,
   currentUsername,
+  roomId,
+  roomInviteCode,
+  onAuthorNavigate,
   isEditing,
   editingDraft,
   onEditDraft,
@@ -729,6 +743,9 @@ function MessageBubble({
   allMessages: MessageRow[];
   currentUserId: string;
   currentUsername: string;
+  roomId: string;
+  roomInviteCode: string | null;
+  onAuthorNavigate: (roomId: string) => void;
   isEditing: boolean;
   editingDraft: string | null;
   onEditDraft: (content: string) => void;
@@ -745,6 +762,7 @@ function MessageBubble({
 }) {
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [showTranslate, setShowTranslate] = useState(false);
+  const [showAuthorMenu, setShowAuthorMenu] = useState(false);
   const [translating, setTranslating] = useState(false);
   const [translation, setTranslation] = useState<{ lang: string; text: string } | null>(null);
   const [translateError, setTranslateError] = useState<string | null>(null);
@@ -862,18 +880,44 @@ function MessageBubble({
       className={clsx("group flex animate-rise flex-col", mine ? "items-end" : "items-start")}
     >
       {showAuthor && !mine && (
-        <p className="mb-1 ml-2 flex items-center gap-1.5 text-[11px] text-white/40">
-          <PresenceDot state={m.sender_presence_state ?? "offline"} pulse />
-          <span className="text-white/70">
-            {m.sender_display_name ?? m.sender_username ?? "Someone"}
-          </span>
-          <span className="text-white/25">@{m.sender_username ?? "anon"}</span>
-          {m.sender_is_guest && (
-            <span className="rounded-sm bg-white/10 px-1 text-[9px] uppercase tracking-widest text-white/50">
-              guest
+        <div className="relative mb-1 ml-2">
+          <button
+            type="button"
+            onClick={() => setShowAuthorMenu((s) => !s)}
+            aria-haspopup="menu"
+            aria-expanded={showAuthorMenu}
+            title={`Open actions for @${m.sender_username ?? "anon"}`}
+            className="flex items-center gap-1.5 rounded-md px-1 py-0.5 text-[11px] text-white/40 hover:bg-white/5 hover:text-white/70"
+          >
+            <PresenceDot state={m.sender_presence_state ?? "offline"} pulse />
+            <span className="text-white/70">
+              {m.sender_display_name ?? m.sender_username ?? "Someone"}
             </span>
+            <span className="text-white/25">@{m.sender_username ?? "anon"}</span>
+            {m.sender_is_guest && (
+              <span className="rounded-sm bg-white/10 px-1 text-[9px] uppercase tracking-widest text-white/50">
+                guest
+              </span>
+            )}
+          </button>
+          {showAuthorMenu && (
+            <MemberActionPopover
+              target={{
+                user_id: m.sender_id,
+                username: m.sender_username,
+                display_name: m.sender_display_name
+              }}
+              roomId={roomId}
+              roomInviteCode={roomInviteCode}
+              onClose={() => setShowAuthorMenu(false)}
+              onNavigate={(dest) => {
+                setShowAuthorMenu(false);
+                onAuthorNavigate(dest);
+              }}
+              align="left"
+            />
           )}
-        </p>
+        </div>
       )}
 
       {replyTarget && (

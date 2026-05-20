@@ -62,7 +62,7 @@ export default async function RoomPage({
 
   const roomResp = await supabase
     .from("rooms")
-    .select("id, name, description, is_public, invite_code, owner_id, is_dm, is_saved, rules_markdown")
+    .select("id, name, description, is_public, invite_code, owner_id, is_dm, is_saved, rules_markdown, visibility")
     .eq("id", params.id)
     .maybeSingle();
   const room = roomResp.data as
@@ -76,6 +76,7 @@ export default async function RoomPage({
         is_dm: boolean | null;
         is_saved: boolean | null;
         rules_markdown: string | null;
+        visibility: "public" | "listed" | "unlisted" | "secret";
       }
     | null;
   if (!room) {
@@ -225,12 +226,21 @@ export default async function RoomPage({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Link
+            href="/shorts"
+            className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-white/80 transition hover:bg-white/10 hover:text-white"
+            title="Shorts"
+            aria-label="Shorts"
+          >
+            🎬
+          </Link>
           <NewRoomButton from="room" />
           {!room.is_dm && !room.is_saved && (
             <InviteButton
               roomId={room.id}
               roomName={headerName}
               initialCode={room.invite_code ?? null}
+              initialVisibility={room.visibility}
               isOwner={isOwner}
             />
           )}
@@ -275,6 +285,7 @@ export default async function RoomPage({
           <RoomChat
             roomId={room.id}
             roomName={headerName}
+            roomInviteCode={room.invite_code ?? null}
             currentUserId={profile.id}
             currentUsername={profile.username}
             currentDisplayName={profile.display_name}

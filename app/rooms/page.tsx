@@ -6,6 +6,7 @@ import { SignOutButton } from "@/components/SignOutButton";
 import { AdRails } from "@/components/AdRails";
 import { RoomsClient, JoinPublic } from "./RoomsClient";
 import { SavedRoomButton } from "./SavedRoomButton";
+import { UserSearch } from "./UserSearch";
 
 export const dynamic = "force-dynamic";
 
@@ -136,7 +137,13 @@ export default async function RoomsPage({
             <Logo className="h-6 w-6" />
             <Wordmark className="text-lg" />
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-xs md:gap-3">
+            <Link
+              href="/shorts"
+              className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-white/80 hover:bg-white/10 hover:text-white"
+            >
+              🎬 Shorts
+            </Link>
             <div className="hidden text-right text-xs md:block">
               <p className="text-white">{profile.display_name}</p>
               <p className="text-white/40">@{profile.username}</p>
@@ -189,6 +196,7 @@ export default async function RoomsPage({
           </div>
 
           <aside className="space-y-5">
+            <UserSearch />
             <RoomsClient />
           </aside>
         </div>

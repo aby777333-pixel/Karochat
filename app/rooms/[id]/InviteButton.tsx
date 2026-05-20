@@ -1,26 +1,67 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+
+type Visibility = "public" | "listed" | "unlisted" | "secret";
+
+const VIS_OPTIONS: { value: Visibility; label: string; icon: string; description: string }[] = [
+  { value: "public",   label: "Public",   icon: "🌍", description: "In the lobby. Anyone can join." },
+  { value: "listed",   label: "Listed",   icon: "🔒", description: "In the lobby with a lock — people request to join." },
+  { value: "unlisted", label: "Unlisted", icon: "🔗", description: "Hidden from the lobby. Joinable with the code." },
+  { value: "secret",   label: "Secret",   icon: "🕶️", description: "Hidden everywhere. Joinable only via in-app invite." }
+];
 
 export function InviteButton({
   roomId,
   roomName,
   initialCode,
-  isOwner
+  isOwner,
+  initialVisibility
 }: {
   roomId: string;
   roomName: string;
   initialCode: string | null;
   isOwner: boolean;
+  initialVisibility?: Visibility;
 }) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [code, setCode] = useState<string | null>(initialCode);
+  const [visibility, setVisibility] = useState<Visibility>(initialVisibility ?? "public");
+  const [visBusy, setVisBusy] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copiedKind, setCopiedKind] = useState<"link" | "code" | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+
+  async function changeVisibility(next: Visibility) {
+    if (next === visibility) return;
+    setVisBusy(true);
+    setError(null);
+    const { data, error: rpcErr } = await supabase.rpc("set_room_visibility", {
+      p_room_id: roomId,
+      p_visibility: next
+    });
+    setVisBusy(false);
+    if (rpcErr) {
+      setError(rpcErr.message);
+      return;
+    }
+    setVisibility((data as Visibility) ?? next);
+    if ((next === "unlisted" || next === "secret") && !code) {
+      // The RPC will have minted a code — refresh to pick it up.
+      const { data: row } = await supabase
+        .from("rooms")
+        .select("invite_code")
+        .eq("id", roomId)
+        .maybeSingle();
+      if (row?.invite_code) setCode(row.invite_code as string);
+    }
+    router.refresh();
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -163,6 +204,44 @@ export function InviteButton({
                   </p>
                 )}
               </div>
+
+              {isOwner && (
+                <div>
+                  <p className="mb-1 text-[10px] uppercase tracking-widest text-white/40">
+                    Visibility
+                  </p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {VIS_OPTIONS.map((opt) => {
+                      const active = visibility === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => void changeVisibility(opt.value)}
+                          disabled={visBusy}
+                          title={opt.description}
+                          className={`flex flex-col items-start gap-0.5 rounded-lg border px-2 py-1.5 text-left transition disabled:opacity-50 ${
+                            active
+                              ? "border-neon-blue/60 bg-neon-blue/10"
+                              : "border-white/10 bg-white/5 hover:bg-white/10"
+                          }`}
+                        >
+                          <span className="text-xs font-medium text-white">
+                            {opt.icon} {opt.label}
+                          </span>
+                          <span className="text-[10px] leading-tight text-white/50">
+                            {opt.description}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="mt-1.5 text-[10px] text-white/30">
+                    Rooms default to Public. Switch to Unlisted/Secret any time —
+                    a code is minted automatically.
+                  </p>
+                </div>
+              )}
 
               {isOwner && (
                 <button
