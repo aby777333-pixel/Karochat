@@ -57,6 +57,7 @@ export function MemberActionPopover({
     realness: number;
     quality: number;
   } | null>(null);
+  const [vouchCount, setVouchCount] = useState<number | null>(null);
   const [friendState, setFriendState] = useState<
     "none" | "pending_out" | "pending_in" | "friends" | "self" | null
   >(null);
@@ -76,27 +77,60 @@ export function MemberActionPopover({
     };
   }, [onClose]);
 
-  // Fetch current vibe totals for this target so we can render counts.
+  // Fetch current vibe totals + vouch count for this target so we can render
+  // both inline.
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data } = await supabase
-        .from("profile_vibes_view")
-        .select("vibe_kindness, vibe_realness, vibe_quality")
-        .eq("profile_id", target.user_id)
-        .maybeSingle();
-      if (!cancelled) {
-        setVibes({
-          kindness: Number(data?.vibe_kindness ?? 0),
-          realness: Number(data?.vibe_realness ?? 0),
-          quality: Number(data?.vibe_quality ?? 0)
-        });
-      }
+      const [vibesResp, vouchesResp] = await Promise.all([
+        supabase
+          .from("profile_vibes_view")
+          .select("vibe_kindness, vibe_realness, vibe_quality")
+          .eq("profile_id", target.user_id)
+          .maybeSingle(),
+        supabase
+          .from("vouches_received_view")
+          .select("id", { count: "exact", head: true })
+          .eq("vouched_id", target.user_id)
+      ]);
+      if (cancelled) return;
+      setVibes({
+        kindness: Number(vibesResp.data?.vibe_kindness ?? 0),
+        realness: Number(vibesResp.data?.vibe_realness ?? 0),
+        quality: Number(vibesResp.data?.vibe_quality ?? 0)
+      });
+      setVouchCount(vouchesResp.count ?? 0);
     })();
     return () => {
       cancelled = true;
     };
   }, [supabase, target.user_id]);
+
+  async function giveVouch() {
+    setError(null);
+    setNotice(null);
+    const note = prompt(
+      `Vouch for ${target.display_name ?? "@" + (target.username ?? "anon")} in one sentence (≤240 chars). They'll see this on their profile.`
+    );
+    if (note == null) return;
+    const trimmed = note.trim();
+    if (!trimmed) {
+      setError("A vouch needs a note.");
+      return;
+    }
+    setBusy("vibe");
+    const { error: rpcErr } = await supabase.rpc("give_vouch", {
+      p_vouched_id: target.user_id,
+      p_note: trimmed
+    });
+    setBusy(null);
+    if (rpcErr) {
+      setError(rpcErr.message);
+      return;
+    }
+    setVouchCount((c) => (c ?? 0) + 1);
+    setNotice("Vouched.");
+  }
 
   // Friendship state — render the right CTA depending on it.
   useEffect(() => {
@@ -417,9 +451,20 @@ export function MemberActionPopover({
       )}
 
       <div className="mt-2 border-t border-white/5 pt-2">
-        <p className="px-2 pb-1 text-[10px] uppercase tracking-widest text-white/40">
-          Vibe (1/day each)
-        </p>
+        <div className="flex items-center justify-between px-2 pb-1">
+          <p className="text-[10px] uppercase tracking-widest text-white/40">
+            Vibe (1/day each)
+          </p>
+          <a
+            href={`/u/${target.username ?? ""}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[10px] text-white/45 hover:text-white"
+            title="Open public profile"
+          >
+            profile →
+          </a>
+        </div>
         <div className="grid grid-cols-3 gap-1">
           {(
             [
@@ -443,6 +488,22 @@ export function MemberActionPopover({
             </button>
           ))}
         </div>
+        <button
+          type="button"
+          onClick={() => void giveVouch()}
+          disabled={busy !== null}
+          className="mt-1.5 flex w-full items-center gap-2 rounded-md border border-white/10 bg-white/5 px-2 py-1.5 text-xs text-white/80 hover:bg-white/10 disabled:opacity-50"
+        >
+          <span aria-hidden>🪪</span>
+          <span className="flex-1 text-left">
+            Vouch with a note · 5/month
+          </span>
+          {vouchCount !== null && (
+            <span className="font-mono text-[10px] text-white/45">
+              {vouchCount}
+            </span>
+          )}
+        </button>
       </div>
 
       {error && (

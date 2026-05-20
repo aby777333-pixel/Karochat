@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import clsx from "clsx";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/Button";
@@ -11,6 +12,7 @@ import { useNotifyOnNewMessage } from "@/lib/useBrowserNotifications";
 import { SmartReplies } from "./SmartReplies";
 import { MemberActionPopover } from "./MemberActionPopover";
 import { QuoteCard } from "./QuoteCard";
+import { Soundscape } from "./Soundscape";
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
@@ -32,6 +34,25 @@ const TRANSLATE_LANGS = [
   "Marathi", "Bengali", "Gujarati", "Punjabi", "Odia",
   "Spanish", "Portuguese", "French", "German", "Japanese", "Korean", "Mandarin", "Arabic"
 ];
+
+// v7 — narrow keyword patterns that trigger the one-time soft warning popup
+// from the People's Charter. Deliberately narrow: "kill all X", "bomb the
+// school", explicit recruitment to known terrorist orgs, "ethnic cleansing".
+// NOT vibes-based; NOT AI; NOT a content filter. Just a heads-up that says
+// "you're being seen" once per session, then never again.
+const FOUR_LINES_PATTERNS: RegExp[] = [
+  /\b(kill|murder|behead|gas|hang)\s+(all|every|the|those)\s+\w+/i,
+  /\b(bomb|blow\s*up|attack|shoot\s*up)\s+(the\s+)?(school|mosque|temple|church|synagogue|station|airport|government|parliament|capitol|embassy|hospital|mall)/i,
+  /\b(join|recruit|fund|support)\s+(isis|isil|daesh|al[\s-]?qaeda|nazi|hamas|hezbollah|boko\s*haram|taliban|kkk|aryan\s*brotherhood)\b/i,
+  /\b(genocide|exterminate|wipe\s+out|cleanse)\s+(the|all|every)\b/i,
+  /\beth?nic\s+cleansing\b/i,
+  /\bgas\s+the\s+\w+/i,
+  /\bhitler\s+was\s+right\b/i
+];
+
+function matchesFourLines(text: string): boolean {
+  return FOUR_LINES_PATTERNS.some((re) => re.test(text));
+}
 
 // Stable per-user hue so each speaker gets a recognisable bubble colour.
 // djb2-ish hash → 0..359. Same seed = same colour everywhere.
@@ -114,6 +135,7 @@ export function RoomChat({
   }, [draft, draftStorageKey]);
   const [intentMenuOpen, setIntentMenuOpen] = useState(false);
   const [lightsOut, setLightsOut] = useState(false);
+  const [fourLinesWarning, setFourLinesWarning] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<MessageRow | null>(null);
   const [editing, setEditing] = useState<{ id: string; content: string } | null>(null);
   const [sending, setSending] = useState(false);
@@ -275,6 +297,20 @@ export function RoomChat({
   async function sendText() {
     const text = draft.trim();
     if (!text || sending) return;
+
+    // v7 People's Charter — soft 4-lines warning. One-time per session.
+    // Never blocks. Just signals "you're being seen" if the narrow keyword
+    // pattern matches explicit calls for violence / terrorism / organized
+    // hate. After "Carry on" the message sends normally.
+    try {
+      const acked = window.sessionStorage.getItem("karochat:4lines-acked") === "1";
+      if (!acked && matchesFourLines(text)) {
+        setFourLinesWarning(text);
+        return;
+      }
+    } catch {
+      // sessionStorage can be disabled — fall through to normal send.
+    }
 
     // /poll question | option 1 | option 2 | ... → publish as a poll message.
     if (text.toLowerCase().startsWith("/poll ")) {
@@ -569,7 +605,8 @@ export function RoomChat({
           <PresenceDot state="online" pulse />
           <span>{onlineCount} here now</span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 md:gap-3">
+          <Soundscape />
           <button
             type="button"
             onClick={() => setLightsOut((s) => !s)}
@@ -589,7 +626,7 @@ export function RoomChat({
           >
             {lightsOut ? "🕯 lights out" : "🕯 lights"}
           </button>
-          <span className="font-mono uppercase tracking-widest">realtime</span>
+          <span className="hidden font-mono uppercase tracking-widest sm:inline">realtime</span>
         </div>
       </div>
 
@@ -818,6 +855,58 @@ export function RoomChat({
           <code className="rounded bg-white/5 px-1 text-white/40">@karo …</code>
         </p>
       </div>
+
+      {fourLinesWarning !== null && (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/80 p-4 backdrop-blur-sm sm:items-center"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setFourLinesWarning(null);
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="surface-glass tint-amber my-auto w-[min(440px,94vw)] p-5"
+          >
+            <p className="font-display text-base font-semibold text-white">
+              Heads up.
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-white/85">
+              Karochat doesn&apos;t moderate vibes, but calls for violence,
+              terrorism, and organized hate are one of our{" "}
+              <Link href="/charter" className="underline hover:text-white">
+                four lines
+              </Link>
+              . If you mean it, this gets reported and you&apos;ll be banned.
+              If you didn&apos;t mean it that way, you&apos;re fine. Carry on.
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setFourLinesWarning(null)}
+                className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80 hover:bg-white/10"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  try {
+                    window.sessionStorage.setItem("karochat:4lines-acked", "1");
+                  } catch {
+                    // ignore
+                  }
+                  setFourLinesWarning(null);
+                  void sendText();
+                }}
+                className="flex-1 rounded-lg bg-neon-amber/90 px-3 py-2 text-sm font-medium text-ink-900 hover:bg-neon-amber"
+              >
+                Carry on
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
