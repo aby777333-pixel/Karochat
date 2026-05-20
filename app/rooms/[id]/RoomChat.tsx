@@ -97,6 +97,7 @@ export function RoomChat({
   currentUsername,
   currentDisplayName,
   currentPresence,
+  currentAutoTranslate,
   initialMessages
 }: {
   roomId: string;
@@ -106,6 +107,7 @@ export function RoomChat({
   currentUsername: string;
   currentDisplayName: string;
   currentPresence: "online" | "away" | "busy" | "invisible" | "offline";
+  currentAutoTranslate?: string | null;
   initialMessages: MessageRow[];
 }) {
   const router = useRouter();
@@ -136,6 +138,12 @@ export function RoomChat({
   const [intentMenuOpen, setIntentMenuOpen] = useState(false);
   const [lightsOut, setLightsOut] = useState(false);
   const [fourLinesWarning, setFourLinesWarning] = useState<string | null>(null);
+  const [threadParentId, setThreadParentId] = useState<string | null>(null);
+  const [reportTarget, setReportTarget] = useState<
+    | { kind: "message"; id: string; preview: string }
+    | { kind: "user"; id: string; preview: string }
+    | null
+  >(null);
   const [replyTo, setReplyTo] = useState<MessageRow | null>(null);
   const [editing, setEditing] = useState<{ id: string; content: string } | null>(null);
   const [sending, setSending] = useState(false);
@@ -671,6 +679,9 @@ export function RoomChat({
             onReply={(msg) => setReplyTo(msg)}
             onReact={toggleReaction}
             onJump={jumpToMessage}
+            onOpenThread={(id) => setThreadParentId(id)}
+            onReport={(t) => setReportTarget(t)}
+            autoTranslate={currentAutoTranslate ?? null}
             registerRef={(id, el) => {
               if (el) messageRefs.current.set(id, el);
               else messageRefs.current.delete(id);
@@ -856,6 +867,23 @@ export function RoomChat({
         </p>
       </div>
 
+      {threadParentId && (
+        <ThreadPanel
+          parentId={threadParentId}
+          messages={messages}
+          currentUserId={currentUserId}
+          roomId={roomId}
+          onClose={() => setThreadParentId(null)}
+        />
+      )}
+
+      {reportTarget && (
+        <ReportModal
+          target={reportTarget}
+          onClose={() => setReportTarget(null)}
+        />
+      )}
+
       {fourLinesWarning !== null && (
         <div
           className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/80 p-4 backdrop-blur-sm sm:items-center"
@@ -933,6 +961,9 @@ function MessageBubble({
   onReply,
   onReact,
   onJump,
+  onOpenThread,
+  onReport,
+  autoTranslate,
   registerRef
 }: {
   m: MessageRow;
@@ -956,6 +987,13 @@ function MessageBubble({
   onReply: (m: MessageRow) => void;
   onReact: (id: string, emoji: string) => void | Promise<void>;
   onJump: (id: string) => void;
+  onOpenThread: (parentId: string) => void;
+  onReport: (
+    t:
+      | { kind: "message"; id: string; preview: string }
+      | { kind: "user"; id: string; preview: string }
+  ) => void;
+  autoTranslate: string | null;
   registerRef: (id: string, el: HTMLDivElement | null) => void;
 }) {
   const [showReactionPicker, setShowReactionPicker] = useState(false);
@@ -989,6 +1027,53 @@ function MessageBubble({
       setShowTranslate(false);
     }
   }
+
+  // Polylingual auto-translate (Wave 15). If the viewer set
+  // `auto_translate_to`, kick off a background translation for foreign
+  // messages on first render. Skips: own messages, empty text, short pings,
+  // already-translated, or messages that look like they're already mostly in
+  // the target script (rough heuristic — the /api route handles "same
+  // language → return as-is").
+  useEffect(() => {
+    if (!autoTranslate) return;
+    if (!m.content) return;
+    if (m.sender_id === currentUserId) return;
+    if (translation || translateError || translating) return;
+    if (m.content.trim().length < 4) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        setTranslating(true);
+        const r = await fetch("/api/translate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: m.content, target: autoTranslate })
+        });
+        if (cancelled) return;
+        const data = await r.json();
+        if (!r.ok || !data?.translated) {
+          // Silent fail on auto — no error chip cluttering every message.
+          return;
+        }
+        // If the translation is identical to source, it was already in target
+        // — skip rendering the duplicate "→ xx" panel.
+        const same =
+          String(data.translated).trim().toLowerCase() ===
+          (m.content ?? "").trim().toLowerCase();
+        if (!same) {
+          setTranslation({ lang: autoTranslate, text: String(data.translated) });
+        }
+      } catch {
+        // ignore — silent on auto path
+      } finally {
+        if (!cancelled) setTranslating(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // We only want this to fire once per message id × target lang combo.
+  }, [m.id, autoTranslate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Karo: AI-generated system reply, rendered as a centered card.
   if (m.type === "system" && m.intent === "karo") {
@@ -1206,6 +1291,14 @@ function MessageBubble({
             >
               ↪
             </button>
+            <button
+              onClick={() => onOpenThread(m.reply_to_id ?? m.id)}
+              className="rounded px-1.5 py-0.5 text-xs hover:bg-white/10"
+              aria-label="Open thread"
+              title="Open thread"
+            >
+              🧵
+            </button>
             {m.content && (
               <button
                 onClick={() => setShowTranslate((s) => !s)}
@@ -1244,6 +1337,22 @@ function MessageBubble({
                 title="I wish I'd phrased this differently"
               >
                 😔
+              </button>
+            )}
+            {!mine && (
+              <button
+                onClick={() =>
+                  onReport({
+                    kind: "message",
+                    id: m.id,
+                    preview: (m.content ?? "").slice(0, 80) || "(image / media)"
+                  })
+                }
+                className="rounded px-1.5 py-0.5 text-xs text-neon-red/80 hover:bg-neon-red/10 hover:text-neon-red"
+                aria-label="Report"
+                title="Report"
+              >
+                🚩
               </button>
             )}
             {mine && (
@@ -1511,4 +1620,321 @@ function formatTime(iso: string) {
   } catch {
     return "";
   }
+}
+
+// ---------------------------------------------------------------------------
+// ThreadPanel (Wave 15) — side panel showing every reply to a parent message.
+// Uses existing reply_to_id chain. Replies posted from here re-use the
+// messages insert path; realtime broadcasts pick them up in the main feed.
+// ---------------------------------------------------------------------------
+function ThreadPanel({
+  parentId,
+  messages,
+  currentUserId,
+  roomId,
+  onClose
+}: {
+  parentId: string;
+  messages: MessageRow[];
+  currentUserId: string;
+  roomId: string;
+  onClose: () => void;
+}) {
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const [draft, setDraft] = useState("");
+  const [sending, setSending] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const parent = messages.find((m) => m.id === parentId) ?? null;
+  // A "thread" = the parent message + every message replying to it.
+  // (We keep it one level deep — Slack-style — to avoid recursion overload.)
+  const replies = messages.filter((m) => m.reply_to_id === parentId);
+
+  async function postReply() {
+    const text = draft.trim();
+    if (!text || sending) return;
+    setSending(true);
+    setErr(null);
+    const { error } = await supabase.from("messages").insert({
+      sender_id: currentUserId,
+      room_id: roomId,
+      content: text,
+      reply_to_id: parentId,
+      type: "text"
+    });
+    setSending(false);
+    if (error) {
+      setErr(error.message);
+      return;
+    }
+    setDraft("");
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-40 flex justify-end bg-black/40 backdrop-blur-sm"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <aside
+        role="dialog"
+        aria-label="Thread"
+        className="surface-glass flex h-full w-full max-w-md flex-col border-l border-white/10"
+      >
+        <header className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+          <p className="text-xs uppercase tracking-widest text-white/55">
+            🧵 Thread · {replies.length} {replies.length === 1 ? "reply" : "replies"}
+          </p>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close thread"
+            className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-white/70 hover:bg-white/10"
+          >
+            ✕
+          </button>
+        </header>
+
+        <div className="flex-1 space-y-3 overflow-y-auto p-4">
+          {parent ? (
+            <div className="rounded-2xl border border-white/15 bg-white/5 px-3 py-2">
+              <p className="text-[11px] text-white/45">
+                {parent.sender_display_name ??
+                  parent.sender_username ??
+                  "someone"}{" "}
+                <span className="text-white/30">·</span>{" "}
+                <span className="text-white/30">{formatTime(parent.created_at)}</span>
+              </p>
+              <p className="mt-0.5 whitespace-pre-wrap text-sm text-white/90">
+                {parent.deleted_at
+                  ? "this message was deleted"
+                  : parent.content ?? "(image / media)"}
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-white/50">Parent message not in view.</p>
+          )}
+
+          {replies.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-white/10 bg-white/[0.02] px-3 py-3 text-center text-xs text-white/40">
+              No replies yet. Start the thread.
+            </p>
+          ) : (
+            replies.map((r) => (
+              <div
+                key={r.id}
+                className="rounded-2xl border border-white/10 bg-black/25 px-3 py-2"
+              >
+                <p className="text-[11px] text-white/45">
+                  {r.sender_display_name ?? r.sender_username ?? "someone"}{" "}
+                  <span className="text-white/30">·</span>{" "}
+                  <span className="text-white/30">{formatTime(r.created_at)}</span>
+                </p>
+                <p className="mt-0.5 whitespace-pre-wrap text-sm text-white/90">
+                  {r.deleted_at
+                    ? "this message was deleted"
+                    : r.content ?? "(image / media)"}
+                </p>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="border-t border-white/10 p-3">
+          {err && <p className="mb-2 text-xs text-neon-red">{err}</p>}
+          <div className="flex items-end gap-2">
+            <textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value.slice(0, 2000))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void postReply();
+                }
+              }}
+              placeholder="Reply in thread…"
+              rows={2}
+              className="flex-1 resize-none rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none placeholder:text-white/30 focus:border-neon-blue/50"
+            />
+            <button
+              type="button"
+              onClick={() => void postReply()}
+              disabled={!draft.trim() || sending}
+              className="rounded-xl bg-neon-blue px-3 py-2 text-sm font-medium text-ink-900 hover:bg-neon-blue/90 disabled:opacity-50"
+            >
+              {sending ? "…" : "Send"}
+            </button>
+          </div>
+          <p className="mt-1 text-[10px] text-white/35">
+            Replies post to the main room too — threads just give them a quiet
+            home.
+          </p>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ReportModal (Wave 15) — minimal report flow. Category-picker + optional
+// note. Calls create_report RPC which auto-prioritises minor/ncii to 100.
+// ---------------------------------------------------------------------------
+const REPORT_CATEGORIES: { value: string; label: string; hint: string }[] = [
+  { value: "minor",    label: "A minor is involved",      hint: "Anyone under 18, anywhere in the world." },
+  { value: "ncii",     label: "Non-consensual intimate",  hint: "Sexual imagery shared without consent." },
+  { value: "doxxing",  label: "Doxxing / private info",   hint: "Real-name / address / phone exposed." },
+  { value: "violence", label: "Threat or call to violence", hint: "Specific threat or organized incitement." },
+  { value: "hate",     label: "Organized hate",           hint: "Recruitment to hate groups / dehumanizing." },
+  { value: "spam",     label: "Spam or scam",             hint: "Mass-posting / phishing / impersonation." },
+  { value: "other",    label: "Something else",           hint: "Tell us in the note." }
+];
+
+function ReportModal({
+  target,
+  onClose
+}: {
+  target:
+    | { kind: "message"; id: string; preview: string }
+    | { kind: "user"; id: string; preview: string };
+  onClose: () => void;
+}) {
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const [category, setCategory] = useState<string>("");
+  const [body, setBody] = useState("");
+  const [sending, setSending] = useState(false);
+  const [done, setDone] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function submit() {
+    if (!category || sending) return;
+    setSending(true);
+    setErr(null);
+    const { error } = await supabase.rpc("create_report", {
+      p_target_kind: target.kind,
+      p_target_id: target.id,
+      p_category: category,
+      p_body: body.trim() || null
+    });
+    setSending(false);
+    if (error) {
+      setErr(error.message);
+      return;
+    }
+    setDone(true);
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/80 p-4 backdrop-blur-sm sm:items-center"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="surface-glass tint-red my-auto w-[min(480px,94vw)] p-5"
+      >
+        <div className="flex items-center justify-between">
+          <p className="font-display text-base font-semibold text-white">
+            🚩 Report this {target.kind}
+          </p>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-white/70 hover:bg-white/10"
+          >
+            ✕
+          </button>
+        </div>
+
+        {done ? (
+          <>
+            <p className="mt-3 text-sm text-white/85">
+              Got it. Reports involving minors or NCII jump our queue
+              immediately. Thank you for keeping Karochat safe.
+            </p>
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-lg bg-neon-blue px-4 py-2 text-sm font-medium text-ink-900 hover:bg-neon-blue/90"
+              >
+                Done
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            {target.preview && (
+              <p className="mt-2 max-h-20 overflow-y-auto rounded-lg border border-white/10 bg-black/30 px-2 py-1.5 text-[12px] italic text-white/55">
+                &ldquo;{target.preview}&rdquo;
+              </p>
+            )}
+
+            <p className="mt-3 text-[11px] uppercase tracking-widest text-white/40">
+              What&apos;s wrong?
+            </p>
+            <div className="mt-2 space-y-1.5">
+              {REPORT_CATEGORIES.map((c) => {
+                const active = category === c.value;
+                return (
+                  <button
+                    type="button"
+                    key={c.value}
+                    onClick={() => setCategory(c.value)}
+                    className={clsx(
+                      "block w-full rounded-lg border px-3 py-2 text-left transition",
+                      active
+                        ? "border-neon-red/60 bg-neon-red/10 text-white"
+                        : "border-white/10 bg-white/5 text-white/75 hover:bg-white/10"
+                    )}
+                  >
+                    <p className="text-sm">{c.label}</p>
+                    <p className="text-[11px] text-white/45">{c.hint}</p>
+                  </button>
+                );
+              })}
+            </div>
+
+            <p className="mt-3 text-[11px] uppercase tracking-widest text-white/40">
+              Add context (optional)
+            </p>
+            <textarea
+              value={body}
+              onChange={(e) => setBody(e.target.value.slice(0, 1000))}
+              rows={3}
+              placeholder="Anything else our reviewers should know…"
+              className="mt-1 w-full resize-none rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none placeholder:text-white/30 focus:border-neon-red/40"
+            />
+            <p className="mt-0.5 text-right text-[10px] text-white/35">
+              {body.length}/1000
+            </p>
+
+            {err && <p className="mt-2 text-xs text-neon-red">{err}</p>}
+
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80 hover:bg-white/10"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void submit()}
+                disabled={!category || sending}
+                className="flex-1 rounded-lg bg-neon-red px-3 py-2 text-sm font-medium text-white hover:bg-neon-red/90 disabled:opacity-60"
+              >
+                {sending ? "Sending…" : "Send report"}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
 }

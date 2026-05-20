@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Logo, Wordmark } from "@/components/Brand";
 import { PresenceDot } from "@/components/PresenceDot";
+import { ReportProfileButton } from "./ReportProfileButton";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,8 @@ type PublicProfile = {
   mood_expires_at: string | null;
   traveling_in_city: string | null;
   traveling_until: string | null;
+  bio_drop: string | null;
+  bio_drop_updated_at: string | null;
   created_at: string;
   vibe_kindness: number;
   vibe_realness: number;
@@ -183,7 +186,20 @@ export default async function ProfilePage({
           >
             Find more people
           </Link>
+          <ReportProfileButton
+            profileId={profile.id}
+            handle={profile.username}
+          />
         </div>
+
+        {profile.bio_drop && (
+          <div className="mt-5 rounded-xl border border-white/10 bg-black/25 p-3 text-sm leading-relaxed text-white/80">
+            <p className="text-[10px] uppercase tracking-widest text-white/40">
+              Bio drop
+            </p>
+            <p className="mt-1.5 whitespace-pre-wrap">{profile.bio_drop}</p>
+          </div>
+        )}
 
         <p className="mt-5 text-[11px] text-white/35">
           On Karochat since {sinceText}

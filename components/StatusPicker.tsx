@@ -35,6 +35,34 @@ const MOOD_EXPIRY_CHOICES = [
   { minutes: 0,         label: "Until I clear it" }
 ];
 
+// Same set the manual Translate menu shows in RoomChat — keeps the two in
+// sync so a user's "auto" pick matches what they could pick by hand.
+const TRANSLATE_LANG_CHOICES: { code: string; label: string }[] = [
+  { code: "",   label: "off"          },
+  { code: "en", label: "English"      },
+  { code: "hi", label: "हिन्दी"        },
+  { code: "ta", label: "தமிழ்"        },
+  { code: "te", label: "తెలుగు"       },
+  { code: "kn", label: "ಕನ್ನಡ"        },
+  { code: "ml", label: "മലയാളം"      },
+  { code: "bn", label: "বাংলা"        },
+  { code: "mr", label: "मराठी"        },
+  { code: "gu", label: "ગુજરાતી"      },
+  { code: "pa", label: "ਪੰਜਾਬੀ"      },
+  { code: "or", label: "ଓଡ଼ିଆ"        },
+  { code: "as", label: "অসমীয়া"      },
+  { code: "ur", label: "اردو"         },
+  { code: "es", label: "Español"      },
+  { code: "fr", label: "Français"     },
+  { code: "de", label: "Deutsch"      },
+  { code: "pt", label: "Português"    },
+  { code: "ar", label: "العربية"      },
+  { code: "ja", label: "日本語"       },
+  { code: "zh", label: "中文"         },
+  { code: "ko", label: "한국어"       },
+  { code: "ru", label: "Русский"      }
+];
+
 export function StatusPicker({
   currentState,
   currentText,
@@ -43,6 +71,8 @@ export function StatusPicker({
   currentMoodExpiresAt,
   currentTravelCity,
   currentTravelUntil,
+  currentBioDrop,
+  currentAutoTranslate,
   displayName
 }: {
   currentState: PresenceState | string;
@@ -52,6 +82,8 @@ export function StatusPicker({
   currentMoodExpiresAt?: string | null;
   currentTravelCity?: string | null;
   currentTravelUntil?: string | null;
+  currentBioDrop?: string | null;
+  currentAutoTranslate?: string | null;
   displayName: string;
 }) {
   const router = useRouter();
@@ -65,6 +97,10 @@ export function StatusPicker({
   const [moodExpiryMinutes, setMoodExpiryMinutes] = useState<number>(240);
   const [travelCity, setTravelCity] = useState<string>(currentTravelCity ?? "");
   const [travelDays, setTravelDays] = useState<number>(7);
+  const [bio, setBio] = useState<string>(currentBioDrop ?? "");
+  const [autoTranslate, setAutoTranslate] = useState<string>(
+    (currentAutoTranslate ?? "").toLowerCase()
+  );
   const [pending, startTransition] = useTransition();
   const ref = useRef<HTMLDivElement>(null);
 
@@ -106,6 +142,13 @@ export function StatusPicker({
       await supabase.rpc("set_travel", {
         p_city: cleanCity || null,
         p_until_iso: until
+      });
+      const cleanBio = bio.trim();
+      await supabase.rpc("set_bio_drop", {
+        p_bio: cleanBio.length ? cleanBio : null
+      });
+      await supabase.rpc("set_auto_translate", {
+        p_lang: autoTranslate ? autoTranslate : null
       });
       setOpen(false);
       router.refresh();
@@ -271,6 +314,42 @@ export function StatusPicker({
               </select>
             </div>
           )}
+
+          <p className="mt-4 text-xs uppercase tracking-widest text-white/40">
+            Bio drop
+          </p>
+          <p className="mt-1 text-[11px] text-white/45">
+            One paragraph (280 chars) shown on your <code className="font-mono">/u/</code> page.
+            No real names required.
+          </p>
+          <textarea
+            value={bio}
+            onChange={(e) => setBio(e.target.value.slice(0, 280))}
+            placeholder="who you are right now, in a sentence…"
+            rows={2}
+            className="mt-2 w-full resize-none rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none placeholder:text-white/30 focus:border-neon-mint/40"
+          />
+          <p className="mt-0.5 text-right text-[10px] text-white/35">
+            {bio.length}/280
+          </p>
+
+          <p className="mt-3 text-xs uppercase tracking-widest text-white/40">
+            Auto-translate messages
+          </p>
+          <p className="mt-1 text-[11px] text-white/45">
+            Render foreign-script messages in your language. Off by default.
+          </p>
+          <select
+            value={autoTranslate}
+            onChange={(e) => setAutoTranslate(e.target.value)}
+            className="mt-2 w-full rounded-md border border-white/10 bg-black/30 px-2 py-1.5 text-xs outline-none focus:border-neon-amber/40"
+          >
+            {TRANSLATE_LANG_CHOICES.map((l) => (
+              <option key={l.code || "off"} value={l.code}>
+                {l.code ? `${l.code} · ${l.label}` : "off"}
+              </option>
+            ))}
+          </select>
 
           <div className="mt-3 flex gap-2">
             <button

@@ -40,7 +40,7 @@ export default async function RoomPage({
     const wide = await supabase
       .from("profiles")
       .select(
-        "id, username, display_name, terms_accepted_at, presence_state, status_text, status_emoji, mood, mood_expires_at, traveling_in_city, traveling_until"
+        "id, username, display_name, terms_accepted_at, presence_state, status_text, status_emoji, mood, mood_expires_at, traveling_in_city, traveling_until, bio_drop, auto_translate_to"
       )
       .eq("id", user.id)
       .maybeSingle();
@@ -292,6 +292,8 @@ export default async function RoomPage({
             currentMoodExpiresAt={(profile as any).mood_expires_at ?? null}
             currentTravelCity={(profile as any).traveling_in_city ?? null}
             currentTravelUntil={(profile as any).traveling_until ?? null}
+            currentBioDrop={(profile as any).bio_drop ?? null}
+            currentAutoTranslate={(profile as any).auto_translate_to ?? null}
             displayName={profile.display_name}
           />
           <LeaveRoomButton
@@ -321,6 +323,7 @@ export default async function RoomPage({
             currentUsername={profile.username}
             currentDisplayName={profile.display_name}
             currentPresence={presenceState}
+            currentAutoTranslate={(profile as any).auto_translate_to ?? null}
             initialMessages={(initialMessages as any[]) ?? []}
           />
         </div>
