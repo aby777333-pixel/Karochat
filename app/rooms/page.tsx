@@ -186,6 +186,13 @@ export default async function RoomsPage({
           </Link>
           <div className="flex items-center gap-2 text-xs md:gap-3">
             <Link
+              href="/students"
+              className="rounded-lg border border-neon-mint/40 bg-neon-mint/10 px-3 py-1.5 text-neon-mint hover:bg-neon-mint/20"
+              title="Students Network — verified peer learning"
+            >
+              🎓 Students
+            </Link>
+            <Link
               href="/shorts"
               className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-white/80 hover:bg-white/10 hover:text-white"
             >
