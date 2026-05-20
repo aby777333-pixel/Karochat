@@ -202,7 +202,7 @@ export default async function RoomPage({
           <Logo className="h-6 w-6 shrink-0" />
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <Wordmark className="text-base" />
+              <Wordmark className="hidden text-base md:inline" />
               <span className="hidden text-white/40 md:inline">·</span>
               <span className="truncate font-mono text-xs uppercase tracking-widest text-white/60">
                 {room.is_saved
@@ -221,14 +221,16 @@ export default async function RoomPage({
               )}
             </div>
             {!room.is_dm && room.description && (
-              <p className="truncate text-[11px] text-white/40">{room.description}</p>
+              <p className="hidden truncate text-[11px] text-white/40 md:block">
+                {room.description}
+              </p>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="scroll-thin -mr-1 flex shrink-0 items-center gap-1.5 overflow-x-auto pr-1 md:gap-2">
           <Link
             href="/shorts"
-            className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-white/80 transition hover:bg-white/10 hover:text-white"
+            className="shrink-0 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-white/80 transition hover:bg-white/10 hover:text-white"
             title="Shorts"
             aria-label="Shorts"
           >

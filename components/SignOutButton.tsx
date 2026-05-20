@@ -14,9 +14,12 @@ export function SignOutButton() {
   return (
     <button
       onClick={onClick}
-      className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/70 transition hover:bg-white/10 hover:text-white"
+      aria-label="Sign out"
+      title="Sign out"
+      className="flex shrink-0 items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-white/70 transition hover:bg-white/10 hover:text-white"
     >
-      Sign out
+      <span aria-hidden>⏏</span>
+      <span className="hidden md:inline">Sign out</span>
     </button>
   );
 }

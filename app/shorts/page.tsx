@@ -50,24 +50,24 @@ export default async function ShortsPage() {
             <Logo className="h-6 w-6" />
             <Wordmark className="text-lg" />
           </Link>
-          <nav className="flex items-center gap-2 text-xs">
+          <nav className="scroll-thin flex shrink-0 items-center gap-1.5 overflow-x-auto text-xs md:gap-2">
             <Link
               href="/rooms"
-              className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-white/80 hover:bg-white/10 hover:text-white"
+              className="shrink-0 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-white/80 hover:bg-white/10 hover:text-white"
             >
-              Rooms
+              ← <span className="hidden md:inline">Rooms</span>
             </Link>
             <Link
               href="/shorts"
-              className="rounded-lg border border-neon-blue/40 bg-neon-blue/10 px-3 py-1.5 text-neon-blue"
+              className="shrink-0 rounded-lg border border-neon-blue/40 bg-neon-blue/10 px-3 py-1.5 text-neon-blue"
             >
-              🎬 Shorts
+              🎬<span className="hidden md:inline"> Shorts</span>
             </Link>
             <Link
               href="/shorts/new"
-              className="rounded-lg bg-neon-blue px-3 py-1.5 font-medium text-ink-900 shadow-glow-blue hover:bg-neon-blue/90"
+              className="shrink-0 rounded-lg bg-neon-blue px-3 py-1.5 font-medium text-ink-900 shadow-glow-blue hover:bg-neon-blue/90"
             >
-              + Post
+              + <span className="hidden md:inline">Post</span>
             </Link>
             <SignOutButton />
           </nav>

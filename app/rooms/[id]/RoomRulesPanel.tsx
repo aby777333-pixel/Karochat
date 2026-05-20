@@ -99,10 +99,10 @@ export function RoomRulesPanel({
         }}
         title="Room rules"
         aria-label="Room rules"
-        className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-white/80 transition hover:bg-white/10 hover:text-white"
+        className="flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-white/80 transition hover:bg-white/10 hover:text-white"
       >
         <span aria-hidden>📜</span>
-        <span>Rules</span>
+        <span className="hidden md:inline">Rules</span>
       </button>
 
       {open && (

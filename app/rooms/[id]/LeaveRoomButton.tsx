@@ -44,9 +44,12 @@ export function LeaveRoomButton({
     <button
       onClick={onClick}
       disabled={pending}
-      className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-white/60 transition hover:border-neon-red/40 hover:bg-neon-red/10 hover:text-white"
+      aria-label="Leave room"
+      title="Leave room"
+      className="flex shrink-0 items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-white/60 transition hover:border-neon-red/40 hover:bg-neon-red/10 hover:text-white"
     >
-      {pending ? "Leaving…" : "Leave room"}
+      <span aria-hidden>🚪</span>
+      <span className="hidden md:inline">{pending ? "Leaving…" : "Leave room"}</span>
     </button>
   );
 }

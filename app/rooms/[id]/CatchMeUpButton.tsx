@@ -46,10 +46,12 @@ export function CatchMeUpButton({ roomId }: { roomId: string }) {
       <button
         type="button"
         onClick={openModal}
-        title="Get a quick summary of recent messages"
-        className="rounded-lg border border-neon-purple/30 bg-neon-purple/10 px-2.5 py-1.5 text-[11px] text-neon-purple transition hover:bg-neon-purple/20"
+        title="Catch me up — quick summary of recent messages"
+        aria-label="Catch me up"
+        className="flex shrink-0 items-center gap-1 rounded-lg border border-neon-purple/30 bg-neon-purple/10 px-2.5 py-1.5 text-[11px] text-neon-purple transition hover:bg-neon-purple/20"
       >
-        ✨ Catch me up
+        <span aria-hidden>✨</span>
+        <span className="hidden md:inline">Catch me up</span>
       </button>
 
       {open && (
@@ -61,17 +63,29 @@ export function CatchMeUpButton({ roomId }: { roomId: string }) {
             className="surface-glass mx-4 w-full max-w-md p-5 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="font-display text-lg font-semibold">
-                <span className="bg-gradient-to-r from-neon-blue to-neon-purple bg-clip-text text-transparent">
-                  ✨ Recap
-                </span>
-              </h2>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setOpen(false)}
+                  aria-label="Back"
+                  title="Back"
+                  className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-xs text-white/60 hover:bg-white/10"
+                >
+                  ←
+                </button>
+                <h2 className="font-display text-lg font-semibold">
+                  <span className="bg-gradient-to-r from-neon-blue to-neon-purple bg-clip-text text-transparent">
+                    ✨ Recap
+                  </span>
+                </h2>
+              </div>
               <button
                 onClick={() => setOpen(false)}
+                aria-label="Close"
+                title="Close"
                 className="rounded-md border border-white/10 px-2 py-0.5 text-xs text-white/70 hover:bg-white/10"
               >
-                close
+                ✕
               </button>
             </div>
 

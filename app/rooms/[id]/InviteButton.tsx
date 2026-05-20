@@ -106,7 +106,7 @@ export function InviteButton({
         onClick={() => setOpen(true)}
         title="Invite people"
         aria-label="Invite people"
-        className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-white/80 transition hover:bg-white/10 hover:text-white"
+        className="flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-white/80 transition hover:bg-white/10 hover:text-white"
       >
         <svg
           viewBox="0 0 24 24"
@@ -123,7 +123,7 @@ export function InviteButton({
           <line x1="19" y1="8" x2="19" y2="14" />
           <line x1="22" y1="11" x2="16" y2="11" />
         </svg>
-        <span>Invite</span>
+        <span className="hidden md:inline">Invite</span>
       </button>
 
       {open && (

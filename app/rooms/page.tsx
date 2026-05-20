@@ -8,6 +8,7 @@ import { RoomsClient, JoinPublic } from "./RoomsClient";
 import { SavedRoomButton } from "./SavedRoomButton";
 import { UserSearch } from "./UserSearch";
 import { StoriesStrip, type StoryRow } from "./StoriesStrip";
+import { DismissibleSection, RestoreHiddenSections } from "./DismissibleSection";
 
 export const dynamic = "force-dynamic";
 
@@ -174,43 +175,59 @@ export default async function RoomsPage({
           </div>
         )}
 
-        <StoriesStrip initialStories={liveStories} currentUserId={user.id} />
+        <DismissibleSection id="stories">
+          <StoriesStrip initialStories={liveStories} currentUserId={user.id} />
+        </DismissibleSection>
 
         <div className="mt-5 grid flex-1 grid-cols-1 gap-5 lg:grid-cols-[1fr_340px]">
           <div className="space-y-5">
-            <SavedRoomButton />
+            <DismissibleSection id="saved">
+              <SavedRoomButton />
+            </DismissibleSection>
 
             {dms.length > 0 && (
-              <section className="surface-glass tint-purple p-5">
-                <div className="mb-3 flex items-baseline justify-between">
-                  <h2 className="font-display text-lg font-semibold">Direct messages</h2>
-                  <span className="text-xs text-white/40">{dms.length}</span>
-                </div>
-                <DMList dms={dms} />
-              </section>
+              <DismissibleSection id="dms">
+                <section className="surface-glass tint-purple p-5">
+                  <div className="mb-3 flex items-baseline justify-between">
+                    <h2 className="font-display text-lg font-semibold">Direct messages</h2>
+                    <span className="text-xs text-white/40">{dms.length}</span>
+                  </div>
+                  <DMList dms={dms} />
+                </section>
+              </DismissibleSection>
             )}
 
-            <section className="surface-glass tint-blue p-5">
-              <div className="mb-3 flex items-baseline justify-between">
-                <h2 className="font-display text-lg font-semibold">Your rooms</h2>
-                <span className="text-xs text-white/40">{yourRoomsWithCounts.length}</span>
-              </div>
-              <RoomList rooms={yourRoomsWithCounts} variant="member" />
-            </section>
+            <DismissibleSection id="your-rooms">
+              <section className="surface-glass tint-blue p-5">
+                <div className="mb-3 flex items-baseline justify-between">
+                  <h2 className="font-display text-lg font-semibold">Your rooms</h2>
+                  <span className="text-xs text-white/40">{yourRoomsWithCounts.length}</span>
+                </div>
+                <RoomList rooms={yourRoomsWithCounts} variant="member" />
+              </section>
+            </DismissibleSection>
 
-            <section className="surface-glass tint-amber p-5">
-              <div className="mb-3 flex items-baseline justify-between">
-                <h2 className="font-display text-lg font-semibold">Discover rooms</h2>
-                <span className="text-xs text-white/40">{discover.length}</span>
-              </div>
-              <RoomList rooms={discover} variant="discover" />
-            </section>
+            <DismissibleSection id="discover">
+              <section className="surface-glass tint-amber p-5">
+                <div className="mb-3 flex items-baseline justify-between">
+                  <h2 className="font-display text-lg font-semibold">Discover rooms</h2>
+                  <span className="text-xs text-white/40">{discover.length}</span>
+                </div>
+                <RoomList rooms={discover} variant="discover" />
+              </section>
+            </DismissibleSection>
           </div>
 
           <aside className="space-y-5">
-            <UserSearch />
+            <DismissibleSection id="search">
+              <UserSearch />
+            </DismissibleSection>
             <RoomsClient />
           </aside>
+        </div>
+
+        <div className="flex justify-center">
+          <RestoreHiddenSections />
         </div>
 
         <footer className="mt-8 space-y-1 text-center text-[11px] text-white/30">
