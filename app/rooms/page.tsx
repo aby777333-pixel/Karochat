@@ -12,6 +12,7 @@ import { StoriesStrip, type StoryRow } from "./StoriesStrip";
 import { DismissibleSection, RestoreHiddenSections } from "./DismissibleSection";
 import { FriendsAndRequests } from "./FriendsList";
 import { InviteFriendsCard } from "./InviteFriendsCard";
+import { CategoryBrowser, type Category, type Subcategory } from "./CategoryBrowser";
 // import { DailyPrompt } from "./DailyPrompt"; // hidden by request — keep file for re-enable
 
 export const dynamic = "force-dynamic";
@@ -142,6 +143,21 @@ export default async function RoomsPage({
   const missingId = searchParams?.missing;
   const joinNotice = searchParams?.join;
 
+  // v6 catalog — categories + subcategories (rooms are loaded client-side
+  // per-category via browse_catalog so the lobby stays light).
+  const [categoriesResp, subcategoriesResp] = await Promise.all([
+    supabase
+      .from("room_categories")
+      .select("slug,label,description,icon,position,is_adult")
+      .order("position", { ascending: true }),
+    supabase
+      .from("room_subcategories")
+      .select("category_slug,slug,label,position")
+      .order("position", { ascending: true })
+  ]);
+  const categories = (categoriesResp.data ?? []) as Category[];
+  const subcategories = (subcategoriesResp.data ?? []) as Subcategory[];
+
   // Live (un-expired) stories for the top strip. RLS filters out expired.
   const { data: storiesRaw } = await supabase
     .from("stories_with_author")
@@ -230,6 +246,15 @@ export default async function RoomsPage({
                 </div>
                 <RoomList rooms={yourRoomsWithCounts} variant="member" />
               </section>
+            </DismissibleSection>
+
+            <DismissibleSection id="catalog">
+              {categories.length > 0 && (
+                <CategoryBrowser
+                  categories={categories}
+                  subcategories={subcategories}
+                />
+              )}
             </DismissibleSection>
 
             <DismissibleSection id="discover">

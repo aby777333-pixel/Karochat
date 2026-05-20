@@ -51,10 +51,22 @@ export function FriendsAndRequests({ currentUserId }: { currentUserId: string })
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Initial load + realtime subscriptions for friendships.
+  // Initial load + realtime subscriptions for friendships. The realtime
+  // publication may not include `friendships` on every Supabase tier — every
+  // mutating action below calls reload() directly as well so the UI updates
+  // even when the realtime channel drops a packet.
+  async function reload() {
+    const [friendsResp, requestsResp] = await Promise.all([
+      supabase.from("my_friends_view").select("*"),
+      supabase.from("my_friend_requests_view").select("*")
+    ]);
+    setFriends((friendsResp.data ?? []) as Friend[]);
+    setRequests((requestsResp.data ?? []) as IncomingRequest[]);
+  }
+
   useEffect(() => {
     let cancelled = false;
-    async function load() {
+    async function initial() {
       const [friendsResp, requestsResp] = await Promise.all([
         supabase.from("my_friends_view").select("*"),
         supabase.from("my_friend_requests_view").select("*")
@@ -63,7 +75,7 @@ export function FriendsAndRequests({ currentUserId }: { currentUserId: string })
       setFriends((friendsResp.data ?? []) as Friend[]);
       setRequests((requestsResp.data ?? []) as IncomingRequest[]);
     }
-    void load();
+    void initial();
 
     const channel = supabase
       .channel(`friendships:${currentUserId}`)
@@ -71,7 +83,7 @@ export function FriendsAndRequests({ currentUserId }: { currentUserId: string })
         "postgres_changes",
         { event: "*", schema: "public", table: "friendships" },
         () => {
-          void load();
+          void reload();
         }
       )
       .subscribe();
@@ -79,6 +91,7 @@ export function FriendsAndRequests({ currentUserId }: { currentUserId: string })
       cancelled = true;
       void supabase.removeChannel(channel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase, currentUserId]);
 
   async function accept(req: IncomingRequest) {
@@ -87,8 +100,16 @@ export function FriendsAndRequests({ currentUserId }: { currentUserId: string })
     const { error: rpcErr } = await supabase.rpc("accept_friend", {
       p_requester_user_id: req.requester_id
     });
+    if (rpcErr) {
+      setError(rpcErr.message);
+      setBusy(null);
+      return;
+    }
+    // Optimistic local update so the button responds instantly even if
+    // realtime is delayed or unavailable.
+    setRequests((prev) => prev.filter((r) => r.requester_id !== req.requester_id));
+    await reload();
     setBusy(null);
-    if (rpcErr) setError(rpcErr.message);
   }
 
   async function decline(req: IncomingRequest) {
@@ -97,8 +118,14 @@ export function FriendsAndRequests({ currentUserId }: { currentUserId: string })
     const { error: rpcErr } = await supabase.rpc("decline_friend", {
       p_requester_user_id: req.requester_id
     });
+    if (rpcErr) {
+      setError(rpcErr.message);
+      setBusy(null);
+      return;
+    }
+    setRequests((prev) => prev.filter((r) => r.requester_id !== req.requester_id));
+    await reload();
     setBusy(null);
-    if (rpcErr) setError(rpcErr.message);
   }
 
   async function openDM(friendId: string) {
@@ -123,8 +150,14 @@ export function FriendsAndRequests({ currentUserId }: { currentUserId: string })
     const { error: rpcErr } = await supabase.rpc("remove_friend", {
       p_other_user_id: friendId
     });
+    if (rpcErr) {
+      setError(rpcErr.message);
+      setBusy(null);
+      return;
+    }
+    setFriends((prev) => (prev ?? []).filter((f) => f.friend_id !== friendId));
+    await reload();
     setBusy(null);
-    if (rpcErr) setError(rpcErr.message);
   }
 
   async function renameGroup(friendId: string, currentLabel: string) {
@@ -136,8 +169,13 @@ export function FriendsAndRequests({ currentUserId }: { currentUserId: string })
       p_other_user_id: friendId,
       p_group_label: next
     });
+    if (rpcErr) {
+      setError(rpcErr.message);
+      setBusy(null);
+      return;
+    }
+    await reload();
     setBusy(null);
-    if (rpcErr) setError(rpcErr.message);
   }
 
   // Group friends by their label.
