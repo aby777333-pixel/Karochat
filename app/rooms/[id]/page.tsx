@@ -272,6 +272,7 @@ export default async function RoomPage({
             roomId={room.id}
             roomName={room.name}
             currentUserId={profile.id}
+            isOwner={isOwner}
           />
           <SignOutButton />
         </div>
