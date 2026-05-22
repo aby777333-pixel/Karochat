@@ -14,6 +14,16 @@ import { MemberActionPopover } from "./MemberActionPopover";
 import { QuoteCard } from "./QuoteCard";
 import { Soundscape } from "./Soundscape";
 import { ConferenceTools } from "./ConferenceTools";
+import { ChatResizer } from "@/components/ChatResizer";
+import { EmojiPicker } from "@/components/EmojiPicker";
+import { GifPicker } from "@/components/GifPicker";
+import { MentionMenu } from "@/components/MentionMenu";
+import { VoiceRecorder } from "@/components/VoiceRecorder";
+import { PinnedStrip } from "@/components/PinnedStrip";
+import { MessageSearchBar } from "@/components/MessageSearchBar";
+import { ForwardModal } from "@/components/ForwardModal";
+import { TypingIndicator } from "@/components/TypingIndicator";
+import { useResizableHeight } from "@/lib/useResizableHeight";
 import {
   decryptFromVault,
   encryptForVault,
@@ -78,9 +88,11 @@ type MessageRow = {
   id: string;
   room_id: string;
   sender_id: string;
-  type: "text" | "image" | "nudge" | "system" | "poll";
+  type: "text" | "image" | "nudge" | "system" | "poll" | "voice";
   content: string | null;
   image_url: string | null;
+  audio_url?: string | null;
+  duration_ms?: number | null;
   reply_to_id: string | null;
   edited_at: string | null;
   deleted_at: string | null;
@@ -88,6 +100,11 @@ type MessageRow = {
   intent: string | null;
   regretted_at: string | null;
   poll_data: PollData | null;
+  pinned_at?: string | null;
+  pinned_by?: string | null;
+  expires_at?: string | null;
+  mentions?: string[] | null;
+  forwarded_from_id?: string | null;
   created_at: string;
   sender_username: string | null;
   sender_display_name: string | null;
@@ -133,6 +150,36 @@ export function RoomChat({
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [messages, setMessages] = useState<MessageRow[]>(initialMessages);
+
+  // Wave 18 — resizable chat height (per-user, persisted).
+  const resizerKey = `karochat:resize:${currentUserId}`;
+  const { px: chatPx, preset: chatPreset, beginDrag, reset: resetSize, compact: compactSize, full: fullSize } =
+    useResizableHeight(resizerKey);
+
+  // Wave 18 — composer extras + search + forwarding + voice + TTL.
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [forwardSource, setForwardSource] = useState<MessageRow | null>(null);
+  const [showEmoji, setShowEmoji] = useState(false);
+  const [showGif, setShowGif] = useState(false);
+  const [showVoice, setShowVoice] = useState(false);
+  const [mentionState, setMentionState] = useState<{
+    query: string;
+    open: boolean;
+  }>({ query: "", open: false });
+  const [disappearTtlSec, setDisappearTtlSec] = useState<number | null>(null);
+  const [ttlMenuOpen, setTtlMenuOpen] = useState(false);
+  const [typingUsers, setTypingUsers] = useState<Map<string, { name: string; at: number }>>(
+    () => new Map()
+  );
+  const [reads, setReads] = useState<Map<string, { message_id: string | null; at: string }>>(
+    () => new Map()
+  );
+  const [now, setNow] = useState<number>(() => Date.now());
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const typingChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const lastTypingSentRef = useRef(0);
+
   const draftStorageKey = `karochat:draft:${currentUserId}:${roomId}`;
   const [draft, setDraft] = useState<string>(() => {
     if (typeof window === "undefined") return "";
@@ -372,6 +419,285 @@ export function RoomChat({
     setTimeout(() => setPulse(false), 700);
   }
 
+  // ===== Wave 18 — typing + reads realtime =====================================
+  useEffect(() => {
+    const ch = supabase.channel(`room-typing:${roomId}`, {
+      config: { broadcast: { self: false } }
+    });
+    ch.on("broadcast", { event: "typing" }, (msg: any) => {
+      const userId = msg?.payload?.user_id as string | undefined;
+      const name = (msg?.payload?.name as string | undefined) ?? "someone";
+      if (!userId || userId === currentUserId) return;
+      setTypingUsers((prev) => {
+        const next = new Map(prev);
+        next.set(userId, { name, at: Date.now() });
+        return next;
+      });
+    });
+    ch.subscribe();
+    typingChannelRef.current = ch;
+    return () => {
+      typingChannelRef.current = null;
+      void supabase.removeChannel(ch);
+    };
+  }, [supabase, roomId, currentUserId]);
+
+  // Expire stale typers every 2s.
+  useEffect(() => {
+    const id = setInterval(() => {
+      const cutoff = Date.now() - 4500;
+      setTypingUsers((prev) => {
+        let mutated = false;
+        const next = new Map(prev);
+        for (const [k, v] of next) {
+          if (v.at < cutoff) {
+            next.delete(k);
+            mutated = true;
+          }
+        }
+        return mutated ? next : prev;
+      });
+    }, 2000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Hide expired (disappearing) messages — drives via a 5s tick.
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 5000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Read receipts — subscribe to message_reads changes for this room.
+  useEffect(() => {
+    const ch = supabase
+      .channel(`room-reads:${roomId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "message_reads",
+          filter: `room_id=eq.${roomId}`
+        },
+        (payload: any) => {
+          const row = (payload.new ?? payload.old) as
+            | { user_id: string; last_read_message_id: string | null; last_read_at: string }
+            | undefined;
+          if (!row?.user_id) return;
+          setReads((prev) => {
+            const next = new Map(prev);
+            next.set(row.user_id, {
+              message_id: row.last_read_message_id ?? null,
+              at: row.last_read_at
+            });
+            return next;
+          });
+        }
+      )
+      .subscribe();
+    // Initial fetch.
+    void (async () => {
+      const { data } = await supabase
+        .from("message_reads")
+        .select("user_id, last_read_message_id, last_read_at")
+        .eq("room_id", roomId);
+      if (!data) return;
+      setReads((prev) => {
+        const next = new Map(prev);
+        for (const r of data as any[]) {
+          next.set(r.user_id, { message_id: r.last_read_message_id, at: r.last_read_at });
+        }
+        return next;
+      });
+    })();
+    return () => {
+      void supabase.removeChannel(ch);
+    };
+  }, [supabase, roomId]);
+
+  // Debounced mark-as-read when we have new messages and the tab is visible.
+  useEffect(() => {
+    if (messages.length === 0) return;
+    if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+    const last = messages[messages.length - 1];
+    if (!last) return;
+    const t = setTimeout(() => {
+      void supabase.rpc("mark_room_read", {
+        p_room_id: roomId,
+        p_message_id: last.id
+      });
+    }, 800);
+    return () => clearTimeout(t);
+  }, [supabase, roomId, messages.length]);
+
+  function broadcastTyping() {
+    const ch = typingChannelRef.current;
+    if (!ch) return;
+    const t = Date.now();
+    // throttle to once / 2s
+    if (t - lastTypingSentRef.current < 2000) return;
+    lastTypingSentRef.current = t;
+    void ch.send({
+      type: "broadcast",
+      event: "typing",
+      payload: {
+        user_id: currentUserId,
+        name: currentDisplayName ?? currentUsername ?? "someone"
+      }
+    });
+  }
+
+  // ===== Wave 18 — visible message filter (TTL + search) =======================
+  const visibleMessages = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return messages.filter((m) => {
+      // Hide self-destructed messages.
+      if (m.expires_at) {
+        const t = new Date(m.expires_at).getTime();
+        if (Number.isFinite(t) && t <= now && m.sender_id !== currentUserId) {
+          return false;
+        }
+      }
+      if (!q) return true;
+      const hay = (m.content ?? "").toLowerCase();
+      return hay.includes(q);
+    });
+  }, [messages, searchQuery, now, currentUserId]);
+
+  const pinnedMessages = useMemo(
+    () => messages.filter((m) => m.pinned_at && !m.deleted_at),
+    [messages]
+  );
+
+  // Other readers who've already seen a given message (read receipts).
+  function readersFor(messageId: string): string[] {
+    const out: string[] = [];
+    const targetTime = (() => {
+      const m = messages.find((x) => x.id === messageId);
+      return m ? new Date(m.created_at).getTime() : 0;
+    })();
+    for (const [uid, info] of reads) {
+      if (uid === currentUserId) continue;
+      const t = new Date(info.at).getTime();
+      if (t >= targetTime) out.push(uid);
+    }
+    return out;
+  }
+
+  // ===== Wave 18 — pin / unpin / forward / send voice ==========================
+  async function pinMessage(messageId: string) {
+    const { error: rpcErr } = await supabase.rpc("pin_message", {
+      p_message_id: messageId
+    });
+    if (rpcErr) setError(rpcErr.message);
+  }
+  async function unpinMessage(messageId: string) {
+    const { error: rpcErr } = await supabase.rpc("unpin_message", {
+      p_message_id: messageId
+    });
+    if (rpcErr) setError(rpcErr.message);
+  }
+
+  async function sendVoice(blob: Blob, durationMs: number) {
+    if (!blob) return;
+    setUploading(true);
+    setError(null);
+    const ext =
+      blob.type.includes("ogg") ? "ogg"
+      : blob.type.includes("mp4") ? "m4a"
+      : blob.type.includes("mpeg") ? "mp3"
+      : "webm";
+    const path = `${currentUserId}/${crypto.randomUUID()}.${ext}`;
+    const { error: upErr } = await supabase.storage
+      .from("voice-notes")
+      .upload(path, blob, { contentType: blob.type || "audio/webm", upsert: false });
+    if (upErr) {
+      setError(`Voice upload failed: ${upErr.message}`);
+      setUploading(false);
+      return;
+    }
+    const { data: pub } = supabase.storage.from("voice-notes").getPublicUrl(path);
+    const expiresAt = disappearTtlSec
+      ? new Date(Date.now() + disappearTtlSec * 1000).toISOString()
+      : null;
+    const { error: insertErr } = await supabase.from("messages").insert({
+      sender_id: currentUserId,
+      room_id: roomId,
+      content: null,
+      audio_url: pub.publicUrl,
+      duration_ms: Math.round(durationMs),
+      reply_to_id: replyTo?.id ?? null,
+      intent: intentChoice,
+      expires_at: expiresAt,
+      type: "voice"
+    });
+    setUploading(false);
+    if (insertErr) {
+      setError(insertErr.message);
+      return;
+    }
+    setReplyTo(null);
+    setIntentChoice(null);
+    setShowVoice(false);
+  }
+
+  function insertAtCursor(text: string) {
+    const ta = textareaRef.current;
+    if (!ta) {
+      setDraft((d) => d + text);
+      return;
+    }
+    const start = ta.selectionStart ?? draft.length;
+    const end = ta.selectionEnd ?? draft.length;
+    const next = draft.slice(0, start) + text + draft.slice(end);
+    setDraft(next);
+    requestAnimationFrame(() => {
+      ta.focus();
+      const cursor = start + text.length;
+      ta.setSelectionRange(cursor, cursor);
+    });
+  }
+
+  function onDraftChange(value: string) {
+    setDraft(value);
+    broadcastTyping();
+    // Detect @ mention trigger.
+    const ta = textareaRef.current;
+    const cursor = ta?.selectionStart ?? value.length;
+    const upto = value.slice(0, cursor);
+    const at = upto.lastIndexOf("@");
+    if (at >= 0) {
+      const tail = upto.slice(at + 1);
+      // Mention is active if there's no space between @ and the cursor and it's
+      // 0–18 chars long (username max).
+      if (/^[a-zA-Z0-9_]{0,18}$/.test(tail)) {
+        setMentionState({ query: tail, open: true });
+        return;
+      }
+    }
+    setMentionState({ query: "", open: false });
+  }
+
+  function applyMention(username: string) {
+    const ta = textareaRef.current;
+    const cursor = ta?.selectionStart ?? draft.length;
+    const upto = draft.slice(0, cursor);
+    const at = upto.lastIndexOf("@");
+    if (at < 0) {
+      setMentionState({ query: "", open: false });
+      return;
+    }
+    const after = draft.slice(cursor);
+    const next = draft.slice(0, at) + "@" + username + " " + after;
+    setDraft(next);
+    setMentionState({ query: "", open: false });
+    requestAnimationFrame(() => {
+      ta?.focus();
+      const newCursor = at + 1 + username.length + 1;
+      ta?.setSelectionRange(newCursor, newCursor);
+    });
+  }
+
   async function sendText() {
     const text = draft.trim();
     if (!text || sending) return;
@@ -434,12 +760,21 @@ export function RoomChat({
         console.warn("[vault] encrypt failed, sending plaintext", e);
       }
     }
+    const expiresAt = disappearTtlSec
+      ? new Date(Date.now() + disappearTtlSec * 1000).toISOString()
+      : null;
+    // Parse @mentions (a..z, 0..9, _) — strip @karo since it's the AI summon.
+    const mentionMatches = Array.from(text.matchAll(/@([a-zA-Z0-9_]{1,18})/g))
+      .map((m) => m[1])
+      .filter((u): u is string => !!u && u.toLowerCase() !== "karo");
     const { error: insertErr } = await supabase.from("messages").insert({
       sender_id: currentUserId,
       room_id: roomId,
       content: outgoing,
       reply_to_id: replyTo?.id ?? null,
       intent: intentChoice,
+      expires_at: expiresAt,
+      mentions: mentionMatches.length ? mentionMatches : [],
       type: "text"
     });
     setSending(false);
@@ -722,6 +1057,21 @@ export function RoomChat({
           <Soundscape />
           <button
             type="button"
+            onClick={() => setSearchOpen((s) => !s)}
+            aria-pressed={searchOpen}
+            aria-label="Search messages"
+            title="Search messages in this room"
+            className={clsx(
+              "rounded-md border px-2 py-0.5 text-[10px] uppercase tracking-widest transition",
+              searchOpen
+                ? "border-neon-blue/40 bg-neon-blue/10 text-neon-blue"
+                : "border-white/10 bg-white/5 text-white/55 hover:bg-white/10"
+            )}
+          >
+            🔎 search
+          </button>
+          <button
+            type="button"
             onClick={() => setLightsOut((s) => !s)}
             aria-pressed={lightsOut}
             title={
@@ -783,29 +1133,72 @@ export function RoomChat({
         </div>
       )}
 
+      <PinnedStrip
+        messages={messages}
+        currentUserId={currentUserId}
+        isOwner={!!isOwner}
+        onJump={(id) => jumpToMessage(id)}
+        onUnpin={(id) => void unpinMessage(id)}
+      />
+
+      {searchOpen && (
+        <MessageSearchBar
+          query={searchQuery}
+          onQuery={setSearchQuery}
+          onClose={() => {
+            setSearchOpen(false);
+            setSearchQuery("");
+          }}
+          resultCount={visibleMessages.filter((m) =>
+            searchQuery
+              ? (m.content ?? "").toLowerCase().includes(searchQuery.toLowerCase())
+              : false
+          ).length}
+        />
+      )}
+
       <div
         ref={scrollerRef}
-        className="scroll-thin relative flex-1 space-y-3 overflow-y-auto p-4"
+        className={clsx(
+          "scroll-thin relative space-y-3 overflow-y-auto p-4",
+          chatPx === null && chatPreset !== "full" && "flex-1",
+          chatPreset === "full" && "flex-1"
+        )}
+        style={
+          chatPx !== null
+            ? { height: chatPx, flex: "0 0 auto" }
+            : undefined
+        }
       >
         {pulse && (
           <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 h-12 w-12 -translate-x-1/2 -translate-y-1/2 rounded-full bg-neon-red/40 animate-nudgePulse" />
         )}
-        {messages.length === 0 && (
+        {visibleMessages.length === 0 && messages.length === 0 && (
           <p className="mx-auto mt-10 max-w-sm text-center text-sm text-white/40">
             It&apos;s quiet here. Say hi.
           </p>
         )}
-        {messages.map((m, i) => (
+        {visibleMessages.length === 0 && messages.length > 0 && searchQuery && (
+          <p className="mx-auto mt-10 max-w-sm text-center text-sm text-white/40">
+            No matches for &ldquo;{searchQuery}&rdquo;.
+          </p>
+        )}
+        {visibleMessages.map((m, i) => (
           <MessageBubble
             key={m.id}
             m={m}
-            prev={i > 0 ? messages[i - 1] : undefined}
+            prev={i > 0 ? visibleMessages[i - 1] : undefined}
             allMessages={messages}
             currentUserId={currentUserId}
             currentUsername={currentUsername}
             roomId={roomId}
             roomName={roomName}
             roomInviteCode={roomInviteCode ?? null}
+            highlight={
+              searchQuery.trim().length > 0 ? searchQuery.trim() : null
+            }
+            readers={readersFor(m.id)}
+            now={now}
             onAuthorNavigate={(roomDestId) => {
               router.push(`/rooms/${roomDestId}`);
               router.refresh();
@@ -826,6 +1219,10 @@ export function RoomChat({
             onJump={jumpToMessage}
             onOpenThread={(id) => setThreadParentId(id)}
             onReport={(t) => setReportTarget(t)}
+            onPin={(id) => void pinMessage(id)}
+            onUnpin={(id) => void unpinMessage(id)}
+            onForward={(msg) => setForwardSource(msg)}
+            isOwner={!!isOwner}
             autoTranslate={currentAutoTranslate ?? null}
             registerRef={(id, el) => {
               if (el) messageRefs.current.set(id, el);
@@ -834,6 +1231,20 @@ export function RoomChat({
           />
         ))}
       </div>
+
+      <TypingIndicator
+        users={Array.from(typingUsers.values()).map((v) => v.name)}
+      />
+
+      <ChatResizer
+        scrollerRef={scrollerRef}
+        px={chatPx}
+        preset={chatPreset}
+        onBeginDrag={beginDrag}
+        onCompact={compactSize}
+        onReset={resetSize}
+        onFull={fullSize}
+      />
 
       <div className="border-t border-white/5 p-3">
         <SmartReplies
@@ -981,6 +1392,162 @@ export function RoomChat({
               <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z" />
             </svg>
           </button>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setShowEmoji((s) => !s);
+                setShowGif(false);
+                setShowVoice(false);
+                setTtlMenuOpen(false);
+              }}
+              aria-label="Insert emoji"
+              title="Insert emoji"
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/5 text-white/70 transition hover:bg-white/10 hover:text-white"
+            >
+              😊
+            </button>
+            {showEmoji && (
+              <EmojiPicker
+                onPick={(e) => {
+                  insertAtCursor(e);
+                  setShowEmoji(false);
+                }}
+                onClose={() => setShowEmoji(false)}
+              />
+            )}
+          </div>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setShowGif((s) => !s);
+                setShowEmoji(false);
+                setShowVoice(false);
+                setTtlMenuOpen(false);
+              }}
+              aria-label="Insert GIF"
+              title="Send a GIF"
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/5 text-white/70 text-[10px] font-bold transition hover:bg-white/10 hover:text-white"
+            >
+              GIF
+            </button>
+            {showGif && (
+              <GifPicker
+                onPick={(url) => {
+                  // GIFs are inserted as image messages so they show up the
+                  // same as any attachment.
+                  void supabase.from("messages").insert({
+                    sender_id: currentUserId,
+                    room_id: roomId,
+                    content: null,
+                    image_url: url,
+                    reply_to_id: replyTo?.id ?? null,
+                    intent: intentChoice,
+                    type: "image"
+                  }).then(({ error: err }) => {
+                    if (err) setError(err.message);
+                    else {
+                      setReplyTo(null);
+                      setIntentChoice(null);
+                    }
+                  });
+                  setShowGif(false);
+                }}
+                onClose={() => setShowGif(false)}
+              />
+            )}
+          </div>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setShowVoice((s) => !s);
+                setShowEmoji(false);
+                setShowGif(false);
+                setTtlMenuOpen(false);
+              }}
+              aria-label="Record voice message"
+              title="Record a voice message"
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-neon-purple/40 bg-neon-purple/10 text-neon-purple transition hover:bg-neon-purple/20"
+            >
+              🎙
+            </button>
+            {showVoice && (
+              <VoiceRecorder
+                onSend={(blob, ms) => void sendVoice(blob, ms)}
+                onClose={() => setShowVoice(false)}
+              />
+            )}
+          </div>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setTtlMenuOpen((s) => !s);
+                setShowEmoji(false);
+                setShowGif(false);
+                setShowVoice(false);
+              }}
+              aria-pressed={disappearTtlSec !== null}
+              aria-label="Disappearing messages"
+              title={
+                disappearTtlSec
+                  ? `Disappears after ${formatTtl(disappearTtlSec)}`
+                  : "Set disappearing-message timer"
+              }
+              className={clsx(
+                "grid h-11 w-11 shrink-0 place-items-center rounded-xl border transition",
+                disappearTtlSec
+                  ? "border-neon-amber/60 bg-neon-amber/15 text-neon-amber"
+                  : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
+              )}
+            >
+              ⏳
+            </button>
+            {ttlMenuOpen && (
+              <div className="absolute bottom-12 left-0 z-20 w-44 rounded-xl border border-white/10 bg-ink-800/95 p-1.5 shadow-xl backdrop-blur">
+                <p className="px-2 pb-1 text-[10px] uppercase tracking-widest text-white/40">
+                  Disappear after
+                </p>
+                {[
+                  { label: "Off", v: null },
+                  { label: "30 seconds", v: 30 },
+                  { label: "1 minute", v: 60 },
+                  { label: "5 minutes", v: 300 },
+                  { label: "1 hour", v: 3600 },
+                  { label: "24 hours", v: 86400 },
+                  { label: "7 days", v: 604800 }
+                ].map((opt) => (
+                  <button
+                    key={opt.label}
+                    type="button"
+                    onClick={() => {
+                      setDisappearTtlSec(opt.v);
+                      setTtlMenuOpen(false);
+                    }}
+                    className={clsx(
+                      "block w-full rounded-md px-2 py-1 text-left text-xs hover:bg-white/10",
+                      disappearTtlSec === opt.v
+                        ? "bg-neon-amber/15 text-neon-amber"
+                        : "text-white/85"
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {mentionState.open && (
+            <MentionMenu
+              roomId={roomId}
+              query={mentionState.query}
+              currentUserId={currentUserId}
+              onPick={(username) => applyMention(username)}
+              onClose={() => setMentionState({ query: "", open: false })}
+            />
+          )}
           <input
             ref={fileInputRef}
             type="file"
@@ -989,8 +1556,9 @@ export function RoomChat({
             onChange={onFile}
           />
           <textarea
+            ref={textareaRef}
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => onDraftChange(e.target.value)}
             onKeyDown={onKeyDown}
             onPaste={onPaste}
             placeholder={`Say something, @${currentUsername}… (paste images too)`}
@@ -1003,12 +1571,17 @@ export function RoomChat({
           </Button>
         </div>
         <p className="mt-1.5 px-1 text-[10px] text-white/30">
-          Enter to send · Shift+Enter for newline · 📎 share · ⚡ nudge · paste images ·{" "}
+          Enter to send · Shift+Enter for newline · 📎 share · ⚡ nudge · 🎙 voice · 😊 emoji · GIF · ⏳ disappear ·{" "}
           <code className="rounded bg-white/5 px-1 text-white/40">
             /poll q | a | b
           </code>{" "}
           ·{" "}
           <code className="rounded bg-white/5 px-1 text-white/40">@karo …</code>
+          {disappearTtlSec !== null && (
+            <span className="ml-1 text-neon-amber">
+              · this message disappears after {formatTtl(disappearTtlSec)}
+            </span>
+          )}
         </p>
       </div>
 
@@ -1026,6 +1599,14 @@ export function RoomChat({
         <ReportModal
           target={reportTarget}
           onClose={() => setReportTarget(null)}
+        />
+      )}
+
+      {forwardSource && (
+        <ForwardModal
+          source={forwardSource}
+          currentUserId={currentUserId}
+          onClose={() => setForwardSource(null)}
         />
       )}
 
@@ -1093,6 +1674,10 @@ function MessageBubble({
   roomId,
   roomName,
   roomInviteCode,
+  highlight,
+  readers,
+  now,
+  isOwner,
   onAuthorNavigate,
   isEditing,
   editingDraft,
@@ -1108,6 +1693,9 @@ function MessageBubble({
   onJump,
   onOpenThread,
   onReport,
+  onPin,
+  onUnpin,
+  onForward,
   autoTranslate,
   registerRef
 }: {
@@ -1119,6 +1707,10 @@ function MessageBubble({
   roomId: string;
   roomName: string;
   roomInviteCode: string | null;
+  highlight: string | null;
+  readers: string[];
+  now: number;
+  isOwner: boolean;
   onAuthorNavigate: (roomId: string) => void;
   isEditing: boolean;
   editingDraft: string | null;
@@ -1138,6 +1730,9 @@ function MessageBubble({
       | { kind: "message"; id: string; preview: string }
       | { kind: "user"; id: string; preview: string }
   ) => void;
+  onPin: (id: string) => void;
+  onUnpin: (id: string) => void;
+  onForward: (m: MessageRow) => void;
   autoTranslate: string | null;
   registerRef: (id: string, el: HTMLDivElement | null) => void;
 }) {
@@ -1464,6 +2059,24 @@ function MessageBubble({
                 📤
               </button>
             )}
+            <button
+              onClick={() => onForward(m)}
+              className="rounded px-1.5 py-0.5 text-xs hover:bg-white/10"
+              aria-label="Forward to another room"
+              title="Forward to another room"
+            >
+              ↗
+            </button>
+            {(mine || isOwner) && (
+              <button
+                onClick={() => (m.pinned_at ? onUnpin(m.id) : onPin(m.id))}
+                className="rounded px-1.5 py-0.5 text-xs hover:bg-white/10"
+                aria-label={m.pinned_at ? "Unpin" : "Pin"}
+                title={m.pinned_at ? "Unpin message" : "Pin message to top"}
+              >
+                {m.pinned_at ? "📍" : "📌"}
+              </button>
+            )}
             {canEdit && m.content && (
               <button
                 onClick={() => onStartEdit(m)}
@@ -1614,6 +2227,29 @@ function MessageBubble({
           </div>
         ) : (
           <>
+            {m.audio_url && (
+              <div
+                className={clsx(
+                  "mb-1 rounded-2xl border border-neon-purple/30 bg-neon-purple/10 px-2.5 py-1.5",
+                  mine ? "rounded-br-sm" : "rounded-bl-sm"
+                )}
+              >
+                <audio
+                  controls
+                  src={m.audio_url}
+                  preload="metadata"
+                  className="h-9 w-full max-w-[260px]"
+                  aria-label="Voice message"
+                />
+                {m.duration_ms ? (
+                  <p className="mt-0.5 text-[10px] text-white/55">
+                    🎙 voice · {(Math.round(m.duration_ms / 100) / 10).toFixed(1)}s
+                  </p>
+                ) : (
+                  <p className="mt-0.5 text-[10px] text-white/55">🎙 voice message</p>
+                )}
+              </div>
+            )}
             {m.image_url && (
               <a
                 href={m.image_url}
@@ -1656,7 +2292,7 @@ function MessageBubble({
                       </span>
                     );
                   })()}
-                  {m.content}
+                  {highlight ? highlightText(m.content, highlight) : m.content}
                   {m.edited_at && (
                     <span
                       className="ml-1.5 text-[10px]"
@@ -1742,7 +2378,48 @@ function MessageBubble({
         </div>
       )}
 
-      <p className="mt-1 px-1 text-[10px] text-white/30">{formatTime(m.created_at)}</p>
+      <p className={clsx(
+        "mt-1 flex flex-wrap items-center gap-1.5 px-1 text-[10px] text-white/30",
+        mine ? "justify-end" : "justify-start"
+      )}>
+        <span>{formatTime(m.created_at)}</span>
+        {m.pinned_at && (
+          <span
+            className="rounded-sm bg-neon-blue/15 px-1 text-neon-blue"
+            title="Pinned in this room"
+          >
+            📌 pinned
+          </span>
+        )}
+        {m.forwarded_from_id && (
+          <span className="rounded-sm bg-white/5 px-1 text-white/50" title="Forwarded">
+            ↗ forwarded
+          </span>
+        )}
+        {m.expires_at && (() => {
+          const remaining = new Date(m.expires_at).getTime() - now;
+          if (remaining <= 0) return null;
+          const secs = Math.max(1, Math.round(remaining / 1000));
+          return (
+            <span
+              className="rounded-sm bg-neon-amber/15 px-1 text-neon-amber"
+              title="Self-destructs"
+            >
+              ⏳ {formatTtl(secs)}
+            </span>
+          );
+        })()}
+        {mine && readers.length > 0 && (
+          <span
+            className="rounded-sm bg-white/5 px-1 text-white/55"
+            title={`Seen by ${readers.length} other ${
+              readers.length === 1 ? "person" : "people"
+            }`}
+          >
+            ✓✓ {readers.length}
+          </span>
+        )}
+      </p>
 
       {showShareCard && m.content && !isDeleted && (
         <QuoteCard
@@ -1764,6 +2441,41 @@ function formatTime(iso: string) {
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   } catch {
     return "";
+  }
+}
+
+function formatTtl(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
+  if (seconds < 86400) return `${Math.round(seconds / 3600)}h`;
+  return `${Math.round(seconds / 86400)}d`;
+}
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function highlightText(content: string | null, needle: string): React.ReactNode {
+  if (!content) return content;
+  const trimmed = needle.trim();
+  if (!trimmed) return content;
+  try {
+    const re = new RegExp(`(${escapeRegex(trimmed)})`, "ig");
+    const parts = content.split(re);
+    return parts.map((part, i) =>
+      part.toLowerCase() === trimmed.toLowerCase() ? (
+        <mark
+          key={i}
+          className="rounded-sm bg-neon-amber/40 px-0.5 text-current"
+        >
+          {part}
+        </mark>
+      ) : (
+        <span key={i}>{part}</span>
+      )
+    );
+  } catch {
+    return content;
   }
 }
 
