@@ -45,23 +45,39 @@ export function CallPanel({
   const [copiedInvite, setCopiedInvite] = useState(false);
   const [ending, setEnding] = useState(false);
 
-  // Wave 19.2 — resizable docked panel width. `null` = use the default
-  // 58% / 55% class breakpoints; a number locks the panel to that pixel
-  // width. Persisted per user.
-  const PANEL_WIDTH_KEY = "karochat:call-panel-width";
-  const PANEL_WIDTH_MIN = 320;
-  const PANEL_WIDTH_MAX = 1400;
+  // Wave 19.2 / 19.6 — resizable docked panel from any of the four edges.
+  // Width and height are independent: `null` means "use the default
+  // breakpoints"; a number locks that dimension to a pixel value. Both
+  // are persisted per user.
+  const PANEL_SIZE_KEY = "karochat:call-panel-size";
+  const PANEL_W_MIN = 320;
+  const PANEL_W_MAX = 1800;
+  const PANEL_H_MIN = 280;
+  const PANEL_H_MAX = 1400;
+  type PanelEdge = "top" | "right" | "bottom" | "left";
   const [panelWidth, setPanelWidth] = useState<number | null>(null);
-  const panelDragRef = useRef<{ startX: number; startW: number } | null>(null);
+  const [panelHeight, setPanelHeight] = useState<number | null>(null);
+  const panelDragRef = useRef<{
+    edge: PanelEdge;
+    startX: number;
+    startY: number;
+    startW: number;
+    startH: number;
+  } | null>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     try {
-      const raw = window.localStorage.getItem(PANEL_WIDTH_KEY);
-      if (raw) {
-        const n = Number(raw);
-        if (Number.isFinite(n) && n >= PANEL_WIDTH_MIN && n <= PANEL_WIDTH_MAX) {
-          setPanelWidth(n);
-        }
+      const raw = window.localStorage.getItem(PANEL_SIZE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      const w = typeof parsed?.w === "number" ? parsed.w : null;
+      const h = typeof parsed?.h === "number" ? parsed.h : null;
+      if (w !== null && Number.isFinite(w) && w >= PANEL_W_MIN && w <= PANEL_W_MAX) {
+        setPanelWidth(w);
+      }
+      if (h !== null && Number.isFinite(h) && h >= PANEL_H_MIN && h <= PANEL_H_MAX) {
+        setPanelHeight(h);
       }
     } catch {
       // ignore
@@ -69,29 +85,44 @@ export function CallPanel({
   }, []);
 
   useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        PANEL_SIZE_KEY,
+        JSON.stringify({ w: panelWidth, h: panelHeight })
+      );
+    } catch {
+      // ignore
+    }
+  }, [panelWidth, panelHeight]);
+
+  useEffect(() => {
+    function clamp(v: number, lo: number, hi: number) {
+      return Math.min(hi, Math.max(lo, v));
+    }
     function move(e: MouseEvent | TouchEvent) {
       const drag = panelDragRef.current;
       if (!drag) return;
       const clientX =
         "touches" in e ? (e.touches[0]?.clientX ?? drag.startX) : e.clientX;
-      const next = Math.min(
-        PANEL_WIDTH_MAX,
-        Math.max(PANEL_WIDTH_MIN, drag.startW + (clientX - drag.startX))
-      );
-      setPanelWidth(next);
+      const clientY =
+        "touches" in e ? (e.touches[0]?.clientY ?? drag.startY) : e.clientY;
+      const dx = clientX - drag.startX;
+      const dy = clientY - drag.startY;
+      if (drag.edge === "right") {
+        setPanelWidth(clamp(drag.startW + dx, PANEL_W_MIN, PANEL_W_MAX));
+      } else if (drag.edge === "left") {
+        setPanelWidth(clamp(drag.startW - dx, PANEL_W_MIN, PANEL_W_MAX));
+      } else if (drag.edge === "bottom") {
+        setPanelHeight(clamp(drag.startH + dy, PANEL_H_MIN, PANEL_H_MAX));
+      } else if (drag.edge === "top") {
+        setPanelHeight(clamp(drag.startH - dy, PANEL_H_MIN, PANEL_H_MAX));
+      }
     }
     function up() {
       if (!panelDragRef.current) return;
       panelDragRef.current = null;
       document.body.style.userSelect = "";
       document.body.style.cursor = "";
-      try {
-        if (panelWidth !== null) {
-          window.localStorage.setItem(PANEL_WIDTH_KEY, String(panelWidth));
-        }
-      } catch {
-        // ignore
-      }
     }
     window.addEventListener("mousemove", move);
     window.addEventListener("mouseup", up);
@@ -105,19 +136,23 @@ export function CallPanel({
       window.removeEventListener("touchend", up);
       window.removeEventListener("touchcancel", up);
     };
-  }, [panelWidth]);
+  }, []);
 
-  function startPanelDrag(clientX: number) {
-    const w = panelWidth ?? (typeof window !== "undefined" ? Math.round(window.innerWidth * 0.58) : 800);
-    panelDragRef.current = { startX: clientX, startW: w };
+  function startPanelDrag(edge: PanelEdge, clientX: number, clientY: number) {
+    const rect = innerRef.current?.getBoundingClientRect();
+    const w = panelWidth ?? rect?.width ?? Math.round((typeof window !== "undefined" ? window.innerWidth : 1200) * 0.58);
+    const h = panelHeight ?? rect?.height ?? (typeof window !== "undefined" ? window.innerHeight - 96 : 720);
+    panelDragRef.current = { edge, startX: clientX, startY: clientY, startW: w, startH: h };
     document.body.style.userSelect = "none";
-    document.body.style.cursor = "col-resize";
+    document.body.style.cursor =
+      edge === "left" || edge === "right" ? "col-resize" : "row-resize";
   }
 
-  function resetPanelWidth() {
+  function resetPanelSize() {
     setPanelWidth(null);
+    setPanelHeight(null);
     try {
-      window.localStorage.removeItem(PANEL_WIDTH_KEY);
+      window.localStorage.removeItem(PANEL_SIZE_KEY);
     } catch {
       // ignore
     }
@@ -226,42 +261,114 @@ export function CallPanel({
         )}
       >
         <div
+          ref={innerRef}
           className={clsx(
             "pointer-events-auto relative flex flex-col bg-ink-900 shadow-2xl",
             fullscreen
               ? "h-full w-full"
               : // Inside the centered max-w-6xl row: take ~58% width on
                 // desktop, full width on mobile. When the user has dragged
-                // the right-edge handle, an inline width takes over.
-                "h-full md:rounded-r-2xl md:border-r md:border-white/10",
-            !fullscreen && panelWidth === null && "w-full md:w-[58%] lg:w-[55%]"
+                // an edge handle, an inline width/height takes over.
+                "md:rounded-2xl md:border md:border-white/10",
+            !fullscreen && panelWidth === null && "w-full md:w-[58%] lg:w-[55%]",
+            !fullscreen && panelHeight === null && "h-full"
           )}
           style={
-            !fullscreen && panelWidth !== null
-              ? { width: panelWidth, maxWidth: "100%" }
+            !fullscreen
+              ? {
+                  ...(panelWidth !== null
+                    ? { width: panelWidth, maxWidth: "100%" }
+                    : {}),
+                  ...(panelHeight !== null
+                    ? { height: panelHeight, maxHeight: "100%" }
+                    : {})
+                }
               : undefined
           }
         >
           {!fullscreen && (
-            <div
-              role="separator"
-              aria-orientation="vertical"
-              aria-label="Resize call width — drag to make wider or narrower"
-              title="Drag to resize · double-click to reset"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                startPanelDrag(e.clientX);
-              }}
-              onTouchStart={(e) => {
-                const t = e.touches[0];
-                if (!t) return;
-                startPanelDrag(t.clientX);
-              }}
-              onDoubleClick={resetPanelWidth}
-              className="group/edge absolute inset-y-0 right-0 z-30 hidden w-2 cursor-col-resize touch-none transition hover:bg-neon-blue/40 md:block"
-            >
-              <span className="pointer-events-none absolute top-1/2 right-0 h-12 w-1.5 -translate-y-1/2 rounded-l-full bg-white/15 transition group-hover/edge:bg-neon-blue" />
-            </div>
+            <>
+              {/* RIGHT edge — make wider/narrower from the right */}
+              <div
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="Resize call from right edge"
+                title="Drag to resize · double-click to reset"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  startPanelDrag("right", e.clientX, e.clientY);
+                }}
+                onTouchStart={(e) => {
+                  const t = e.touches[0];
+                  if (!t) return;
+                  startPanelDrag("right", t.clientX, t.clientY);
+                }}
+                onDoubleClick={resetPanelSize}
+                className="group/edge absolute inset-y-0 right-0 z-30 hidden w-2 cursor-col-resize touch-none transition hover:bg-neon-blue/40 md:block"
+              >
+                <span className="pointer-events-none absolute top-1/2 right-0 h-12 w-1.5 -translate-y-1/2 rounded-l-full bg-white/15 transition group-hover/edge:bg-neon-blue" />
+              </div>
+              {/* LEFT edge — make wider/narrower from the left */}
+              <div
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="Resize call from left edge"
+                title="Drag to resize · double-click to reset"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  startPanelDrag("left", e.clientX, e.clientY);
+                }}
+                onTouchStart={(e) => {
+                  const t = e.touches[0];
+                  if (!t) return;
+                  startPanelDrag("left", t.clientX, t.clientY);
+                }}
+                onDoubleClick={resetPanelSize}
+                className="group/edge absolute inset-y-0 left-0 z-30 hidden w-2 cursor-col-resize touch-none transition hover:bg-neon-blue/40 md:block"
+              >
+                <span className="pointer-events-none absolute top-1/2 left-0 h-12 w-1.5 -translate-y-1/2 rounded-r-full bg-white/15 transition group-hover/edge:bg-neon-blue" />
+              </div>
+              {/* TOP edge — shorter/taller from the top */}
+              <div
+                role="separator"
+                aria-orientation="horizontal"
+                aria-label="Resize call from top edge"
+                title="Drag to resize · double-click to reset"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  startPanelDrag("top", e.clientX, e.clientY);
+                }}
+                onTouchStart={(e) => {
+                  const t = e.touches[0];
+                  if (!t) return;
+                  startPanelDrag("top", t.clientX, t.clientY);
+                }}
+                onDoubleClick={resetPanelSize}
+                className="group/edge absolute inset-x-0 top-0 z-30 hidden h-2 cursor-row-resize touch-none transition hover:bg-neon-blue/40 md:block"
+              >
+                <span className="pointer-events-none absolute left-1/2 top-0 h-1.5 w-12 -translate-x-1/2 rounded-b-full bg-white/15 transition group-hover/edge:bg-neon-blue" />
+              </div>
+              {/* BOTTOM edge — shorter/taller from the bottom */}
+              <div
+                role="separator"
+                aria-orientation="horizontal"
+                aria-label="Resize call from bottom edge"
+                title="Drag to resize · double-click to reset"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  startPanelDrag("bottom", e.clientX, e.clientY);
+                }}
+                onTouchStart={(e) => {
+                  const t = e.touches[0];
+                  if (!t) return;
+                  startPanelDrag("bottom", t.clientX, t.clientY);
+                }}
+                onDoubleClick={resetPanelSize}
+                className="group/edge absolute inset-x-0 bottom-0 z-30 hidden h-2 cursor-row-resize touch-none transition hover:bg-neon-blue/40 md:block"
+              >
+                <span className="pointer-events-none absolute left-1/2 bottom-0 h-1.5 w-12 -translate-x-1/2 rounded-t-full bg-white/15 transition group-hover/edge:bg-neon-blue" />
+              </div>
+            </>
           )}
         <header className="flex items-center justify-between gap-2 border-b border-white/10 px-3 py-2">
           <div className="flex min-w-0 items-center gap-2 text-sm">
@@ -285,15 +392,16 @@ export function CallPanel({
             >
               {copiedInvite ? "✓ Copied" : "↗ Invite"}
             </button>
-            {!fullscreen && panelWidth !== null && (
+            {!fullscreen && (panelWidth !== null || panelHeight !== null) && (
               <button
                 type="button"
-                onClick={resetPanelWidth}
-                title="Reset call panel width"
-                aria-label="Reset call panel width"
+                onClick={resetPanelSize}
+                title="Reset call panel size"
+                aria-label="Reset call panel size"
                 className="hidden rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 font-mono text-[10px] text-white/55 hover:bg-white/10 md:inline-flex"
               >
-                ↔ {Math.round(panelWidth)}px · reset
+                ⤡ {panelWidth !== null ? `${Math.round(panelWidth)}w` : "auto"} ·{" "}
+                {panelHeight !== null ? `${Math.round(panelHeight)}h` : "auto"} · reset
               </button>
             )}
             <button
@@ -523,8 +631,10 @@ function CallExtras() {
         ))}
       </div>
 
-      {/* Bottom toolbar (above the ControlBar) */}
-      <div className="absolute inset-x-0 bottom-16 z-10 flex items-center justify-center gap-1.5 px-4 pb-1 md:bottom-20">
+      {/* Bottom toolbar (above the ControlBar). Allow wrapping so it never
+         clips at narrow widths -- on a thin call panel the reactions
+         simply wrap to a second row. */}
+      <div className="absolute inset-x-0 bottom-16 z-10 flex flex-wrap items-center justify-center gap-1 px-2 pb-1 md:bottom-20 md:gap-1.5 md:px-4">
         <button
           type="button"
           onClick={toggleHand}
@@ -532,19 +642,19 @@ function CallExtras() {
           className={
             (meRaised
               ? "border-neon-amber/60 bg-neon-amber/20 text-neon-amber"
-              : "border-white/15 bg-black/40 text-white/85 hover:bg-white/10") +
-            " rounded-full border px-2.5 py-1 text-xs backdrop-blur"
+              : "border-white/15 bg-black/50 text-white/85 hover:bg-white/10") +
+            " rounded-full border px-2 py-0.5 text-[11px] backdrop-blur md:px-2.5 md:py-1"
           }
           title={meRaised ? "Lower hand" : "Raise hand"}
         >
-          {meRaised ? "✋ raised" : "✋ raise hand"}
+          ✋ <span className="hidden md:inline">{meRaised ? "raised" : "raise hand"}</span>
         </button>
         {REACTIONS.map((e) => (
           <button
             key={e}
             type="button"
             onClick={() => react(e)}
-            className="rounded-full border border-white/15 bg-black/40 px-2 py-1 text-base text-white backdrop-blur transition hover:scale-110 hover:bg-white/10"
+            className="rounded-full border border-white/15 bg-black/50 px-1.5 py-0.5 text-sm text-white backdrop-blur transition hover:scale-110 hover:bg-white/10 md:px-2 md:py-1 md:text-base"
             aria-label={`Send ${e}`}
             title={`Send ${e}`}
           >
@@ -554,11 +664,11 @@ function CallExtras() {
         <button
           type="button"
           onClick={() => void requestPictureInPicture()}
-          className="rounded-full border border-white/15 bg-black/40 px-2.5 py-1 text-xs text-white/85 backdrop-blur hover:bg-white/10"
+          className="rounded-full border border-white/15 bg-black/50 px-2 py-0.5 text-[11px] text-white/85 backdrop-blur hover:bg-white/10 md:px-2.5 md:py-1"
           aria-label="Picture-in-picture"
           title="Picture-in-picture"
         >
-          🪟 PiP
+          🪟 <span className="hidden md:inline">PiP</span>
         </button>
         <span className="ml-1 hidden text-[10px] text-white/40 md:inline">
           · {participants.length} in call
