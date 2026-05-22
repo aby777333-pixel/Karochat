@@ -50,12 +50,14 @@ export function MemberList({
   roomId,
   initial,
   currentUserId,
-  roomInviteCode
+  roomInviteCode,
+  isOwner = false
 }: {
   roomId: string;
   initial: Member[];
   currentUserId: string;
   roomInviteCode?: string | null;
+  isOwner?: boolean;
 }) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const router = useRouter();
@@ -199,6 +201,7 @@ export function MemberList({
                   target={m}
                   roomId={roomId}
                   roomInviteCode={roomInviteCode ?? null}
+                  canModerate={isOwner && m.role !== "owner"}
                   onClose={() => setOpenFor(null)}
                   onNavigate={(roomDestId) => {
                     setOpenFor(null);

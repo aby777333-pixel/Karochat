@@ -23,12 +23,16 @@ export function CallPanel({
   roomId,
   roomName,
   mode,
-  onClose
+  onClose,
+  isOwner = false,
+  inviteCode = null
 }: {
   roomId: string;
   roomName: string;
   mode: "audio" | "video";
   onClose: () => void;
+  isOwner?: boolean;
+  inviteCode?: string | null;
 }) {
   const [token, setToken] = useState<TokenResp | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +41,39 @@ export function CallPanel({
   // keep talking while the call is up. Users can toggle "fullscreen" to
   // expand the call across the viewport.
   const [fullscreen, setFullscreen] = useState(false);
+  const [copiedInvite, setCopiedInvite] = useState(false);
+  const [ending, setEnding] = useState(false);
+
+  async function copyInvite() {
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    const url = inviteCode
+      ? `${base}/rooms/${roomId}?invite=${encodeURIComponent(inviteCode)}`
+      : `${base}/rooms/${roomId}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedInvite(true);
+      setTimeout(() => setCopiedInvite(false), 1500);
+    } catch {
+      // ignore
+    }
+  }
+
+  async function endForEveryone() {
+    if (!confirm("End the call for everyone in this room?")) return;
+    setEnding(true);
+    try {
+      await fetch("/api/livekit/end", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ roomId })
+      });
+    } catch {
+      // ignore — we'll close locally anyway
+    } finally {
+      setEnding(false);
+      onClose();
+    }
+  }
 
   useEffect(() => {
     // Mark the call as active for any global CSS that wants to react,
@@ -86,18 +123,38 @@ export function CallPanel({
       className={clsx(
         // z-40 so chat composer popovers (z-60) can still appear above
         // the call when the user interacts with the chat on the right.
-        "fixed z-40 bg-ink-900 shadow-2xl",
+        "fixed z-40 flex justify-center",
         fullscreen
-          ? "inset-0"
-          : // Default dock: full width on mobile (chat is below it on
-            // small screens — users can scroll), left half on desktop.
-            "inset-x-0 bottom-0 top-0 md:right-auto md:w-[58%] md:border-r md:border-white/10 lg:w-[55%]"
+          ? "inset-0 bg-ink-900"
+          : // Default dock: align the inner panel to the same max-w-6xl
+            // container that the chat lives in, so the call sits in the
+            // same column the chat usually does — not glued to the viewport
+            // edge.
+            "inset-0 px-1 py-4 md:py-6 pointer-events-none"
       )}
       role="dialog"
       aria-modal={fullscreen}
       aria-label={`${mode} call in ${roomName}`}
     >
-      <div className="relative flex h-full w-full flex-col bg-ink-900">
+      <div
+        className={clsx(
+          "relative flex w-full max-w-6xl",
+          // Pull through pointer events on the call panel itself; the
+          // outer wrapper is click-through everywhere else so the chat
+          // sidebar stays interactive.
+          !fullscreen && "pointer-events-none"
+        )}
+      >
+        <div
+          className={clsx(
+            "pointer-events-auto flex flex-col bg-ink-900 shadow-2xl",
+            fullscreen
+              ? "h-full w-full"
+              : // Inside the centered max-w-6xl row: take ~58% width on
+                // desktop, full width on mobile.
+                "h-full w-full md:w-[58%] md:rounded-r-2xl md:border-r md:border-white/10 lg:w-[55%]"
+          )}
+        >
         <header className="flex items-center justify-between gap-2 border-b border-white/10 px-3 py-2">
           <div className="flex min-w-0 items-center gap-2 text-sm">
             <span className="relative inline-flex h-2 w-2">
@@ -113,6 +170,15 @@ export function CallPanel({
           <div className="flex shrink-0 items-center gap-1.5">
             <button
               type="button"
+              onClick={() => void copyInvite()}
+              title="Copy invite link to share with anyone"
+              aria-label="Copy invite link"
+              className="rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs text-white/80 hover:bg-white/10"
+            >
+              {copiedInvite ? "✓ Copied" : "↗ Invite"}
+            </button>
+            <button
+              type="button"
               onClick={() => setFullscreen((f) => !f)}
               aria-pressed={fullscreen}
               aria-label={fullscreen ? "Dock call to left" : "Expand call full-screen"}
@@ -121,6 +187,18 @@ export function CallPanel({
             >
               {fullscreen ? "⇤ Dock" : "⛶ Full"}
             </button>
+            {isOwner && (
+              <button
+                type="button"
+                onClick={() => void endForEveryone()}
+                disabled={ending}
+                title="End meeting for everyone (owner only)"
+                aria-label="End meeting for everyone"
+                className="rounded-lg border border-neon-red/40 bg-neon-red/5 px-2 py-1.5 text-xs text-neon-red/85 hover:bg-neon-red/15 disabled:opacity-50"
+              >
+                ⏹ End meeting
+              </button>
+            )}
             <button
               onClick={onClose}
               className="rounded-lg border border-neon-red/50 bg-neon-red/15 px-3 py-1.5 text-xs text-neon-red hover:bg-neon-red/25"
@@ -159,6 +237,7 @@ export function CallPanel({
               <RoomAudioRenderer />
             </LiveKitRoom>
           )}
+        </div>
         </div>
       </div>
     </div>

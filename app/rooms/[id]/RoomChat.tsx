@@ -1155,7 +1155,9 @@ export function RoomChat({
         recordingStartedAt={recordingStartedAt ?? null}
       />
 
-      {!isSaved && (
+      {/* Hide the widget while the call panel is mounted in this room so
+          the user doesn't see duplicate "Voice & Video" controls. */}
+      {!isSaved && !widgetCallMode && (
         <CallWidget
           roomId={roomId}
           roomName={roomName}
@@ -1670,6 +1672,8 @@ export function RoomChat({
           roomId={roomId}
           roomName={roomName}
           mode={widgetCallMode}
+          isOwner={!!isOwner}
+          inviteCode={roomInviteCode ?? null}
           onClose={() => setWidgetCallMode(null)}
         />
       )}
@@ -2032,6 +2036,7 @@ function MessageBubble({
               }}
               roomId={roomId}
               roomInviteCode={roomInviteCode}
+              canModerate={isOwner && m.sender_id !== currentUserId}
               onClose={() => setShowAuthorMenu(false)}
               onNavigate={(dest) => {
                 setShowAuthorMenu(false);

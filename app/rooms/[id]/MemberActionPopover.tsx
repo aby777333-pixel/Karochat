@@ -32,6 +32,7 @@ export function MemberActionPopover({
   target,
   roomId,
   roomInviteCode,
+  canModerate = false,
   onClose,
   onNavigate,
   align = "left"
@@ -39,6 +40,8 @@ export function MemberActionPopover({
   target: MemberPopoverTarget;
   roomId: string;
   roomInviteCode: string | null;
+  /** Caller is the room owner / admin / moderator — show kick/ban actions. */
+  canModerate?: boolean;
   onClose: () => void;
   onNavigate: (roomId: string) => void;
   align?: "left" | "right";
@@ -46,7 +49,7 @@ export function MemberActionPopover({
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const ref = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState<
-    null | "dm" | "vault" | "invite-here" | "load-rooms" | "invite-to" | "vibe" | "friend"
+    null | "dm" | "vault" | "invite-here" | "load-rooms" | "invite-to" | "vibe" | "friend" | "remove" | "ban"
   >(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -236,6 +239,38 @@ export function MemberActionPopover({
       prev ? { ...prev, [dim]: Number(data ?? prev[dim] + 1) } : prev
     );
     setNotice(`+1 ${dim}.`);
+  }
+
+  async function removeFromRoom(ban: boolean) {
+    const verb = ban ? "remove and ban" : "remove";
+    const display = target.display_name ?? `@${target.username ?? "anon"}`;
+    if (!confirm(`${verb.charAt(0).toUpperCase() + verb.slice(1)} ${display}?`)) return;
+    setBusy(ban ? "ban" : "remove");
+    setError(null);
+    setNotice(null);
+    const reason = ban ? prompt("Reason for ban? (optional, shown to admins)") : null;
+    const { error: rpcErr } = await supabase.rpc("remove_room_member", {
+      p_room_id: roomId,
+      p_user_id: target.user_id,
+      p_ban: ban,
+      p_reason: reason ?? null
+    });
+    setBusy(null);
+    if (rpcErr) {
+      setError(rpcErr.message);
+      return;
+    }
+    setNotice(ban ? "Banned." : "Removed.");
+    // Also try to kick them from any active LiveKit call in this room.
+    try {
+      await fetch("/api/livekit/end", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ roomId, targetUserId: target.user_id })
+      });
+    } catch {
+      // best-effort; their room ban is the source of truth.
+    }
   }
 
   async function sendDM() {
@@ -530,6 +565,34 @@ export function MemberActionPopover({
           )}
         </button>
       </div>
+
+      {canModerate && (
+        <div className="mt-2 border-t border-neon-red/20 pt-2">
+          <p className="px-2 pb-1 text-[9px] uppercase tracking-widest text-neon-red/70">
+            Moderation
+          </p>
+          <button
+            type="button"
+            onClick={() => void removeFromRoom(false)}
+            disabled={busy !== null}
+            className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-neon-amber hover:bg-neon-amber/10 disabled:opacity-50"
+            title="Remove from this room (they can rejoin)"
+          >
+            <span aria-hidden>🚪</span>
+            <span>{busy === "remove" ? "Removing…" : "Remove from room"}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => void removeFromRoom(true)}
+            disabled={busy !== null}
+            className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-neon-red hover:bg-neon-red/10 disabled:opacity-50"
+            title="Remove and ban — they can't rejoin until you unban them"
+          >
+            <span aria-hidden>⛔</span>
+            <span>{busy === "ban" ? "Banning…" : "Ban from room"}</span>
+          </button>
+        </div>
+      )}
 
       {error && (
         <p className="mt-1.5 rounded-md bg-neon-red/10 px-2 py-1 text-[11px] text-neon-red">

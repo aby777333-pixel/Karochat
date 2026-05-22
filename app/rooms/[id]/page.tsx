@@ -342,6 +342,7 @@ export default async function RoomPage({
           roomId={room.id}
           currentUserId={profile.id}
           roomInviteCode={room.invite_code ?? null}
+          isOwner={isOwner}
           initial={(initialMembers as any[]) ?? []}
         />
       </div>
