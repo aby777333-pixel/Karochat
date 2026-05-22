@@ -15,6 +15,7 @@ import { LeaveRoomButton } from "./LeaveRoomButton";
 import { MemberList } from "./MemberList";
 import { InviteButton } from "./InviteButton";
 import { RoomRulesPanel } from "./RoomRulesPanel";
+import { RoomThemePicker } from "@/components/RoomThemePicker";
 
 export const dynamic = "force-dynamic";
 
@@ -62,7 +63,7 @@ export default async function RoomPage({
 
   const roomResp = await supabase
     .from("rooms")
-    .select("id, name, description, is_public, invite_code, owner_id, is_dm, is_saved, is_vault, rules_markdown, visibility, parent_room_id, recording_started_at")
+    .select("id, name, description, is_public, invite_code, owner_id, is_dm, is_saved, is_vault, rules_markdown, visibility, parent_room_id, recording_started_at, theme")
     .eq("id", params.id)
     .maybeSingle();
   const room = roomResp.data as
@@ -80,6 +81,7 @@ export default async function RoomPage({
         visibility: "public" | "listed" | "unlisted" | "secret";
         parent_room_id: string | null;
         recording_started_at: string | null;
+        theme: string | null;
       }
     | null;
   if (!room) {
@@ -100,10 +102,10 @@ export default async function RoomPage({
     .maybeSingle();
 
   if (!membership) {
-    if (room.is_public) {
-      // Auto-join public rooms. Swallow + log any RPC error so a transient
-      // upstream blip doesn't crash the entire room render — the membership
-      // policy below will simply gate visibility if we couldn't join.
+    // Wave 19.5 — Karochat is free: any non-private user room auto-joins.
+    // 'public' and 'listed' both flow through join_public_room (relaxed in
+    // migration 0029). 'unlisted' and 'secret' still need an invite code.
+    if (room.is_public || room.visibility === "listed") {
       const joinResp = await supabase.rpc("join_public_room", {
         p_room_id: room.id
       });
@@ -274,6 +276,13 @@ export default async function RoomPage({
               isOwner={isOwner}
             />
           )}
+          {!room.is_dm && !room.is_saved && isOwner && (
+            <RoomThemePicker
+              roomId={room.id}
+              initialTheme={room.theme ?? null}
+              isOwner={isOwner}
+            />
+          )}
           {!room.is_dm && !room.is_saved && (
             <RoomRulesPanel
               roomId={room.id}
@@ -332,6 +341,7 @@ export default async function RoomPage({
             vaultPeerId={vaultPeerId}
             parentRoomId={room.parent_room_id}
             recordingStartedAt={room.recording_started_at}
+            roomTheme={room.theme ?? null}
             isOwner={isOwner}
             isDm={!!room.is_dm}
             isSaved={!!room.is_saved}

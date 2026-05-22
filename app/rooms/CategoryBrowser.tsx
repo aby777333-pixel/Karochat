@@ -159,7 +159,9 @@ export function CategoryBrowser({
     if (joining) return;
     setJoining(room.id);
     setError(null);
-    if (room.visibility === "public") {
+    // Wave 19.5 — public and listed rooms auto-join. Unlisted and secret
+    // need an invite code from a member.
+    if (room.visibility === "public" || room.visibility === "listed") {
       const { error: rpcErr } = await supabase.rpc("join_public_room", {
         p_room_id: room.id
       });
@@ -172,12 +174,9 @@ export function CategoryBrowser({
       router.refresh();
       return;
     }
-    // For listed / unlisted / secret rooms we can't auto-join — the room
-    // page requires an invite code. Surface that explicitly instead of
-    // navigating into a redirect loop.
     setJoining(null);
     setError(
-      `"${room.name}" is a ${room.visibility} room — you need an invite code from a member to join.`
+      `"${room.name}" is a private room — you need an invite code from a member to join.`
     );
   }
 

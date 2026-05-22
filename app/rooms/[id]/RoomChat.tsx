@@ -40,6 +40,8 @@ import { MessageSearchBar } from "@/components/MessageSearchBar";
 import { ForwardModal } from "@/components/ForwardModal";
 import { TypingIndicator } from "@/components/TypingIndicator";
 import { CallWidget } from "@/components/CallWidget";
+import { MediaEmbed, detectMedia } from "@/components/MediaEmbed";
+import { ROOM_THEMES } from "@/components/RoomThemePicker";
 import { useResizableHeight } from "@/lib/useResizableHeight";
 import {
   decryptFromVault,
@@ -145,6 +147,7 @@ export function RoomChat({
   isOwner,
   isDm,
   isSaved,
+  roomTheme,
   initialMessages
 }: {
   roomId: string;
@@ -162,6 +165,7 @@ export function RoomChat({
   isOwner?: boolean;
   isDm?: boolean;
   isSaved?: boolean;
+  roomTheme?: string | null;
   initialMessages: MessageRow[];
 }) {
   const router = useRouter();
@@ -1102,6 +1106,22 @@ export function RoomChat({
         wPx={chatWPx}
         onBeginDrag={beginDrag}
       />
+
+      {/* Wave 19.5 — room theme paint. Sits behind everything inside the
+         section, never blocks input. Owner picks via RoomThemePicker. */}
+      {(() => {
+        const t = ROOM_THEMES.find((x) => x.value === roomTheme);
+        if (!t || t.value === "default") return null;
+        return (
+          <div
+            aria-hidden
+            className={clsx(
+              "pointer-events-none absolute inset-0 bg-gradient-to-br",
+              t.gradient
+            )}
+          />
+        );
+      })()}
       <div className="flex items-center justify-between border-b border-white/5 px-4 py-2 text-xs text-white/50">
         <div className="flex items-center gap-2">
           <PresenceDot state="online" pulse />
@@ -2371,6 +2391,11 @@ function MessageBubble({
                     </span>
                   )}
                 </div>
+                {(() => {
+                  // Wave 19.5 — auto-embed YouTube / Spotify URLs.
+                  const media = detectMedia(m.content);
+                  return media ? <MediaEmbed media={media} /> : null;
+                })()}
                 {m.regretted_at && (
                   <p
                     className={clsx(

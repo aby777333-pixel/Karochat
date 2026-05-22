@@ -7,30 +7,22 @@ import { Button } from "@/components/Button";
 
 type Visibility = "public" | "listed" | "unlisted" | "secret";
 
+// Wave 19.5 — Karochat is free. Default is "Open" so any user-created room
+// is discoverable + joinable. Owners who explicitly want a private room get
+// one option: invite-link only. (The older 4-tier model is still in the DB;
+// existing rooms with 'listed' / 'secret' visibility keep working.)
 const VIS_OPTIONS: { value: Visibility; label: string; description: string; icon: string }[] = [
   {
     value: "public",
-    label: "Public",
+    label: "Open",
     icon: "🌍",
-    description: "Anyone can find this room in the lobby and join."
-  },
-  {
-    value: "listed",
-    label: "Listed",
-    icon: "🔒",
-    description: "Shows in the lobby with a lock — people request to join."
+    description: "Anyone can find this room in the lobby and join. (Recommended)"
   },
   {
     value: "unlisted",
-    label: "Unlisted",
+    label: "Private (invite link only)",
     icon: "🔗",
-    description: "Hidden from the lobby. Only the invite code lets people in."
-  },
-  {
-    value: "secret",
-    label: "Secret",
-    icon: "🕶️",
-    description: "Hidden everywhere. Joinable only via in-app invite."
+    description: "Hidden from the lobby. Only people you give the invite code can join."
   }
 ];
 
