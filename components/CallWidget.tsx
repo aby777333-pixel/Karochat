@@ -1,9 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import dynamic from "next/dynamic";
+import { useEffect, useState } from "react";
 import clsx from "clsx";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 /**
  * CallWidget — Wave 18.5.
@@ -14,28 +12,14 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
  *  • Mic / Cam / Screen-share visual quick toggles (preference defaults
  *    surfaced into the call panel; actual mute/etc happens inside the
  *    LiveKit ControlBar once you join)
- *  • A big green "Start call" button that launches the existing
- *    CallPanel in the chosen mode
+ *  • A big green "Start call" button that asks the parent to mount the
+ *    existing CallPanel in the chosen mode (parent owns the panel — we
+ *    avoid importing route-scoped files from /components/)
  *  • A presence ribbon showing how many people are currently in the room
  *
  * Collapsible per-room (state persisted to localStorage), so it never
  * permanently steals chat real estate.
  */
-
-const CallPanel = dynamic(
-  () => import("@/app/rooms/[id]/CallPanel").then((m) => m.CallPanel),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm">
-        <p className="rounded-xl border border-white/10 bg-ink-800/95 px-4 py-3 text-sm text-white/80">
-          <span className="mr-2 inline-block animate-pulseDot">●</span>
-          Loading call…
-        </p>
-      </div>
-    )
-  }
-);
 
 type Mode = "audio" | "video";
 
@@ -74,30 +58,31 @@ function writePrefs(p: Prefs) {
 export function CallWidget({
   roomId,
   roomName,
-  currentUserId,
-  currentUsername
+  onlineCount,
+  onStart
 }: {
   roomId: string;
   roomName: string;
-  currentUserId: string;
-  currentUsername: string;
+  onlineCount: number;
+  onStart: (mode: Mode) => void;
 }) {
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const collapseKey = `${COLLAPSE_KEY_PREFIX}${roomId}`;
 
   const [available, setAvailable] = useState<boolean | null>(null);
-  const [collapsed, setCollapsed] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      return window.localStorage.getItem(collapseKey) === "1";
-    } catch {
-      return false;
-    }
-  });
+  const [collapsed, setCollapsed] = useState<boolean>(false);
   const [prefs, setPrefs] = useState<Prefs>(() => readPrefs());
-  const [activeMode, setActiveMode] = useState<Mode | null>(null);
   const [copied, setCopied] = useState(false);
-  const [onlineCount, setOnlineCount] = useState(1);
+
+  // Hydrate collapse state from localStorage AFTER mount so the server
+  // render and the first client render match (avoids hydration mismatch).
+  useEffect(() => {
+    try {
+      const v = window.localStorage.getItem(collapseKey);
+      if (v === "1") setCollapsed(true);
+    } catch {
+      // ignore
+    }
+  }, [collapseKey]);
 
   // Detect whether LiveKit is configured — same check the legacy CallButton
   // does. If not configured, render a disabled state rather than hiding.
@@ -111,30 +96,6 @@ export function CallWidget({
       alive = false;
     };
   }, []);
-
-  // Subscribe to the room presence channel so we can show "N here now".
-  useEffect(() => {
-    const channel = supabase.channel(`room-presence:${roomId}`, {
-      config: { presence: { key: currentUserId } }
-    });
-    channel
-      .on("presence", { event: "sync" }, () => {
-        const state = channel.presenceState();
-        setOnlineCount(Object.keys(state).length || 1);
-      })
-      .subscribe(async (status) => {
-        if (status === "SUBSCRIBED") {
-          await channel.track({
-            user_id: currentUserId,
-            username: currentUsername,
-            online_at: new Date().toISOString()
-          });
-        }
-      });
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [supabase, roomId, currentUserId, currentUsername]);
 
   // Persist collapse state per-room so users keep their layout choice.
   function toggleCollapsed() {
@@ -162,7 +123,7 @@ export function CallWidget({
   }
 
   function startCall() {
-    setActiveMode(prefs.mode);
+    onStart(prefs.mode);
   }
 
   async function copySession() {
@@ -196,7 +157,7 @@ export function CallWidget({
           type="button"
           onClick={() => {
             setMode("audio");
-            setActiveMode("audio");
+            onStart("audio");
           }}
           disabled={available === false}
           className="shrink-0 rounded-md border border-neon-blue/40 bg-neon-blue/10 px-2 py-0.5 text-[11px] text-neon-blue hover:bg-neon-blue/20 disabled:opacity-50"
@@ -208,7 +169,7 @@ export function CallWidget({
           type="button"
           onClick={() => {
             setMode("video");
-            setActiveMode("video");
+            onStart("video");
           }}
           disabled={available === false}
           className="shrink-0 rounded-md border border-neon-purple/40 bg-neon-purple/10 px-2 py-0.5 text-[11px] text-neon-purple hover:bg-neon-purple/20 disabled:opacity-50"
@@ -216,14 +177,6 @@ export function CallWidget({
         >
           📹 video
         </button>
-        {activeMode && (
-          <CallPanel
-            roomId={roomId}
-            roomName={roomName}
-            mode={activeMode}
-            onClose={() => setActiveMode(null)}
-          />
-        )}
       </div>
     );
   }
@@ -393,14 +346,6 @@ export function CallWidget({
         </p>
       )}
 
-      {activeMode && (
-        <CallPanel
-          roomId={roomId}
-          roomName={roomName}
-          mode={activeMode}
-          onClose={() => setActiveMode(null)}
-        />
-      )}
     </div>
   );
 }

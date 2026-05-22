@@ -4,6 +4,22 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import clsx from "clsx";
+import dynamic from "next/dynamic";
+
+// CallPanel is route-scoped and imports LiveKit — load it lazily so the
+// room's first paint isn't blocked, and so the CallWidget (which lives in
+// /components/) doesn't have to know about route-relative paths.
+const CallPanel = dynamic(() => import("./CallPanel").then((m) => m.CallPanel), {
+  ssr: false,
+  loading: () => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm">
+      <p className="rounded-xl border border-white/10 bg-ink-800/95 px-4 py-3 text-sm text-white/80">
+        <span className="mr-2 inline-block animate-pulseDot">●</span>
+        Loading call…
+      </p>
+    </div>
+  )
+});
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/Button";
 import { PresenceDot } from "@/components/PresenceDot";
@@ -161,6 +177,7 @@ export function RoomChat({
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [forwardSource, setForwardSource] = useState<MessageRow | null>(null);
+  const [widgetCallMode, setWidgetCallMode] = useState<"audio" | "video" | null>(null);
   const [showEmoji, setShowEmoji] = useState(false);
   const [showGif, setShowGif] = useState(false);
   const [showVoice, setShowVoice] = useState(false);
@@ -1106,8 +1123,8 @@ export function RoomChat({
         <CallWidget
           roomId={roomId}
           roomName={roomName}
-          currentUserId={currentUserId}
-          currentUsername={currentUsername}
+          onlineCount={onlineCount}
+          onStart={(mode) => setWidgetCallMode(mode)}
         />
       )}
 
@@ -1617,6 +1634,15 @@ export function RoomChat({
           source={forwardSource}
           currentUserId={currentUserId}
           onClose={() => setForwardSource(null)}
+        />
+      )}
+
+      {widgetCallMode && (
+        <CallPanel
+          roomId={roomId}
+          roomName={roomName}
+          mode={widgetCallMode}
+          onClose={() => setWidgetCallMode(null)}
         />
       )}
 
