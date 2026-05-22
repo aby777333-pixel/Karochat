@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import clsx from "clsx";
 import {
   LiveKitRoom,
@@ -43,6 +44,84 @@ export function CallPanel({
   const [fullscreen, setFullscreen] = useState(false);
   const [copiedInvite, setCopiedInvite] = useState(false);
   const [ending, setEnding] = useState(false);
+
+  // Wave 19.2 — resizable docked panel width. `null` = use the default
+  // 58% / 55% class breakpoints; a number locks the panel to that pixel
+  // width. Persisted per user.
+  const PANEL_WIDTH_KEY = "karochat:call-panel-width";
+  const PANEL_WIDTH_MIN = 320;
+  const PANEL_WIDTH_MAX = 1400;
+  const [panelWidth, setPanelWidth] = useState<number | null>(null);
+  const panelDragRef = useRef<{ startX: number; startW: number } | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(PANEL_WIDTH_KEY);
+      if (raw) {
+        const n = Number(raw);
+        if (Number.isFinite(n) && n >= PANEL_WIDTH_MIN && n <= PANEL_WIDTH_MAX) {
+          setPanelWidth(n);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    function move(e: MouseEvent | TouchEvent) {
+      const drag = panelDragRef.current;
+      if (!drag) return;
+      const clientX =
+        "touches" in e ? (e.touches[0]?.clientX ?? drag.startX) : e.clientX;
+      const next = Math.min(
+        PANEL_WIDTH_MAX,
+        Math.max(PANEL_WIDTH_MIN, drag.startW + (clientX - drag.startX))
+      );
+      setPanelWidth(next);
+    }
+    function up() {
+      if (!panelDragRef.current) return;
+      panelDragRef.current = null;
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+      try {
+        if (panelWidth !== null) {
+          window.localStorage.setItem(PANEL_WIDTH_KEY, String(panelWidth));
+        }
+      } catch {
+        // ignore
+      }
+    }
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+    window.addEventListener("touchmove", move, { passive: true });
+    window.addEventListener("touchend", up);
+    window.addEventListener("touchcancel", up);
+    return () => {
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", up);
+      window.removeEventListener("touchmove", move);
+      window.removeEventListener("touchend", up);
+      window.removeEventListener("touchcancel", up);
+    };
+  }, [panelWidth]);
+
+  function startPanelDrag(clientX: number) {
+    const w = panelWidth ?? (typeof window !== "undefined" ? Math.round(window.innerWidth * 0.58) : 800);
+    panelDragRef.current = { startX: clientX, startW: w };
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = "col-resize";
+  }
+
+  function resetPanelWidth() {
+    setPanelWidth(null);
+    try {
+      window.localStorage.removeItem(PANEL_WIDTH_KEY);
+    } catch {
+      // ignore
+    }
+  }
 
   async function copyInvite() {
     const base = typeof window !== "undefined" ? window.location.origin : "";
@@ -118,7 +197,8 @@ export function CallPanel({
     };
   }, [roomId]);
 
-  return (
+  if (typeof document === "undefined") return null;
+  return createPortal(
     <div
       className={clsx(
         // z-40 so chat composer popovers (z-60) can still appear above
@@ -147,14 +227,42 @@ export function CallPanel({
       >
         <div
           className={clsx(
-            "pointer-events-auto flex flex-col bg-ink-900 shadow-2xl",
+            "pointer-events-auto relative flex flex-col bg-ink-900 shadow-2xl",
             fullscreen
               ? "h-full w-full"
               : // Inside the centered max-w-6xl row: take ~58% width on
-                // desktop, full width on mobile.
-                "h-full w-full md:w-[58%] md:rounded-r-2xl md:border-r md:border-white/10 lg:w-[55%]"
+                // desktop, full width on mobile. When the user has dragged
+                // the right-edge handle, an inline width takes over.
+                "h-full md:rounded-r-2xl md:border-r md:border-white/10",
+            !fullscreen && panelWidth === null && "w-full md:w-[58%] lg:w-[55%]"
           )}
+          style={
+            !fullscreen && panelWidth !== null
+              ? { width: panelWidth, maxWidth: "100%" }
+              : undefined
+          }
         >
+          {!fullscreen && (
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize call width — drag to make wider or narrower"
+              title="Drag to resize · double-click to reset"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                startPanelDrag(e.clientX);
+              }}
+              onTouchStart={(e) => {
+                const t = e.touches[0];
+                if (!t) return;
+                startPanelDrag(t.clientX);
+              }}
+              onDoubleClick={resetPanelWidth}
+              className="group/edge absolute inset-y-0 right-0 z-30 hidden w-2 cursor-col-resize touch-none transition hover:bg-neon-blue/40 md:block"
+            >
+              <span className="pointer-events-none absolute top-1/2 right-0 h-12 w-1.5 -translate-y-1/2 rounded-l-full bg-white/15 transition group-hover/edge:bg-neon-blue" />
+            </div>
+          )}
         <header className="flex items-center justify-between gap-2 border-b border-white/10 px-3 py-2">
           <div className="flex min-w-0 items-center gap-2 text-sm">
             <span className="relative inline-flex h-2 w-2">
@@ -177,6 +285,17 @@ export function CallPanel({
             >
               {copiedInvite ? "✓ Copied" : "↗ Invite"}
             </button>
+            {!fullscreen && panelWidth !== null && (
+              <button
+                type="button"
+                onClick={resetPanelWidth}
+                title="Reset call panel width"
+                aria-label="Reset call panel width"
+                className="hidden rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 font-mono text-[10px] text-white/55 hover:bg-white/10 md:inline-flex"
+              >
+                ↔ {Math.round(panelWidth)}px · reset
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setFullscreen((f) => !f)}
@@ -240,7 +359,8 @@ export function CallPanel({
         </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

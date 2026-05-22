@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 
 const CallPanel = dynamic(
@@ -87,9 +88,9 @@ export function CallButton({
         </svg>
       </button>
 
-      {menuOpen && (
+      {menuOpen && typeof document !== "undefined" && createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/80 p-4 backdrop-blur-sm sm:items-center"
+          className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-black/80 p-4 backdrop-blur-sm sm:items-center"
           onClick={(e) => {
             if (e.target === e.currentTarget) setMenuOpen(false);
           }}
@@ -163,7 +164,8 @@ export function CallButton({
               </p>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {mode && (
