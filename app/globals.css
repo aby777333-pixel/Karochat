@@ -91,6 +91,60 @@ body::before {
 .scroll-thin::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.16); }
 .scroll-thin::-webkit-scrollbar-track { background: transparent; }
 
+/* ---------------------------------------------------------------------------
+   Call panel responsive controls (Wave 19.12)
+   The LiveKit ControlBar ships fixed-size buttons (Microphone / Camera /
+   Share screen / Chat / Leave) with full text labels. When the user
+   shrinks the docked or floating call panel, those labels overflow and
+   buttons clip. Treat the LiveKitRoom container as a CSS container so we
+   can collapse the labels and group widths progressively as the panel
+   gets narrower -- 100% CSS, no library fork.
+--------------------------------------------------------------------------- */
+.lk-call-host {
+  container-type: inline-size;
+  container-name: call;
+}
+
+/* Ensure the bar itself wraps gracefully and never forces horizontal scroll. */
+.lk-call-host .lk-control-bar {
+  flex-wrap: wrap !important;
+  gap: 0.35rem !important;
+  padding: 0.5rem !important;
+  justify-content: center !important;
+}
+.lk-call-host .lk-button,
+.lk-call-host .lk-disconnect-button {
+  min-width: 0 !important;
+}
+
+/* < 640px panel width: hide label spans, keep icons; shrink padding. */
+@container call (max-width: 640px) {
+  .lk-call-host .lk-button {
+    padding-inline: 0.55rem !important;
+    font-size: 0.78rem !important;
+  }
+  .lk-call-host .lk-button > span:not([class*="icon"]):not([class*="Icon"]),
+  .lk-call-host .lk-disconnect-button > span:not([class*="icon"]):not([class*="Icon"]) {
+    display: none !important;
+  }
+  /* Compact the chevron dropdown next to mic / camera. */
+  .lk-call-host .lk-button-group-menu {
+    padding-inline: 0.4rem !important;
+  }
+}
+
+/* < 420px panel width: drop chevron padding even more so the icon row fits. */
+@container call (max-width: 420px) {
+  .lk-call-host .lk-control-bar {
+    gap: 0.2rem !important;
+    padding: 0.35rem !important;
+  }
+  .lk-call-host .lk-button,
+  .lk-call-host .lk-disconnect-button {
+    padding: 0.35rem 0.45rem !important;
+  }
+}
+
 /* Respect prefers-reduced-motion: kill the loud animations (shake, rise,
    radial pulse, shimmer) and downgrade the nudge to a soft border pulse so
    incoming nudges are still visible without slamming the window around. */

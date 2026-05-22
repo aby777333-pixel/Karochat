@@ -622,7 +622,7 @@ export function CallPanel({
               video={mode === "video"}
               onDisconnected={onClose}
               data-lk-theme="default"
-              className="relative flex flex-1 flex-col"
+              className="lk-call-host relative flex flex-1 flex-col"
             >
               {mode === "video" ? <VideoConference /> : <AudioRoom />}
               <CallExtras />
