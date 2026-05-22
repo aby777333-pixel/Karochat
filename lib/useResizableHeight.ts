@@ -12,8 +12,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * Persisted to localStorage so a refresh / room switch keeps the user's
  * preferred compact height.
  */
-const MIN_HEIGHT = 140;
+const MIN_HEIGHT = 180;
 const MAX_HEIGHT = 1400;
+const COMPACT_HEIGHT = 260;
 
 export type SizePreset = "compact" | "normal" | "full";
 
@@ -118,7 +119,7 @@ export function useResizableHeight(storageKey: string) {
   }, []);
 
   const compact = useCallback(() => {
-    setPx(MIN_HEIGHT);
+    setPx(COMPACT_HEIGHT);
     setPreset("compact");
   }, []);
 

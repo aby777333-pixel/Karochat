@@ -117,7 +117,7 @@ export function VoiceRecorder({
     <div
       role="dialog"
       aria-label="Voice recorder"
-      className="absolute bottom-12 left-0 z-30 w-[280px] rounded-xl border border-white/10 bg-ink-800/95 p-3 shadow-xl backdrop-blur"
+      className="absolute bottom-12 left-0 z-[60] w-[280px] rounded-xl border border-white/10 bg-ink-800/95 p-3 shadow-xl backdrop-blur"
     >
       <div className="flex items-center justify-between pb-1.5">
         <p className="text-[10px] uppercase tracking-widest text-neon-purple">

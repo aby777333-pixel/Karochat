@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import clsx from "clsx";
 import {
   LiveKitRoom,
   VideoConference,
@@ -31,15 +32,18 @@ export function CallPanel({
 }) {
   const [token, setToken] = useState<TokenResp | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Wave 19 — the call no longer covers the chat. It docks to the left
+  // half on desktop; the right half remains the live chat so people can
+  // keep talking while the call is up. Users can toggle "fullscreen" to
+  // expand the call across the viewport.
+  const [fullscreen, setFullscreen] = useState(false);
 
-  // While the call panel is mounted, freeze the body scroll behind it so
-  // the chat doesn't peek/scroll under the call.
   useEffect(() => {
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    // Mark the call as active for any global CSS that wants to react,
+    // but DON'T freeze body scroll — the chat alongside us must stay
+    // scrollable + interactable.
     document.documentElement.dataset.callActive = "true";
     return () => {
-      document.body.style.overflow = prevOverflow;
       delete document.documentElement.dataset.callActive;
     };
   }, []);
@@ -79,14 +83,23 @@ export function CallPanel({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-stretch justify-center bg-ink-900"
+      className={clsx(
+        // z-40 so chat composer popovers (z-60) can still appear above
+        // the call when the user interacts with the chat on the right.
+        "fixed z-40 bg-ink-900 shadow-2xl",
+        fullscreen
+          ? "inset-0"
+          : // Default dock: full width on mobile (chat is below it on
+            // small screens — users can scroll), left half on desktop.
+            "inset-x-0 bottom-0 top-0 md:right-auto md:w-[58%] md:border-r md:border-white/10 lg:w-[55%]"
+      )}
       role="dialog"
-      aria-modal="true"
+      aria-modal={fullscreen}
       aria-label={`${mode} call in ${roomName}`}
     >
-      <div className="relative flex h-full w-full max-w-6xl flex-col bg-ink-900">
-        <header className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-          <div className="flex items-center gap-2 text-sm">
+      <div className="relative flex h-full w-full flex-col bg-ink-900">
+        <header className="flex items-center justify-between gap-2 border-b border-white/10 px-3 py-2">
+          <div className="flex min-w-0 items-center gap-2 text-sm">
             <span className="relative inline-flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full rounded-full bg-neon-red opacity-70 animate-pulseDot" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-neon-red shadow-glow-red" />
@@ -95,14 +108,26 @@ export function CallPanel({
               {mode} call
             </span>
             <span className="text-white/40">·</span>
-            <span className="truncate">{roomName}</span>
+            <span className="truncate text-xs text-white/80">{roomName}</span>
           </div>
-          <button
-            onClick={onClose}
-            className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/80 hover:bg-white/10"
-          >
-            Leave call
-          </button>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setFullscreen((f) => !f)}
+              aria-pressed={fullscreen}
+              aria-label={fullscreen ? "Dock call to left" : "Expand call full-screen"}
+              title={fullscreen ? "Dock to left (show chat)" : "Expand full-screen"}
+              className="hidden rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs text-white/80 hover:bg-white/10 md:inline-flex"
+            >
+              {fullscreen ? "⇤ Dock" : "⛶ Full"}
+            </button>
+            <button
+              onClick={onClose}
+              className="rounded-lg border border-neon-red/50 bg-neon-red/15 px-3 py-1.5 text-xs text-neon-red hover:bg-neon-red/25"
+            >
+              Leave call
+            </button>
+          </div>
         </header>
 
         <div className="flex flex-1 flex-col overflow-hidden">

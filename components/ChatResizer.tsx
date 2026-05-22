@@ -14,7 +14,7 @@ import type { SizePreset } from "@/lib/useResizableHeight";
 const HINT_KEY = "karochat:resize-hint-seen";
 
 export function ChatResizer({
-  scrollerRef,
+  targetRef,
   px,
   preset,
   onBeginDrag,
@@ -22,7 +22,8 @@ export function ChatResizer({
   onReset,
   onFull
 }: {
-  scrollerRef: React.RefObject<HTMLDivElement>;
+  /** The element whose height the user is resizing (the chat <section>). */
+  targetRef: React.RefObject<HTMLElement>;
   px: number | null;
   preset: SizePreset;
   onBeginDrag: (clientY: number, currentHeight: number, target: HTMLElement | null) => void;
@@ -59,8 +60,8 @@ export function ChatResizer({
   }
 
   function pickStartHeight(): number {
-    const el = scrollerRef.current;
-    if (!el) return px ?? 320;
+    const el = targetRef.current;
+    if (!el) return px ?? 480;
     return px ?? el.getBoundingClientRect().height;
   }
 

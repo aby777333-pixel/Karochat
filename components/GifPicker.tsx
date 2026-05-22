@@ -93,7 +93,7 @@ export function GifPicker({
       ref={rootRef}
       role="dialog"
       aria-label="GIF picker"
-      className="absolute bottom-12 left-0 z-30 w-[320px] rounded-xl border border-white/10 bg-ink-800/95 p-2 shadow-xl backdrop-blur"
+      className="absolute bottom-12 left-0 z-[60] w-[320px] rounded-xl border border-white/10 bg-ink-800/95 p-2 shadow-xl backdrop-blur"
     >
       <div className="flex items-center gap-2 px-1 pb-1.5">
         <input

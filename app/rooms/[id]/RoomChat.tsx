@@ -238,6 +238,7 @@ export function RoomChat({
   const [pulse, setPulse] = useState(false);
   const [lastIncoming, setLastIncoming] = useState<MessageRow | null>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -1060,11 +1061,23 @@ export function RoomChat({
 
   return (
     <section
+      ref={sectionRef}
       className={clsx(
-        "surface-glass tint-blue mt-3 flex flex-1 flex-col overflow-hidden transition-[filter,opacity] duration-700",
+        // Note: overflow-visible (not overflow-hidden) so composer
+        // popovers (emoji/gif/voice/mention/ttl) can extend above the
+        // section bounds without being clipped. Internal scroller has
+        // its own overflow-y-auto.
+        "surface-glass tint-blue relative mt-3 flex min-h-0 flex-col overflow-visible transition-[filter,opacity] duration-700",
+        // When no explicit height lock is set, fill the available space.
+        chatPx === null && "flex-1",
         shaking && "animate-nudgeShake",
         lightsOut && "[filter:brightness(0.55)_saturate(0.8)]"
       )}
+      style={
+        chatPx !== null
+          ? { height: chatPx, flex: "0 0 auto" }
+          : undefined
+      }
     >
       <div className="flex items-center justify-between border-b border-white/5 px-4 py-2 text-xs text-white/50">
         <div className="flex items-center gap-2">
@@ -1186,16 +1199,7 @@ export function RoomChat({
 
       <div
         ref={scrollerRef}
-        className={clsx(
-          "scroll-thin relative space-y-3 overflow-y-auto p-4",
-          chatPx === null && chatPreset !== "full" && "flex-1",
-          chatPreset === "full" && "flex-1"
-        )}
-        style={
-          chatPx !== null
-            ? { height: chatPx, flex: "0 0 auto" }
-            : undefined
-        }
+        className="scroll-thin relative flex-1 space-y-3 overflow-y-auto p-4 min-h-0"
       >
         {pulse && (
           <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 h-12 w-12 -translate-x-1/2 -translate-y-1/2 rounded-full bg-neon-red/40 animate-nudgePulse" />
@@ -1264,7 +1268,7 @@ export function RoomChat({
       />
 
       <ChatResizer
-        scrollerRef={scrollerRef}
+        targetRef={sectionRef}
         px={chatPx}
         preset={chatPreset}
         onBeginDrag={beginDrag}
@@ -1348,7 +1352,7 @@ export function RoomChat({
                 : "·"}
             </button>
             {intentMenuOpen && (
-              <div className="absolute bottom-12 left-0 z-20 w-52 rounded-xl border border-white/10 bg-ink-800/95 p-1.5 shadow-xl backdrop-blur">
+              <div className="absolute bottom-12 left-0 z-[60] w-52 rounded-xl border border-white/10 bg-ink-800/95 p-1.5 shadow-xl backdrop-blur">
                 <div className="flex items-center justify-between px-2 pb-1">
                   <p className="text-[10px] uppercase tracking-widest text-white/40">
                     Intent
@@ -1533,7 +1537,7 @@ export function RoomChat({
               ⏳
             </button>
             {ttlMenuOpen && (
-              <div className="absolute bottom-12 left-0 z-20 w-44 rounded-xl border border-white/10 bg-ink-800/95 p-1.5 shadow-xl backdrop-blur">
+              <div className="absolute bottom-12 left-0 z-[60] w-44 rounded-xl border border-white/10 bg-ink-800/95 p-1.5 shadow-xl backdrop-blur">
                 <p className="px-2 pb-1 text-[10px] uppercase tracking-widest text-white/40">
                   Disappear after
                 </p>
