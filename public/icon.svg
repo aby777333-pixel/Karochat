@@ -11,15 +11,23 @@
     </linearGradient>
   </defs>
   <rect width="512" height="512" rx="112" fill="url(#gBg)"/>
+  <!-- Speech bubble with tail -->
   <path d="M256 64
            a192 192 0 1 1 -138 326
            c-18 -3 -30 7 -39 18
            c5 -18 7 -34 1 -43
            A192 192 0 0 1 256 64 Z"
         fill="none" stroke="url(#g)" stroke-width="34" stroke-linejoin="round"/>
-  <circle cx="196" cy="208" r="30" fill="url(#g)"/>
-  <circle cx="316" cy="208" r="30" fill="url(#g)"/>
-  <path d="M132 312 q60 -46 124 0 q60 -46 124 0"
-        fill="none" stroke="url(#g)" stroke-width="26" stroke-linecap="round"/>
+  <!-- Eyes -->
+  <circle cx="190" cy="220" r="26" fill="url(#g)"/>
+  <circle cx="322" cy="220" r="26" fill="url(#g)"/>
+  <circle cx="180" cy="208" r="8" fill="#ffffff" opacity="0.9"/>
+  <circle cx="312" cy="208" r="8" fill="#ffffff" opacity="0.9"/>
+  <!-- Smile + dimples -->
+  <path d="M154 290 q102 110 204 0"
+        fill="none" stroke="url(#g)" stroke-width="30" stroke-linecap="round"/>
+  <circle cx="154" cy="290" r="12" fill="url(#g)" opacity="0.85"/>
+  <circle cx="358" cy="290" r="12" fill="url(#g)" opacity="0.85"/>
+  <!-- Tail dot -->
   <circle cx="372" cy="408" r="20" fill="url(#g)"/>
 </svg>
