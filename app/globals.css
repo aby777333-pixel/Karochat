@@ -92,6 +92,35 @@ body::before {
 .scroll-thin::-webkit-scrollbar-track { background: transparent; }
 
 /* ---------------------------------------------------------------------------
+   Native <select> dark theme (Wave 19.13)
+   Chrome / Edge / Firefox honour these on <option>; Safari uses macOS
+   system controls and ignores most of it, but the closed control still
+   inherits the surrounding dark background.
+--------------------------------------------------------------------------- */
+select {
+  color: #f3f3f5;
+  background-color: rgba(0, 0, 0, 0.40);
+  color-scheme: dark;
+  /* Replace the platform chevron with a small inline-SVG so we own the colour. */
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'><path d='M1 1.5l5 5 5-5' fill='none' stroke='%23A0A0AC' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 0.55rem center;
+  background-size: 0.65rem 0.45rem;
+  padding-right: 2rem;
+}
+select option,
+select optgroup {
+  background-color: #121214;
+  color: #f3f3f5;
+}
+select option:checked,
+select option:hover {
+  background-color: #1A1A1A;
+}
+
+/* ---------------------------------------------------------------------------
    Call panel responsive controls (Wave 19.12)
    The LiveKit ControlBar ships fixed-size buttons (Microphone / Camera /
    Share screen / Chat / Leave) with full text labels. When the user
