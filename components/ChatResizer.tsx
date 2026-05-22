@@ -2,31 +2,40 @@
 
 import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
-import type { SizePreset } from "@/lib/useResizableHeight";
+import type { ResizeEdge, SizePreset } from "@/lib/useResizableHeight";
 
 /**
- * ChatResizer — Wave 18 (v2 high-visibility).
+ * ChatResizer — Wave 18 / 19.
  *
- * A chunky, obvious handle that sits between the scrollable message area
- * and the composer. Drag up to diminish, down to grow. A first-time hint
- * pill draws attention so it's not mistaken for a divider.
+ * Visible bottom toolbar with chunky drag grip + Compact / Reset / Full
+ * preset chips. The actual drag works on any of the four edges of the
+ * chat <section> through `EdgeHandles` (see below) — this bar is the
+ * primary, labelled affordance and ships with the first-time hint pill.
  */
 const HINT_KEY = "karochat:resize-hint-seen";
 
 export function ChatResizer({
   targetRef,
   px,
+  wPx,
   preset,
   onBeginDrag,
   onCompact,
   onReset,
   onFull
 }: {
-  /** The element whose height the user is resizing (the chat <section>). */
+  /** The element whose dimensions the user is resizing (the chat <section>). */
   targetRef: React.RefObject<HTMLElement>;
   px: number | null;
+  wPx: number | null;
   preset: SizePreset;
-  onBeginDrag: (clientY: number, currentHeight: number, target: HTMLElement | null) => void;
+  onBeginDrag: (
+    edge: ResizeEdge,
+    clientX: number,
+    clientY: number,
+    currentHeight: number,
+    currentWidth: number
+  ) => void;
   onCompact: () => void;
   onReset: () => void;
   onFull: () => void;
@@ -59,23 +68,26 @@ export function ChatResizer({
     }
   }
 
-  function pickStartHeight(): number {
+  function pickRect(): { h: number; w: number } {
     const el = targetRef.current;
-    if (!el) return px ?? 480;
-    return px ?? el.getBoundingClientRect().height;
+    if (!el) return { h: px ?? 480, w: wPx ?? 640 };
+    const r = el.getBoundingClientRect();
+    return { h: px ?? r.height, w: wPx ?? r.width };
   }
 
   function onMouseDown(e: React.MouseEvent<HTMLDivElement>) {
     e.preventDefault();
     dismissHint();
-    onBeginDrag(e.clientY, pickStartHeight(), handleRef.current);
+    const { h, w } = pickRect();
+    onBeginDrag("bottom", e.clientX, e.clientY, h, w);
   }
 
   function onTouchStart(e: React.TouchEvent<HTMLDivElement>) {
     const t = e.touches[0];
     if (!t) return;
     dismissHint();
-    onBeginDrag(t.clientY, pickStartHeight(), handleRef.current);
+    const { h, w } = pickRect();
+    onBeginDrag("bottom", t.clientX, t.clientY, h, w);
   }
 
   return (
@@ -174,15 +186,110 @@ export function ChatResizer({
         >
           △ full
         </button>
-        {px !== null && (
+        {(px !== null || wPx !== null) && (
           <span
             className="ml-1 hidden rounded-sm bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-white/55 sm:inline"
-            title="Current locked height"
+            title="Current locked size"
           >
-            {Math.round(px)}px
+            {wPx !== null ? `${Math.round(wPx)}w` : "auto"} ·{" "}
+            {px !== null ? `${Math.round(px)}h` : "auto"}
           </span>
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * EdgeHandles — Wave 19.
+ *
+ * Four very thin, hover-revealed strips on each edge of the chat section
+ * so users can resize from any side (Yahoo-Messenger-style). The visible
+ * bottom bar above is still the discoverable affordance.
+ */
+export function EdgeHandles({
+  targetRef,
+  px,
+  wPx,
+  onBeginDrag
+}: {
+  targetRef: React.RefObject<HTMLElement>;
+  px: number | null;
+  wPx: number | null;
+  onBeginDrag: (
+    edge: ResizeEdge,
+    clientX: number,
+    clientY: number,
+    currentHeight: number,
+    currentWidth: number
+  ) => void;
+}) {
+  function rect() {
+    const el = targetRef.current;
+    if (!el) return { h: px ?? 480, w: wPx ?? 640 };
+    const r = el.getBoundingClientRect();
+    return { h: px ?? r.height, w: wPx ?? r.width };
+  }
+  function start(edge: ResizeEdge, e: React.MouseEvent | React.TouchEvent) {
+    e.preventDefault();
+    const point =
+      "touches" in e ? e.touches[0] : (e as React.MouseEvent);
+    if (!point) return;
+    const { h, w } = rect();
+    onBeginDrag(edge, point.clientX, point.clientY, h, w);
+  }
+  return (
+    <>
+      {/* Top edge — full width, thin strip at the very top */}
+      <div
+        role="separator"
+        aria-orientation="horizontal"
+        aria-label="Resize from top edge"
+        title="Drag to resize from the top"
+        onMouseDown={(e) => start("top", e)}
+        onTouchStart={(e) => start("top", e)}
+        className="group/edge absolute inset-x-0 top-0 z-20 h-1.5 cursor-row-resize touch-none transition hover:bg-neon-blue/40"
+      >
+        <span className="pointer-events-none absolute left-1/2 top-0 h-1 w-10 -translate-x-1/2 rounded-b-full bg-white/0 transition group-hover/edge:bg-white/60" />
+      </div>
+      {/* Left edge */}
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize from left edge"
+        title="Drag to resize from the left"
+        onMouseDown={(e) => start("left", e)}
+        onTouchStart={(e) => start("left", e)}
+        className="group/edge absolute inset-y-0 left-0 z-20 w-1.5 cursor-col-resize touch-none transition hover:bg-neon-blue/40"
+      >
+        <span className="pointer-events-none absolute top-1/2 left-0 h-10 w-1 -translate-y-1/2 rounded-r-full bg-white/0 transition group-hover/edge:bg-white/60" />
+      </div>
+      {/* Right edge */}
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize from right edge"
+        title="Drag to resize from the right"
+        onMouseDown={(e) => start("right", e)}
+        onTouchStart={(e) => start("right", e)}
+        className="group/edge absolute inset-y-0 right-0 z-20 w-1.5 cursor-col-resize touch-none transition hover:bg-neon-blue/40"
+      >
+        <span className="pointer-events-none absolute top-1/2 right-0 h-10 w-1 -translate-y-1/2 rounded-l-full bg-white/0 transition group-hover/edge:bg-white/60" />
+      </div>
+      {/* Bottom edge — duplicates the bottom bar's drag intent so dragging
+         the absolute bottom pixel also works (the bar lives above the
+         section's bottom border by a hair). */}
+      <div
+        role="separator"
+        aria-orientation="horizontal"
+        aria-label="Resize from bottom edge"
+        title="Drag to resize from the bottom"
+        onMouseDown={(e) => start("bottom", e)}
+        onTouchStart={(e) => start("bottom", e)}
+        className="group/edge absolute inset-x-0 bottom-0 z-20 h-1.5 cursor-row-resize touch-none transition hover:bg-neon-blue/40"
+      >
+        <span className="pointer-events-none absolute left-1/2 bottom-0 h-1 w-10 -translate-x-1/2 rounded-t-full bg-white/0 transition group-hover/edge:bg-white/60" />
+      </div>
+    </>
   );
 }

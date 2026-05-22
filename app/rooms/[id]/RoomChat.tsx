@@ -30,7 +30,7 @@ import { MemberActionPopover } from "./MemberActionPopover";
 import { QuoteCard } from "./QuoteCard";
 import { Soundscape } from "./Soundscape";
 import { ConferenceTools } from "./ConferenceTools";
-import { ChatResizer } from "@/components/ChatResizer";
+import { ChatResizer, EdgeHandles } from "@/components/ChatResizer";
 import { EmojiPicker } from "@/components/EmojiPicker";
 import { GifPicker } from "@/components/GifPicker";
 import { MentionMenu } from "@/components/MentionMenu";
@@ -168,10 +168,17 @@ export function RoomChat({
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [messages, setMessages] = useState<MessageRow[]>(initialMessages);
 
-  // Wave 18 — resizable chat height (per-user, persisted).
+  // Wave 18 / 19 — resizable chat height + width (per-user, persisted).
   const resizerKey = `karochat:resize:${currentUserId}`;
-  const { px: chatPx, preset: chatPreset, beginDrag, reset: resetSize, compact: compactSize, full: fullSize } =
-    useResizableHeight(resizerKey);
+  const {
+    px: chatPx,
+    wPx: chatWPx,
+    preset: chatPreset,
+    beginDrag,
+    reset: resetSize,
+    compact: compactSize,
+    full: fullSize
+  } = useResizableHeight(resizerKey);
 
   // Wave 18 — composer extras + search + forwarding + voice + TTL.
   const [searchQuery, setSearchQuery] = useState("");
@@ -1074,11 +1081,27 @@ export function RoomChat({
         lightsOut && "[filter:brightness(0.55)_saturate(0.8)]"
       )}
       style={
-        chatPx !== null
-          ? { height: chatPx, flex: "0 0 auto" }
+        chatPx !== null || chatWPx !== null
+          ? {
+              ...(chatPx !== null
+                ? { height: chatPx, flex: "0 0 auto" }
+                : {}),
+              ...(chatWPx !== null
+                ? { width: chatWPx, flexBasis: "auto", flexGrow: 0 }
+                : {})
+            }
           : undefined
       }
     >
+      {/* Wave 19 — invisible drag strips on each edge for Yahoo-IM style
+         resize from any side. Sit ABOVE everything else inside the
+         section but BELOW composer popovers (z-20 vs picker z-60). */}
+      <EdgeHandles
+        targetRef={sectionRef}
+        px={chatPx}
+        wPx={chatWPx}
+        onBeginDrag={beginDrag}
+      />
       <div className="flex items-center justify-between border-b border-white/5 px-4 py-2 text-xs text-white/50">
         <div className="flex items-center gap-2">
           <PresenceDot state="online" pulse />
@@ -1270,6 +1293,7 @@ export function RoomChat({
       <ChatResizer
         targetRef={sectionRef}
         px={chatPx}
+        wPx={chatWPx}
         preset={chatPreset}
         onBeginDrag={beginDrag}
         onCompact={compactSize}

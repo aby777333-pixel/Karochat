@@ -284,13 +284,14 @@ export function CategoryBrowser({
                 <ul className="ml-5 border-l border-white/5 pl-3">
                   {subs.length === 0 ? (
                     <li className="py-1 font-sans text-[11px] italic text-white/40">
-                      (empty)
+                      (empty — be the first to create a room here)
                     </li>
                   ) : (
                     subs.map((sub) => {
                       const key = `${cat.slug}/${sub.slug}`;
                       const subTotal = subCount.get(key) ?? 0;
-                      if (subTotal === 0) return null;
+                      // Wave 19 — keep empty subcategories visible so the
+                      // user can find them and create a room inside.
                       const subOpen = openSubs.has(key);
                       const rooms = roomCache[key];
                       return (
@@ -344,17 +345,47 @@ export function CategoryBrowser({
                                 rooms.filter(
                                   (r) => matches(r.name) || matches(r.topic)
                                 ).length === 0 &&
+                                !filterLower && (
+                                  <li className="py-1 font-sans text-[11px] italic text-white/40">
+                                    No rooms yet — be the first.
+                                  </li>
+                                )}
+                              {rooms !== undefined &&
+                                rooms !== "loading" &&
+                                rooms.filter(
+                                  (r) => matches(r.name) || matches(r.topic)
+                                ).length === 0 &&
                                 filterLower && (
                                   <li className="py-1 font-sans text-[11px] italic text-white/40">
                                     No rooms here match &ldquo;{filter}&rdquo;.
                                   </li>
                                 )}
+                              <li>
+                                <CreateHereLink
+                                  catSlug={cat.slug}
+                                  catLabel={cat.label}
+                                  subSlug={sub.slug}
+                                  subLabel={sub.label}
+                                />
+                              </li>
                             </ul>
                           )}
                         </li>
                       );
                     })
                   )}
+                  {/* Always offer a category-level CTA so the user can
+                     drop a room straight into the category without
+                     picking a subcategory. */}
+                  <li className="border-t border-white/5">
+                    <CreateHereLink
+                      catSlug={cat.slug}
+                      catLabel={cat.label}
+                      subSlug={null}
+                      subLabel={null}
+                      tone="category"
+                    />
+                  </li>
                 </ul>
               )}
             </li>
@@ -396,6 +427,51 @@ function TabButton({
     >
       {label}
     </button>
+  );
+}
+
+/**
+ * "+ Create here" link — Wave 19. Routes to /rooms?create=1&category=...
+ * with the chosen category/subcategory so the create card pre-files the
+ * room into the right slot in the catalog.
+ */
+function CreateHereLink({
+  catSlug,
+  catLabel,
+  subSlug,
+  subLabel,
+  tone = "subcategory"
+}: {
+  catSlug: string;
+  catLabel: string;
+  subSlug: string | null;
+  subLabel: string | null;
+  tone?: "category" | "subcategory";
+}) {
+  const params = new URLSearchParams({
+    create: "1",
+    category: catSlug,
+    catlabel: catLabel
+  });
+  if (subSlug) params.set("sub", subSlug);
+  if (subLabel) params.set("sublabel", subLabel);
+  const label = tone === "category"
+    ? `+ Create your own room in ${catLabel}`
+    : `+ Create your own room in ${subLabel}`;
+  return (
+    <a
+      href={`/rooms?${params.toString()}#create-room-name`}
+      className={clsx(
+        "block py-1.5 font-sans text-xs transition",
+        tone === "category"
+          ? "px-1 text-neon-mint hover:text-white"
+          : "text-neon-mint/85 hover:text-neon-mint"
+      )}
+      title="Open the create-room form pre-filled with this category"
+    >
+      {label}
+      <span className="ml-1 text-white/30">→</span>
+    </a>
   );
 }
 

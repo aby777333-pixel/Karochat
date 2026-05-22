@@ -47,6 +47,14 @@ function CreateRoomCard() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const focusOnLoad = searchParams.get("create") === "1";
+  // Wave 19 — when the user hits "+ Create here" inside the category
+  // browser we pass the category context through the URL. After the room
+  // is created, we tag it with these slugs so it shows up in that
+  // category's tree immediately.
+  const categorySlug = searchParams.get("category");
+  const subcategorySlug = searchParams.get("sub");
+  const categoryLabel = searchParams.get("catlabel");
+  const subcategoryLabel = searchParams.get("sublabel");
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -82,6 +90,22 @@ function CreateRoomCard() {
       if (rpcErr || !data) {
         setError(rpcErr?.message ?? "Could not create room.");
         return;
+      }
+      // Tag the new room with the chosen category if one was supplied. The
+      // creator owns the row so the rooms_update_owner policy allows it.
+      if (categorySlug) {
+        const { error: tagErr } = await supabase
+          .from("rooms")
+          .update({
+            category_slug: categorySlug,
+            subcategory_slug: subcategorySlug ?? null
+          })
+          .eq("id", data.id);
+        if (tagErr) {
+          // Non-fatal — the room exists, it just won't appear in the
+          // catalog tree. Surface but don't block.
+          console.warn("[create-room] could not tag category", tagErr);
+        }
       }
       setCreated({ id: data.id, code: data.invite_code });
       // Public + listed: go straight into the room.
@@ -133,6 +157,16 @@ function CreateRoomCard() {
   return (
     <section className="surface-glass tint-blue p-5">
       <h3 className="font-display text-base font-semibold">Create a room</h3>
+      {categorySlug && (
+        <p className="mt-1 text-xs text-neon-blue">
+          Filing under{" "}
+          <span className="rounded-sm bg-neon-blue/15 px-1 font-medium">
+            {categoryLabel ?? categorySlug}
+            {subcategoryLabel ? ` → ${subcategoryLabel}` : ""}
+          </span>
+          .
+        </p>
+      )}
       <form onSubmit={submit} className="mt-3 space-y-3">
         <input
           id="create-room-name"
