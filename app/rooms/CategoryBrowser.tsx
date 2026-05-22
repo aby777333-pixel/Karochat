@@ -168,9 +168,17 @@ export function CategoryBrowser({
         setJoining(null);
         return;
       }
+      router.push(`/rooms/${room.id}`);
+      router.refresh();
+      return;
     }
-    router.push(`/rooms/${room.id}`);
-    router.refresh();
+    // For listed / unlisted / secret rooms we can't auto-join — the room
+    // page requires an invite code. Surface that explicitly instead of
+    // navigating into a redirect loop.
+    setJoining(null);
+    setError(
+      `"${room.name}" is a ${room.visibility} room — you need an invite code from a member to join.`
+    );
   }
 
   // Search expansion: if filter is non-empty, auto-expand any subcategory
