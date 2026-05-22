@@ -37,11 +37,16 @@ export function CallPanel({
 }) {
   const [token, setToken] = useState<TokenResp | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Wave 19 — the call no longer covers the chat. It docks to the left
-  // half on desktop; the right half remains the live chat so people can
-  // keep talking while the call is up. Users can toggle "fullscreen" to
-  // expand the call across the viewport.
-  const [fullscreen, setFullscreen] = useState(false);
+  // Wave 19 — the call no longer covers the chat. Three placement modes:
+  //   "dock"       — default, glued to the left half of the chat column
+  //   "float"      — free-floating draggable window, sits anywhere on screen
+  //   "fullscreen" — covers the whole viewport
+  type Mode = "dock" | "float" | "fullscreen";
+  const POS_KEY = "karochat:call-panel-pos";
+  const [placement, setPlacement] = useState<Mode>("dock");
+  const fullscreen = placement === "fullscreen";
+  const [floatPos, setFloatPos] = useState<{ x: number; y: number } | null>(null);
+  const headerDragRef = useRef<{ startX: number; startY: number; startPosX: number; startPosY: number } | null>(null);
   const [copiedInvite, setCopiedInvite] = useState(false);
   const [ending, setEnding] = useState(false);
 
@@ -82,7 +87,105 @@ export function CallPanel({
     } catch {
       // ignore
     }
+    // Load float placement + position too.
+    try {
+      const raw = window.localStorage.getItem(POS_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (
+        parsed?.mode === "float" &&
+        typeof parsed?.x === "number" &&
+        typeof parsed?.y === "number"
+      ) {
+        setPlacement("float");
+        setFloatPos({ x: parsed.x, y: parsed.y });
+      }
+    } catch {
+      // ignore
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Persist placement + position whenever they change.
+  useEffect(() => {
+    try {
+      if (placement === "float" && floatPos) {
+        window.localStorage.setItem(
+          POS_KEY,
+          JSON.stringify({ mode: "float", x: floatPos.x, y: floatPos.y })
+        );
+      } else if (placement === "dock") {
+        window.localStorage.removeItem(POS_KEY);
+      }
+    } catch {
+      // ignore
+    }
+  }, [placement, floatPos]);
+
+  // Drag-the-header handlers — only active in float mode.
+  useEffect(() => {
+    function move(e: MouseEvent | TouchEvent) {
+      const drag = headerDragRef.current;
+      if (!drag) return;
+      const clientX =
+        "touches" in e ? (e.touches[0]?.clientX ?? drag.startX) : e.clientX;
+      const clientY =
+        "touches" in e ? (e.touches[0]?.clientY ?? drag.startY) : e.clientY;
+      const nextX = drag.startPosX + (clientX - drag.startX);
+      const nextY = drag.startPosY + (clientY - drag.startY);
+      // Keep the panel mostly on-screen — leave at least 80px of header visible.
+      const w = panelWidth ?? 700;
+      const maxX = (typeof window !== "undefined" ? window.innerWidth : 1200) - 80;
+      const minX = 80 - w;
+      const maxY = (typeof window !== "undefined" ? window.innerHeight : 800) - 40;
+      setFloatPos({
+        x: Math.min(maxX, Math.max(minX, nextX)),
+        y: Math.min(maxY, Math.max(0, nextY))
+      });
+    }
+    function up() {
+      if (!headerDragRef.current) return;
+      headerDragRef.current = null;
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+    }
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+    window.addEventListener("touchmove", move, { passive: true });
+    window.addEventListener("touchend", up);
+    window.addEventListener("touchcancel", up);
+    return () => {
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", up);
+      window.removeEventListener("touchmove", move);
+      window.removeEventListener("touchend", up);
+      window.removeEventListener("touchcancel", up);
+    };
+  }, [panelWidth]);
+
+  function startHeaderDrag(clientX: number, clientY: number) {
+    if (placement !== "float") return;
+    const pos = floatPos ?? { x: 60, y: 60 };
+    headerDragRef.current = {
+      startX: clientX,
+      startY: clientY,
+      startPosX: pos.x,
+      startPosY: pos.y
+    };
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = "grabbing";
+  }
+
+  function enterFloatMode() {
+    // Initial float position — center-ish of the viewport.
+    if (typeof window === "undefined") return;
+    const w = panelWidth ?? 640;
+    const h = panelHeight ?? 480;
+    const x = Math.max(20, Math.round((window.innerWidth - w) / 2));
+    const y = Math.max(20, Math.round((window.innerHeight - h) / 3));
+    setFloatPos({ x, y });
+    setPlacement("float");
+  }
 
   useEffect(() => {
     try {
@@ -233,19 +336,23 @@ export function CallPanel({
   }, [roomId]);
 
   if (typeof document === "undefined") return null;
+  const isFloat = placement === "float";
   return createPortal(
     <div
       className={clsx(
         // z-40 so chat composer popovers (z-60) can still appear above
         // the call when the user interacts with the chat on the right.
-        "fixed z-40 flex justify-center",
+        "fixed z-40",
         fullscreen
-          ? "inset-0 bg-ink-900"
-          : // Default dock: align the inner panel to the same max-w-6xl
-            // container that the chat lives in, so the call sits in the
-            // same column the chat usually does — not glued to the viewport
-            // edge.
-            "inset-0 px-1 py-4 md:py-6 pointer-events-none"
+          ? "inset-0 flex justify-center bg-ink-900"
+          : isFloat
+          ? // Float mode: invisible wrapper covering the viewport. The
+            // inner panel is positioned absolutely at floatPos and is the
+            // only thing that catches clicks.
+            "inset-0 pointer-events-none"
+          : // Dock mode: align the inner panel to the same max-w-6xl
+            // container that the chat lives in.
+            "inset-0 flex justify-center px-1 py-4 md:py-6 pointer-events-none"
       )}
       role="dialog"
       aria-modal={fullscreen}
@@ -253,11 +360,10 @@ export function CallPanel({
     >
       <div
         className={clsx(
-          "relative flex w-full max-w-6xl",
-          // Pull through pointer events on the call panel itself; the
-          // outer wrapper is click-through everywhere else so the chat
-          // sidebar stays interactive.
-          !fullscreen && "pointer-events-none"
+          "relative flex w-full",
+          fullscreen && "max-w-none",
+          !fullscreen && !isFloat && "max-w-6xl pointer-events-none",
+          isFloat && "h-0 w-0 pointer-events-none"
         )}
       >
         <div
@@ -266,16 +372,22 @@ export function CallPanel({
             "pointer-events-auto relative flex flex-col bg-ink-900 shadow-2xl",
             fullscreen
               ? "h-full w-full"
-              : // Inside the centered max-w-6xl row: take ~58% width on
-                // desktop, full width on mobile. When the user has dragged
-                // an edge handle, an inline width/height takes over.
-                "md:rounded-2xl md:border md:border-white/10",
-            !fullscreen && panelWidth === null && "w-full md:w-[58%] lg:w-[55%]",
-            !fullscreen && panelHeight === null && "h-full"
+              : "md:rounded-2xl md:border md:border-white/10",
+            !fullscreen && !isFloat && panelWidth === null && "w-full md:w-[58%] lg:w-[55%]",
+            !fullscreen && !isFloat && panelHeight === null && "h-full",
+            isFloat && "fixed rounded-2xl border border-white/15"
           )}
           style={
-            !fullscreen
+            fullscreen
+              ? undefined
+              : isFloat
               ? {
+                  top: floatPos?.y ?? 60,
+                  left: floatPos?.x ?? 60,
+                  width: panelWidth ?? 640,
+                  height: panelHeight ?? 480
+                }
+              : {
                   ...(panelWidth !== null
                     ? { width: panelWidth, maxWidth: "100%" }
                     : {}),
@@ -283,7 +395,6 @@ export function CallPanel({
                     ? { height: panelHeight, maxHeight: "100%" }
                     : {})
                 }
-              : undefined
           }
         >
           {!fullscreen && (
@@ -370,7 +481,26 @@ export function CallPanel({
               </div>
             </>
           )}
-        <header className="flex items-center justify-between gap-2 border-b border-white/10 px-3 py-2">
+        <header
+          onMouseDown={(e) => {
+            if (!isFloat) return;
+            // Don't start a drag when clicking a button inside the header.
+            if ((e.target as HTMLElement).closest("button")) return;
+            e.preventDefault();
+            startHeaderDrag(e.clientX, e.clientY);
+          }}
+          onTouchStart={(e) => {
+            if (!isFloat) return;
+            if ((e.target as HTMLElement).closest("button")) return;
+            const t = e.touches[0];
+            if (!t) return;
+            startHeaderDrag(t.clientX, t.clientY);
+          }}
+          className={clsx(
+            "flex items-center justify-between gap-2 border-b border-white/10 px-3 py-2",
+            isFloat && "cursor-grab active:cursor-grabbing select-none"
+          )}
+        >
           <div className="flex min-w-0 items-center gap-2 text-sm">
             <span className="relative inline-flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full rounded-full bg-neon-red opacity-70 animate-pulseDot" />
@@ -404,16 +534,51 @@ export function CallPanel({
                 {panelHeight !== null ? `${Math.round(panelHeight)}h` : "auto"} · reset
               </button>
             )}
-            <button
-              type="button"
-              onClick={() => setFullscreen((f) => !f)}
-              aria-pressed={fullscreen}
-              aria-label={fullscreen ? "Dock call to left" : "Expand call full-screen"}
-              title={fullscreen ? "Dock to left (show chat)" : "Expand full-screen"}
-              className="hidden rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs text-white/80 hover:bg-white/10 md:inline-flex"
-            >
-              {fullscreen ? "⇤ Dock" : "⛶ Full"}
-            </button>
+            {/* Three placement modes, picked side-by-side. */}
+            <div className="hidden items-center rounded-lg border border-white/10 bg-white/5 p-0.5 md:inline-flex">
+              <button
+                type="button"
+                onClick={() => setPlacement("dock")}
+                aria-pressed={placement === "dock"}
+                title="Dock to the left of the chat"
+                className={clsx(
+                  "rounded-md px-2 py-1 text-[11px] transition",
+                  placement === "dock"
+                    ? "bg-neon-blue/20 text-neon-blue"
+                    : "text-white/65 hover:bg-white/10"
+                )}
+              >
+                ⇤ Dock
+              </button>
+              <button
+                type="button"
+                onClick={() => (placement === "float" ? setPlacement("dock") : enterFloatMode())}
+                aria-pressed={placement === "float"}
+                title="Float — drag this call anywhere on screen"
+                className={clsx(
+                  "rounded-md px-2 py-1 text-[11px] transition",
+                  placement === "float"
+                    ? "bg-neon-blue/20 text-neon-blue"
+                    : "text-white/65 hover:bg-white/10"
+                )}
+              >
+                🪟 Float
+              </button>
+              <button
+                type="button"
+                onClick={() => setPlacement(placement === "fullscreen" ? "dock" : "fullscreen")}
+                aria-pressed={fullscreen}
+                title="Expand full-screen"
+                className={clsx(
+                  "rounded-md px-2 py-1 text-[11px] transition",
+                  fullscreen
+                    ? "bg-neon-blue/20 text-neon-blue"
+                    : "text-white/65 hover:bg-white/10"
+                )}
+              >
+                ⛶ Full
+              </button>
+            </div>
             {isOwner && (
               <button
                 type="button"
