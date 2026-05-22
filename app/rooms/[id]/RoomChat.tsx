@@ -148,6 +148,7 @@ export function RoomChat({
   isDm,
   isSaved,
   roomTheme,
+  initialCall,
   initialMessages
 }: {
   roomId: string;
@@ -166,6 +167,7 @@ export function RoomChat({
   isDm?: boolean;
   isSaved?: boolean;
   roomTheme?: string | null;
+  initialCall?: "audio" | "video" | null;
   initialMessages: MessageRow[];
 }) {
   const router = useRouter();
@@ -188,7 +190,23 @@ export function RoomChat({
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [forwardSource, setForwardSource] = useState<MessageRow | null>(null);
-  const [widgetCallMode, setWidgetCallMode] = useState<"audio" | "video" | null>(null);
+  const [widgetCallMode, setWidgetCallMode] = useState<"audio" | "video" | null>(
+    initialCall ?? null
+  );
+
+  // Wave 19.14 — if the room was opened with ?call=audio|video (started
+  // from a member popover elsewhere in the app), open the call panel
+  // automatically and strip the query so a refresh doesn't re-trigger it.
+  useEffect(() => {
+    if (!initialCall) return;
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("call")) {
+      url.searchParams.delete("call");
+      window.history.replaceState({}, "", url.toString());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [showEmoji, setShowEmoji] = useState(false);
   const [showGif, setShowGif] = useState(false);
   const [showVoice, setShowVoice] = useState(false);

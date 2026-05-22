@@ -16,6 +16,7 @@ import { MemberList } from "./MemberList";
 import { InviteButton } from "./InviteButton";
 import { RoomRulesPanel } from "./RoomRulesPanel";
 import { RoomThemePicker } from "@/components/RoomThemePicker";
+import { AddPeopleButton } from "@/components/AddPeopleButton";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,7 @@ export default async function RoomPage({
   searchParams
 }: {
   params: { id: string };
-  searchParams?: { invite?: string };
+  searchParams?: { invite?: string; call?: string };
 }) {
   const supabase = createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -267,6 +268,14 @@ export default async function RoomPage({
             🎬
           </Link>
           <NewRoomButton from="room" />
+          {!room.is_saved && !room.is_vault && (
+            <AddPeopleButton
+              roomId={room.id}
+              isDm={!!room.is_dm}
+              isVault={!!room.is_vault}
+              isSaved={!!room.is_saved}
+            />
+          )}
           {!room.is_dm && !room.is_saved && (
             <InviteButton
               roomId={room.id}
@@ -342,6 +351,11 @@ export default async function RoomPage({
             parentRoomId={room.parent_room_id}
             recordingStartedAt={room.recording_started_at}
             roomTheme={room.theme ?? null}
+            initialCall={
+              searchParams?.call === "audio" || searchParams?.call === "video"
+                ? searchParams.call
+                : null
+            }
             isOwner={isOwner}
             isDm={!!room.is_dm}
             isSaved={!!room.is_saved}

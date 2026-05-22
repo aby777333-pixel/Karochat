@@ -49,7 +49,7 @@ export function MemberActionPopover({
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const ref = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState<
-    null | "dm" | "vault" | "invite-here" | "load-rooms" | "invite-to" | "vibe" | "friend" | "remove" | "ban"
+    null | "dm" | "vault" | "invite-here" | "load-rooms" | "invite-to" | "vibe" | "friend" | "remove" | "ban" | "call-audio" | "call-video"
   >(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -287,6 +287,25 @@ export function MemberActionPopover({
     onNavigate(data as string);
   }
 
+  // Wave 19.14 — start a call straight from the popover. Get/create the
+  // DM, then hard-navigate with ?call=audio|video so the room page can
+  // auto-open the call panel on mount.
+  async function startCall(mode: "audio" | "video") {
+    setBusy(mode === "audio" ? "call-audio" : "call-video");
+    setError(null);
+    const { data, error: rpcErr } = await supabase.rpc("get_or_create_dm", {
+      p_target_user_id: target.user_id
+    });
+    setBusy(null);
+    if (rpcErr || !data) {
+      setError(rpcErr?.message ?? "Could not start DM.");
+      return;
+    }
+    if (typeof window !== "undefined") {
+      window.location.href = `/rooms/${data}?call=${mode}`;
+    }
+  }
+
   async function openVaultDM() {
     setBusy("vault");
     setError(null);
@@ -404,6 +423,29 @@ export function MemberActionPopover({
         <span aria-hidden>🔐</span>
         <span>{busy === "vault" ? "Opening…" : "Open vault (E2EE)"}</span>
       </button>
+
+      <div className="my-1 grid grid-cols-2 gap-1">
+        <button
+          type="button"
+          onClick={() => void startCall("audio")}
+          disabled={busy !== null}
+          className="flex items-center justify-center gap-1.5 rounded-lg border border-neon-blue/40 bg-neon-blue/10 px-2 py-1.5 text-xs text-neon-blue hover:bg-neon-blue/20 disabled:opacity-50"
+          title="Voice call this user (opens or creates a DM)"
+        >
+          <span aria-hidden>📞</span>
+          <span>{busy === "call-audio" ? "Calling…" : "Voice call"}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => void startCall("video")}
+          disabled={busy !== null}
+          className="flex items-center justify-center gap-1.5 rounded-lg border border-neon-purple/40 bg-neon-purple/10 px-2 py-1.5 text-xs text-neon-purple hover:bg-neon-purple/20 disabled:opacity-50"
+          title="Video call this user (opens or creates a DM)"
+        >
+          <span aria-hidden>📹</span>
+          <span>{busy === "call-video" ? "Calling…" : "Video call"}</span>
+        </button>
+      </div>
 
       {friendState === "none" && (
         <button
