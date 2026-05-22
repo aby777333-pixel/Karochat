@@ -23,6 +23,7 @@ import { PinnedStrip } from "@/components/PinnedStrip";
 import { MessageSearchBar } from "@/components/MessageSearchBar";
 import { ForwardModal } from "@/components/ForwardModal";
 import { TypingIndicator } from "@/components/TypingIndicator";
+import { CallWidget } from "@/components/CallWidget";
 import { useResizableHeight } from "@/lib/useResizableHeight";
 import {
   decryptFromVault,
@@ -1100,6 +1101,15 @@ export function RoomChat({
         isSaved={!!isSaved}
         recordingStartedAt={recordingStartedAt ?? null}
       />
+
+      {!isSaved && (
+        <CallWidget
+          roomId={roomId}
+          roomName={roomName}
+          currentUserId={currentUserId}
+          currentUsername={currentUsername}
+        />
+      )}
 
       {isVault && (
         <div className="flex items-center gap-2 border-b border-neon-purple/20 bg-neon-purple/5 px-4 py-1.5 text-[11px] text-neon-purple">
