@@ -2,11 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { Button } from "@/components/Button";
 import { BeaconCompose } from "./BeaconCompose";
 import { BeaconCard } from "./BeaconCard";
 import { HelperSidebar } from "./HelperSidebar";
+import { StudentsLobbies } from "./StudentsLobbies";
+import { StudentRoomsBrowser } from "./StudentRoomsBrowser";
+import { CreateStudentRoom } from "./CreateStudentRoom";
 
 const TIER_BADGE: Record<string, { label: string; color: string }> = {
   student:        { label: "Student",         color: "text-neon-mint border-neon-mint/40 bg-neon-mint/10" },
@@ -16,7 +21,7 @@ const TIER_BADGE: Record<string, { label: string; color: string }> = {
   domain_expert:  { label: "Domain Expert",   color: "text-neon-red border-neon-red/40 bg-neon-red/10" }
 };
 
-type Verif = {
+export type Verif = {
   id: string;
   status: string;
   country: string;
@@ -28,9 +33,9 @@ type Verif = {
   is_minor: boolean;
   verified_at: string | null;
   expires_at: string | null;
-};
+} | null;
 
-type TabId = "beacons" | "rooms" | "discover" | "network";
+type TabId = "lobbies" | "rooms" | "beacons" | "kit" | "network";
 
 export function StudentsHome({
   currentUserId,
@@ -39,50 +44,92 @@ export function StudentsHome({
   currentUserId: string;
   verification: Verif;
 }) {
-  const [tab, setTab] = useState<TabId>("beacons");
+  const [tab, setTab] = useState<TabId>("lobbies");
   const [composeOpen, setComposeOpen] = useState(false);
-  const badge = TIER_BADGE[verification.badge_tier] ?? TIER_BADGE.student;
+  const isVerified =
+    !!verification && verification.status === "verified";
+  const badge = verification
+    ? TIER_BADGE[verification.badge_tier] ?? TIER_BADGE.student
+    : null;
 
   return (
     <section className="mt-5">
-      {/* Tier banner */}
+      {/* Status banner */}
       <div className="surface-glass mb-4 flex flex-wrap items-center justify-between gap-3 px-4 py-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span
-            className={clsx(
-              "rounded-md border px-2 py-0.5 text-[11px] uppercase tracking-widest",
-              badge?.color
-            )}
-          >
-            🎓 {badge?.label ?? verification.badge_tier}
-          </span>
-          <span className="text-[11px] text-white/55">
-            {verification.country} · {verification.education_level}
-            {verification.syllabus ? ` · ${verification.syllabus}` : ""}
-            {verification.institution ? ` · ${verification.institution}` : ""}
-          </span>
-          {verification.is_minor && (
-            <span className="rounded-md border border-neon-amber/40 bg-neon-amber/10 px-2 py-0.5 text-[10px] uppercase tracking-widest text-neon-amber">
-              🛡 minor mode — recording on
-            </span>
+          {isVerified && badge && verification ? (
+            <>
+              <span
+                className={clsx(
+                  "rounded-md border px-2 py-0.5 text-[11px] uppercase tracking-widest",
+                  badge.color
+                )}
+              >
+                🎓 {badge.label}
+              </span>
+              <span className="text-[11px] text-white/55">
+                {verification.country} · {verification.education_level}
+                {verification.syllabus ? ` · ${verification.syllabus}` : ""}
+                {verification.institution ? ` · ${verification.institution}` : ""}
+              </span>
+              {verification.is_minor && (
+                <span className="rounded-md border border-neon-amber/40 bg-neon-amber/10 px-2 py-0.5 text-[10px] uppercase tracking-widest text-neon-amber">
+                  🛡 minor mode — recording on
+                </span>
+              )}
+            </>
+          ) : (
+            <>
+              <span className="rounded-md border border-white/15 bg-white/5 px-2 py-0.5 text-[11px] uppercase tracking-widest text-white/70">
+                👋 Visitor
+              </span>
+              <span className="text-[11px] text-white/55">
+                Lobbies + student rooms are open to everyone. Get verified to
+                fire <strong>🆘 Help Beacons</strong> and unlock the helper
+                network.
+              </span>
+            </>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => setComposeOpen(true)}
-          className="rounded-xl bg-neon-red px-4 py-2 text-sm font-semibold text-white shadow-glow-red hover:bg-neon-red/90"
-        >
-          🆘 Fire a beacon
-        </button>
+        <div className="flex items-center gap-2">
+          {!isVerified && (
+            <Link
+              href="#verify"
+              onClick={(e) => {
+                e.preventDefault();
+                setTab("beacons");
+                queueMicrotask(() =>
+                  document.getElementById("verify-card")?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start"
+                  })
+                );
+              }}
+              className="rounded-xl border border-neon-mint/40 bg-neon-mint/10 px-3 py-1.5 text-xs font-semibold text-neon-mint hover:bg-neon-mint/20"
+            >
+              🎓 Get verified
+            </Link>
+          )}
+          {isVerified && (
+            <button
+              type="button"
+              onClick={() => setComposeOpen(true)}
+              className="rounded-xl bg-neon-red px-4 py-2 text-sm font-semibold text-white shadow-glow-red hover:bg-neon-red/90"
+            >
+              🆘 Fire a beacon
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Sub-tabs */}
-      <nav className="surface-glass flex overflow-x-auto px-1 py-1 text-sm">
+      {/* Tabs */}
+      <nav className="surface-glass flex flex-wrap overflow-x-auto px-1 py-1 text-sm">
         {([
-          ["beacons",  "🔔 Beacons"],
-          ["rooms",    "📚 My Rooms"],
-          ["discover", "🌍 Discover"],
-          ["network",  "👥 Network"]
+          ["lobbies", "🛋️ Lobbies"],
+          ["rooms",   "📚 Student rooms"],
+          ["beacons", "🆘 Help Beacons"],
+          ["kit",     "🧰 Teaching kit"],
+          ["network", "👥 Network"]
         ] as const).map(([id, label]) => (
           <button
             key={id}
@@ -102,27 +149,58 @@ export function StudentsHome({
 
       <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-[1fr_320px]">
         <div>
-          {tab === "beacons"  && <BeaconsTab currentUserId={currentUserId} subjects={verification.subject_affinities} />}
-          {tab === "rooms"    && <RoomsTab  />}
-          {tab === "discover" && <DiscoverTab />}
-          {tab === "network"  && <NetworkTab currentUserId={currentUserId} />}
+          {tab === "lobbies" && (
+            <div className="space-y-5">
+              <StudentsLobbies />
+              <CreateStudentRoom
+                hint="Open a new student room and invite your study group. You'll get text, voice, video, screen-share, whiteboard, and the teaching kit."
+              />
+            </div>
+          )}
+          {tab === "rooms" && (
+            <div className="space-y-5">
+              <CreateStudentRoom />
+              <StudentRoomsBrowser />
+            </div>
+          )}
+          {tab === "beacons" && (
+            <BeaconsTab
+              currentUserId={currentUserId}
+              subjects={verification?.subject_affinities ?? []}
+              isVerified={isVerified}
+              verification={verification}
+            />
+          )}
+          {tab === "kit" && <TeachingKitTab />}
+          {tab === "network" && <NetworkTab currentUserId={currentUserId} />}
         </div>
         <aside className="space-y-5">
-          <HelperSidebar currentUserId={currentUserId} />
+          {isVerified && <HelperSidebar currentUserId={currentUserId} />}
+
+          <PomodoroCard />
 
           <section className="surface-glass tint-mint p-4">
             <p className="text-[10px] uppercase tracking-widest text-white/40">
               Karo, the study brain
             </p>
             <div className="mt-2 space-y-1.5 text-sm">
-              <button className="block w-full rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-left text-white/85 hover:bg-white/10">
-                🍅 Karo, study with me (25-min Pomodoro)
-              </button>
-              <Link href="/students/notes" className="block rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-white/85 hover:bg-white/10">
+              <Link
+                href="/students/notes"
+                className="block rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-white/85 hover:bg-white/10"
+              >
                 📓 My notes
               </Link>
-              <Link href="/students/squads" className="block rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-white/85 hover:bg-white/10">
+              <Link
+                href="/students/squads"
+                className="block rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-white/85 hover:bg-white/10"
+              >
                 🧠 Study squads
+              </Link>
+              <Link
+                href="/students/session"
+                className="block rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-white/85 hover:bg-white/10"
+              >
+                🎯 Active session
               </Link>
             </div>
           </section>
@@ -132,7 +210,7 @@ export function StudentsHome({
       {composeOpen && (
         <BeaconCompose
           onClose={() => setComposeOpen(false)}
-          defaultSubject={verification.subject_affinities[0] ?? ""}
+          defaultSubject={verification?.subject_affinities[0] ?? ""}
         />
       )}
     </section>
@@ -142,16 +220,24 @@ export function StudentsHome({
 // ---------------------------------------------------------------------------
 function BeaconsTab({
   currentUserId,
-  subjects
+  subjects,
+  isVerified,
+  verification
 }: {
   currentUserId: string;
   subjects: string[];
+  isVerified: boolean;
+  verification: Verif;
 }) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [beacons, setBeacons] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(isVerified);
 
   useEffect(() => {
+    if (!isVerified) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       const { data } = await supabase
@@ -187,7 +273,41 @@ function BeaconsTab({
       cancelled = true;
       void supabase.removeChannel(channel);
     };
-  }, [supabase, currentUserId, subjects]);
+  }, [supabase, currentUserId, subjects, isVerified]);
+
+  if (!isVerified) {
+    return (
+      <section
+        id="verify-card"
+        className="surface-glass tint-mint p-6"
+      >
+        <h3 className="font-display text-lg font-semibold">
+          Get verified to fire Help Beacons
+        </h3>
+        <p className="mt-2 text-sm text-white/75">
+          Help Beacons are a high-trust feature — verified students and
+          helpers reach each other directly. Anyone in the lobbies and the
+          student rooms can chat freely without verification. Verification
+          unlocks:
+        </p>
+        <ul className="mt-3 space-y-1 text-sm text-white/75">
+          <li>🆘 Fire urgent Help Beacons (1:1 audio + whiteboard sessions)</li>
+          <li>🧑‍🏫 Show up as a helper for subjects you know</li>
+          <li>📅 Book / list office hours</li>
+          <li>🛡️ A subject badge on your profile (Student / Senior / Educator / Professor)</li>
+        </ul>
+        <div className="mt-5">
+          <Link
+            href="/students?gate=open#verify-card"
+            className="inline-flex items-center gap-2 rounded-xl bg-neon-mint px-4 py-2 text-sm font-semibold text-ink-900 shadow-glow hover:bg-neon-mint/90"
+          >
+            Start verification →
+          </Link>
+        </div>
+        <VerificationInlineGate currentUserId={currentUserId} />
+      </section>
+    );
+  }
 
   if (loading) return <p className="text-sm text-white/45">Loading beacons…</p>;
   if (beacons.length === 0) {
@@ -207,54 +327,80 @@ function BeaconsTab({
   );
 }
 
-function RoomsTab() {
+function VerificationInlineGate({ currentUserId }: { currentUserId: string }) {
+  // For now, point to the existing /students?gate=open server-side flow
+  // and keep this lightweight. The page's URL search params get noticed by
+  // the parent server component when ?gate=open is set, which we re-use to
+  // show the existing VerificationGate card.
+  return null;
+}
+
+function TeachingKitTab() {
   return (
-    <section className="surface-glass p-5">
-      <p className="text-[10px] uppercase tracking-widest text-white/40">
-        My subject + cohort rooms
+    <section className="surface-glass tint-purple p-5">
+      <h3 className="font-display text-lg font-semibold">🧰 Teaching kit</h3>
+      <p className="mt-1 text-xs text-white/55">
+        Tools you can pull into any student room or beacon session.
       </p>
-      <p className="mt-2 text-sm text-white/70">
-        Subject rooms in your syllabus, your cohort rooms, and your study
-        squads will surface here.
-      </p>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <Link
-          href="/rooms"
-          className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/80 hover:bg-white/10"
-        >
-          Browse all rooms →
-        </Link>
-        <Link
-          href="/students/squads"
-          className="rounded-lg border border-neon-mint/40 bg-neon-mint/10 px-3 py-1.5 text-xs text-neon-mint hover:bg-neon-mint/20"
-        >
-          🧠 My study squads →
-        </Link>
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <KitTile
+          icon="🖼️"
+          title="Shared whiteboard"
+          body="Live multi-cursor canvas inside every student room. Open from the room header."
+        />
+        <KitTile
+          icon="🍅"
+          title="Pomodoro timer"
+          body="Right-hand sidebar — 25 minutes focused, 5 break. Click start, get to work."
+        />
+        <KitTile
+          icon="🎙️"
+          title="Voice + video calls"
+          body="Click 📞 in any room header. Spatial audio + screen-share supported."
+        />
+        <KitTile
+          icon="🃏"
+          title="Flashcards"
+          body="Drop a note in /students/notes — it generates flashcards for spaced repetition."
+        />
+        <KitTile
+          icon="📓"
+          title="Notes capsule"
+          body="Publish a note as a public link that survives 30-90 days."
+        />
+        <KitTile
+          icon="🧠"
+          title="Study squads"
+          body="Private 2-20 person rooms with shared whiteboard + Pomodoro sync."
+        />
+        <KitTile
+          icon="📅"
+          title="Office hours"
+          body="(verified educators) List paid or free office-hours slots."
+        />
+        <KitTile
+          icon="🧮"
+          title="Equation paste"
+          body="Type $\\LaTeX$ between dollar signs in chat to render math live."
+        />
       </div>
     </section>
   );
 }
 
-function DiscoverTab() {
+function KitTile({ icon, title, body }: { icon: string; title: string; body: string }) {
   return (
-    <section className="surface-glass p-5">
-      <p className="text-[10px] uppercase tracking-widest text-white/40">
-        Discover by country + level + exam
+    <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+      <p className="text-sm font-semibold text-white">
+        {icon} {title}
       </p>
-      <p className="mt-2 text-sm text-white/70">
-        Drill into syllabuses, exams (JEE / NEET / SAT / MCAT / CFA…),
-        institutions, and interdisciplinary fields. We seeded ~500 subject
-        rooms at launch and add more as helpers verify.
-      </p>
-      <p className="mt-2 text-[11px] text-white/45">
-        Use the catalog tree on the main /rooms page for the full structure;
-        Students-only filtering lands in the next iteration.
-      </p>
-    </section>
+      <p className="mt-1 text-xs text-white/65">{body}</p>
+    </div>
   );
 }
 
 function NetworkTab({ currentUserId }: { currentUserId: string }) {
+  void currentUserId;
   return (
     <section className="surface-glass p-5">
       <p className="text-[10px] uppercase tracking-widest text-white/40">
@@ -270,6 +416,65 @@ function NetworkTab({ currentUserId }: { currentUserId: string }) {
         Network surfaces unlock once you&apos;ve participated in 1+ Help
         Beacon session.
       </p>
+    </section>
+  );
+}
+
+function PomodoroCard() {
+  const [secondsLeft, setSecondsLeft] = useState(25 * 60);
+  const [phase, setPhase] = useState<"focus" | "break">("focus");
+  const [running, setRunning] = useState(false);
+
+  useEffect(() => {
+    if (!running) return;
+    const id = setInterval(() => {
+      setSecondsLeft((s) => {
+        if (s <= 1) {
+          // flip phase
+          setPhase((p) => (p === "focus" ? "break" : "focus"));
+          return phase === "focus" ? 5 * 60 : 25 * 60;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [running, phase]);
+
+  const mm = String(Math.floor(secondsLeft / 60)).padStart(2, "0");
+  const ss = String(secondsLeft % 60).padStart(2, "0");
+
+  function reset() {
+    setRunning(false);
+    setPhase("focus");
+    setSecondsLeft(25 * 60);
+  }
+
+  return (
+    <section className="surface-glass tint-amber p-4">
+      <p className="text-[10px] uppercase tracking-widest text-white/40">
+        🍅 Pomodoro
+      </p>
+      <p className="mt-2 font-display text-3xl font-semibold tabular-nums text-white">
+        {mm}:{ss}
+      </p>
+      <p className="text-[11px] text-white/55">
+        {phase === "focus" ? "Focused study · 25 min" : "Break · 5 min"}
+      </p>
+      <div className="mt-3 flex gap-2">
+        <Button
+          onClick={() => setRunning((r) => !r)}
+          className="flex-1"
+        >
+          {running ? "Pause" : "Start"}
+        </Button>
+        <button
+          type="button"
+          onClick={reset}
+          className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white/80 hover:bg-white/10"
+        >
+          ↺
+        </button>
+      </div>
     </section>
   );
 }

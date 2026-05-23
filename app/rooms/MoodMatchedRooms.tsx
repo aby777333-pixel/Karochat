@@ -19,7 +19,11 @@ const MOOD_EMOJI: Record<string, string> = {
 export async function MoodMatchedRooms() {
   const supabase = createSupabaseServerClient();
   const { data } = await supabase.rpc("find_mood_rooms", { p_limit: 20 });
-  const rooms = (data ?? []) as MoodRow[];
+  // Wave 20 — student-category rooms live in /students; keep them out of the
+  // mood-matched widget on the main lobby.
+  const rooms = ((data ?? []) as MoodRow[]).filter(
+    (r) => r.category_slug !== "students"
+  );
   if (rooms.length === 0) return null;
 
   const sharedMood = rooms[0]?.shared_mood ?? "";

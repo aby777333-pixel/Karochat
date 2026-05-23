@@ -7,6 +7,8 @@ import { StatusPicker } from "@/components/StatusPicker";
 import { NotificationsButton } from "@/components/NotificationsButton";
 import { CatchMeUpButton } from "./CatchMeUpButton";
 import { CallButton } from "./CallButton";
+import { WhiteboardButton } from "./WhiteboardButton";
+import { TeachingKitButton } from "./TeachingKitButton";
 import { NewRoomButton } from "@/components/NewRoomButton";
 import { AdRails } from "@/components/AdRails";
 import { RoomChat } from "./RoomChat";
@@ -304,6 +306,8 @@ export default async function RoomPage({
             />
           )}
           <CallButton roomId={room.id} roomName={room.name} />
+          <WhiteboardButton roomId={room.id} currentUserId={profile.id} />
+          <TeachingKitButton roomId={room.id} currentUserId={profile.id} />
           <CatchMeUpButton roomId={room.id} />
           <NotificationsButton />
           <StatusPicker

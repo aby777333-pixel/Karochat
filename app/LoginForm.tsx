@@ -15,6 +15,14 @@ export function LoginForm() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [guestPending, startGuest] = useTransition();
 
+  // OTP fallback for cross-device login. Magic links carry a PKCE code that
+  // requires the verifier cookie stored on the device where the link was
+  // requested; when the user opens the link on a *different* device, the
+  // verifier is missing and exchangeCodeForSession fails silently. The 6-digit
+  // OTP works from any device because the token itself is the proof.
+  const [otp, setOtp] = useState("");
+  const [otpStatus, setOtpStatus] = useState<"idle" | "verifying">("idle");
+
   // Hydrate the last-used email from localStorage. We do this after mount so
   // SSR + first client render match.
   useEffect(() => {
@@ -27,6 +35,24 @@ export function LoginForm() {
       }
     } catch {
       // ignore
+    }
+  }, []);
+
+  // Surface the ?auth=error&detail=... we now emit from /auth/callback so the
+  // user knows when their magic link actually failed (instead of looking like
+  // a no-op redirect, which was the cross-device symptom).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const auth = params.get("auth");
+    if (auth === "error") {
+      const detail = params.get("detail");
+      setStatus("error");
+      setErrorMsg(
+        detail
+          ? `Sign-in didn't complete: ${decodeURIComponent(detail)}. Try the 6-digit code from the same email below — it works from any device.`
+          : "Sign-in didn't complete on this device. If you clicked the email link from a different browser/computer than where you requested it, enter the 6-digit code from the email below instead."
+      );
     }
   }, []);
 
@@ -81,6 +107,30 @@ export function LoginForm() {
     await sendLink(email);
   }
 
+  async function verifyOtp(e: React.FormEvent) {
+    e.preventDefault();
+    const cleaned = otp.replace(/\D/g, "");
+    if (!email || cleaned.length < 6) {
+      setErrorMsg("Enter the 6-digit code from your email.");
+      return;
+    }
+    setOtpStatus("verifying");
+    setErrorMsg(null);
+    const supabase = createSupabaseBrowserClient();
+    const { error } = await supabase.auth.verifyOtp({
+      email,
+      token: cleaned,
+      type: "email"
+    });
+    setOtpStatus("idle");
+    if (error) {
+      setErrorMsg(error.message);
+      return;
+    }
+    router.replace("/rooms");
+    router.refresh();
+  }
+
   function continueAsGuest() {
     setErrorMsg(null);
     startGuest(async () => {
@@ -106,20 +156,47 @@ export function LoginForm() {
         <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm">
           <p className="font-medium text-white">Check your email.</p>
           <p className="mt-1 text-white/60">
-            We sent a magic link to <span className="text-white">{email}</span>. Open it on
-            this device — you&apos;ll stay signed in after that, so next time you visit
-            we&apos;ll drop you straight in the lobby.
+            We sent a magic link <em>and</em> a 6-digit code to{" "}
+            <span className="text-white">{email}</span>. Click the link on this
+            device, <em>or</em> enter the code below — the code works from any
+            device.
           </p>
           <button
             className="mt-3 text-xs text-neon-blue hover:underline"
             onClick={() => {
               setStatus("idle");
               setEmail("");
+              setOtp("");
             }}
           >
             Use a different email
           </button>
         </div>
+
+        <form onSubmit={verifyOtp} className="space-y-2">
+          <label className="block text-xs uppercase tracking-widest text-white/50">
+            Or paste the 6-digit code
+          </label>
+          <div className="flex gap-2">
+            <input
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              placeholder="123456"
+              className="flex-1 rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-center font-mono text-lg tracking-[0.4em] text-white outline-none focus:border-neon-blue/60"
+            />
+            <Button
+              type="submit"
+              disabled={otpStatus === "verifying" || otp.length < 6}
+            >
+              {otpStatus === "verifying" ? "Verifying…" : "Verify"}
+            </Button>
+          </div>
+          {errorMsg && <p className="text-xs text-neon-red">{errorMsg}</p>}
+        </form>
+
         <DividerOr />
         <GuestButton pending={guestPending} onClick={continueAsGuest} />
       </div>
@@ -190,8 +267,9 @@ export function LoginForm() {
         <a href="/legal/privacy" className="underline hover:text-white">Privacy Notice</a>.
       </p>
       <p className="text-[10px] text-white/30">
-        Tip: clicking the magic link once keeps you signed in on this device for ~7 days.
-        Return visits drop you in the lobby without another link.
+        Tip: the magic link works only on the device you requested it from.
+        Switching computers? Use the 6-digit code in the same email — it works
+        anywhere.
       </p>
     </div>
   );

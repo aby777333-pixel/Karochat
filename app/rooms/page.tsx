@@ -164,8 +164,16 @@ export default async function RoomsPage({
       .select("category_slug,slug,label,position")
       .order("position", { ascending: true })
   ]);
-  const categories = (categoriesResp.data ?? []) as Category[];
-  const subcategories = (subcategoriesResp.data ?? []) as Subcategory[];
+  // Wave 20 — the 'students' category lives in its own /students area
+  // (verified network on top, common lobbies + student-created rooms
+  // underneath). Hide it from the main lobby catalog so it isn't
+  // double-listed; the header has a "🎓 Students" portal button.
+  const categories = ((categoriesResp.data ?? []) as Category[]).filter(
+    (c) => c.slug !== "students"
+  );
+  const subcategories = ((subcategoriesResp.data ?? []) as Subcategory[]).filter(
+    (s) => s.category_slug !== "students"
+  );
 
   // Live (un-expired) stories for the top strip. RLS filters out expired.
   const { data: storiesRaw } = await supabase

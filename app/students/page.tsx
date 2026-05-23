@@ -10,10 +10,14 @@ export const dynamic = "force-dynamic";
 export const metadata = {
   title: "Students Network · Karochat",
   description:
-    "Verified-students learning network — Help Beacons, study squads, office hours, notes."
+    "Verified-students learning network — Help Beacons, study squads, office hours, notes — plus open student lobbies and rooms for everyone."
 };
 
-export default async function StudentsPage() {
+export default async function StudentsPage({
+  searchParams
+}: {
+  searchParams?: { gate?: string };
+}) {
   const supabase = createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/?redirect=/students");
@@ -26,10 +30,14 @@ export default async function StudentsPage() {
   if (!profile?.username) redirect("/onboarding");
   if (!profile.terms_accepted_at) redirect("/terms");
 
-  // Check verification
+  // Wave 20 — verification is required for high-trust features (Help
+  // Beacons, helper directory, office hours). The common lobbies and the
+  // student rooms are open to every signed-in user. The VerificationGate
+  // card can still be opened explicitly via ?gate=open from the StudentsHome
+  // CTA when a user actually wants to start verification.
   const { data: verif } = await supabase.rpc("get_my_verification");
   const v = Array.isArray(verif) ? verif[0] : null;
-  const isVerified = v?.status === "verified";
+  const showGate = searchParams?.gate === "open";
 
   return (
     <main className="mx-auto flex min-h-[100dvh] max-w-6xl flex-col px-3 py-6 md:py-8">
@@ -50,30 +58,26 @@ export default async function StudentsPage() {
 
       <section className="mt-6 rounded-3xl border border-neon-mint/25 bg-gradient-to-br from-neon-mint/10 via-transparent to-neon-blue/5 p-6 sm:p-9">
         <p className="text-[10px] uppercase tracking-widest text-neon-mint/80">
-          🎓 Students Network · v8
+          🎓 Students Network · v9
         </p>
         <h1 className="mt-1 font-display text-3xl font-semibold text-white sm:text-4xl">
           Where students help students.
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/75">
-          16+ verified network for real-time peer learning. Fire a 🆘 Help
-          Beacon when you&apos;re stuck — Karo routes it to people who can
-          actually answer. Study with squads. Take notes that come back as
-          flashcards. Sit in on a professor&apos;s office hours.
+          Open common lobbies, age-band lobbies, and rooms you create — all
+          with chat, voice, video, screen-share, and a shared whiteboard.
+          Verified students and educators can also fire 🆘 Help Beacons,
+          show up as helpers, and run office hours.
         </p>
       </section>
 
-      {isVerified ? (
-        <StudentsHome
-          currentUserId={profile.id}
-          verification={v}
-        />
-      ) : (
-        <VerificationGate
-          existing={v}
-          currentUserId={profile.id}
-        />
+      {showGate && (
+        <div id="verify-card" className="mt-6">
+          <VerificationGate existing={v} currentUserId={profile.id} />
+        </div>
       )}
+
+      <StudentsHome currentUserId={profile.id} verification={v ?? null} />
 
       <footer className="mt-10 space-y-1 text-center text-[11px] text-white/30">
         <p>
