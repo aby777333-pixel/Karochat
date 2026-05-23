@@ -21,7 +21,33 @@ type Existing = {
   badge_tier: string;
   subject_affinities: string[];
   is_minor: boolean;
+  // Wave 20.11 — surfaced by get_my_verification so the pending state can
+  // show "we sent a link to …" with sent-at timestamps. All optional so
+  // legacy rows (pre-0040) still render cleanly.
+  verification_method?: string | null;
+  guardian_email?: string | null;
+  guardian_phone?: string | null;
+  consent_token?: string | null;
+  consent_email_sent_at?: string | null;
+  consent_phone_sent_at?: string | null;
+  consent_confirmed_at?: string | null;
+  consent_confirmed_via?: string | null;
 } | null;
+
+// Channel result returned by /api/students/verify/send. Mirrored from
+// app/api/students/verify/send/route.ts.
+type SendChannel = {
+  attempted: boolean;
+  ok: boolean;
+  skipped?: boolean;
+  reason?: string;
+};
+type SendResponse = {
+  status: "verified" | "pending";
+  email: SendChannel;
+  sms: SendChannel;
+  error?: string;
+};
 
 const COUNTRIES = [
   "IN","US","UK","CA","AU","DE","FR","BR","MX","JP","KR","CN","ID","PH","TH",
@@ -238,6 +264,12 @@ export function VerificationGate({
   // After a successful submit we flip this so the user gets immediate
   // feedback even before router.refresh() rehydrates the server props.
   const [submitted, setSubmitted] = useState(false);
+  // Wave 20.11 — captures the response from /api/students/verify/send so
+  // the post-submit panel can show per-channel status (sent / skipped /
+  // failed) and the operator can see right away whether Resend / Twilio
+  // are configured.
+  const [send, setSend] = useState<SendResponse | null>(null);
+  const [resending, setResending] = useState(false);
   // Geo defaults — fetched from /api/geo on mount so first-time visitors
   // get their own country pre-selected in both the COUNTRY select and
   // the dial-code picker. Skipped when the user already has a saved
@@ -340,8 +372,33 @@ export function VerificationGate({
         throw new Error(detail || "Verification RPC failed.");
       }
       // eslint-disable-next-line no-console
-      console.info("[verify] verified · row id", data);
+      console.info("[verify] start_verification ok · row id", data);
+
+      // Wave 20.11 — actually dispatch the email + SMS (or no-op for
+      // auto-verify methods). The route returns enough detail for the
+      // panel below to say "we sent to … at hh:mm" or "couldn't reach …".
       setSubmitted(true);
+      try {
+        const resp = await fetch("/api/students/verify/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: "{}"
+        });
+        const json = (await resp.json().catch(() => null)) as
+          | SendResponse
+          | null;
+        // eslint-disable-next-line no-console
+        console.info("[verify] dispatch result", json);
+        if (json) setSend(json);
+      } catch (sendErr) {
+        // eslint-disable-next-line no-console
+        console.warn("[verify] dispatch fetch failed", sendErr);
+        setSend({
+          status: "pending",
+          email: { attempted: false, ok: false, reason: "dispatch fetch failed" },
+          sms: { attempted: false, ok: false, reason: "dispatch fetch failed" }
+        });
+      }
       router.refresh();
     } catch (e: any) {
       // eslint-disable-next-line no-console
@@ -356,44 +413,123 @@ export function VerificationGate({
     }
   }
 
+  // Wave 20.11 — after a successful submit, branch on the dispatch
+  // response: edu_email and guardian_consent are 'pending' until the
+  // recipient clicks the link; id_upload / result_upload keep the
+  // historical auto-verify behavior.
   if (submitted) {
-    // Auto-approval path (migration 0038): start_verification now sets
-    // status='verified' immediately, so the server-side render will
-    // re-mount the parent with the full StudentsHome the moment
-    // router.refresh() lands. Show a short "you're in" panel during
-    // the in-between beat.
+    const dispatchStatus = send?.status ?? "verified";
+    if (dispatchStatus === "verified") {
+      return (
+        <section className="surface-glass tint-mint mt-6 p-7 sm:p-9">
+          <p className="text-[10px] uppercase tracking-widest text-neon-mint/80">
+            ✓ Verified — welcome to the Students Network
+          </p>
+          <h2 className="mt-1 font-display text-2xl font-semibold text-white">
+            You&apos;re in. Loading your area…
+          </h2>
+          <p className="mt-2 text-sm text-white/70">
+            Lobbies, the catalog, student rooms, Help Beacons, and the
+            teaching kit are unlocking now. If this screen doesn&apos;t flip
+            in a few seconds, refresh the page.
+          </p>
+        </section>
+      );
+    }
     return (
-      <section className="surface-glass tint-mint mt-6 p-7 sm:p-9">
-        <p className="text-[10px] uppercase tracking-widest text-neon-mint/80">
-          ✓ Verified — welcome to the Students Network
-        </p>
-        <h2 className="mt-1 font-display text-2xl font-semibold text-white">
-          You&apos;re in. Loading your area…
-        </h2>
-        <p className="mt-2 text-sm text-white/70">
-          Lobbies, the catalog, student rooms, Help Beacons, and the
-          teaching kit are unlocking now. If this screen doesn&apos;t flip
-          in a few seconds, refresh the page.
-        </p>
-      </section>
+      <PendingSentPanel
+        method={method}
+        guardianEmail={guardianEmail}
+        guardianPhone={(() => {
+          const d = dialCodeForIso(dialIso);
+          const cleaned = guardianPhoneLocal.replace(/[^\d]/g, "");
+          return d && cleaned ? `+${d.code}${cleaned}` : "";
+        })()}
+        eduEmail={eduEmail}
+        send={send}
+        resending={resending}
+        onResend={async () => {
+          setResending(true);
+          try {
+            const resp = await fetch("/api/students/verify/send", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: "{}"
+            });
+            const json = (await resp.json().catch(() => null)) as
+              | SendResponse
+              | null;
+            if (json) setSend(json);
+          } finally {
+            setResending(false);
+          }
+        }}
+      />
     );
   }
 
   if (existing?.status === "pending") {
-    // Defensive fallback — current migrations auto-approve so this
-    // branch only fires for legacy rows created before Wave 20.6.
+    // Server-rendered pending state — happens when the user lands back on
+    // /students with a row that hasn't been confirmed yet. Surfaces the
+    // same "check your inbox" panel, hydrated from get_my_verification.
+    const needsClick = existing.verification_method === "edu_email"
+      || existing.verification_method === "guardian_consent";
+    if (needsClick) {
+      return (
+        <PendingSentPanel
+          method={existing.verification_method ?? null}
+          guardianEmail={existing.guardian_email ?? ""}
+          guardianPhone={existing.guardian_phone ?? ""}
+          eduEmail=""
+          send={{
+            status: "pending",
+            email: {
+              attempted: !!existing.consent_email_sent_at,
+              ok: !!existing.consent_email_sent_at,
+              reason: existing.consent_email_sent_at
+                ? `Sent ${new Date(existing.consent_email_sent_at).toLocaleString()}`
+                : undefined
+            },
+            sms: {
+              attempted: !!existing.consent_phone_sent_at,
+              ok: !!existing.consent_phone_sent_at,
+              reason: existing.consent_phone_sent_at
+                ? `Sent ${new Date(existing.consent_phone_sent_at).toLocaleString()}`
+                : undefined
+            }
+          }}
+          resending={resending}
+          onResend={async () => {
+            setResending(true);
+            try {
+              const resp = await fetch("/api/students/verify/send", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: "{}"
+              });
+              const json = (await resp.json().catch(() => null)) as
+                | SendResponse
+                | null;
+              if (json) setSend(json);
+            } finally {
+              setResending(false);
+            }
+          }}
+        />
+      );
+    }
+    // Legacy fallback (id_upload / result_upload — manual review queue).
     return (
       <section className="surface-glass tint-amber mt-6 p-7 sm:p-9">
         <p className="text-[10px] uppercase tracking-widest text-neon-amber/70">
-          ⏳ Verification pending
+          ⏳ Verification pending review
         </p>
         <h2 className="mt-1 font-display text-2xl font-semibold text-white">
-          We&apos;re reviewing your verification.
+          Your upload is in the review queue.
         </h2>
         <p className="mt-2 text-sm text-white/70">
-          {existing.is_minor
-            ? "Because you're under 18, we also wait for your guardian's consent."
-            : "Edu-email codes verify instantly. ID and result uploads take up to 6 hours."}
+          ID and result uploads are reviewed by a human and usually
+          processed within 6 hours.
         </p>
         <p className="mt-3 text-[11px] text-white/45">
           Country: {existing.country} · Level: {existing.education_level}
@@ -666,8 +802,9 @@ export function VerificationGate({
             {busy ? "Submitting…" : "Submit verification"}
           </button>
           <p className="text-[11px] text-white/45 self-center">
-            Submissions auto-approve in a second. Audit trail (method,
-            country, guardian contacts, age) is preserved for review.
+            Edu-email and guardian-consent paths send a one-time
+            confirmation link — tap it from the inbox / phone to finish.
+            ID and result uploads enter the review queue.
           </p>
         </div>
       </div>
@@ -690,6 +827,180 @@ export function VerificationGate({
           digest. Read the full safety notes after verifying.
         </p>
       </aside>
+    </section>
+  );
+}
+
+// -----------------------------------------------------------------------
+// Wave 20.11 — post-submit "check your inbox / phone" panel.
+// -----------------------------------------------------------------------
+
+function redactEmail(addr: string | null | undefined): string {
+  if (!addr) return "—";
+  const at = addr.indexOf("@");
+  if (at <= 0) return addr;
+  const name = addr.slice(0, at);
+  const domain = addr.slice(at);
+  if (name.length <= 2) return `${name[0] ?? ""}•${domain}`;
+  return `${name.slice(0, 2)}•••${name.slice(-1)}${domain}`;
+}
+
+function redactPhone(num: string | null | undefined): string {
+  if (!num) return "—";
+  const cleaned = num.replace(/[^\d+]/g, "");
+  if (cleaned.length <= 4) return cleaned;
+  return `${cleaned.slice(0, cleaned.length - 4).replace(/\d/g, "•")}${cleaned.slice(-4)}`;
+}
+
+function channelBadge(c: SendChannel | undefined): {
+  text: string;
+  className: string;
+} {
+  if (!c || !c.attempted) {
+    return {
+      text: "not sent",
+      className: "border-white/10 bg-white/5 text-white/45"
+    };
+  }
+  if (c.skipped) {
+    return {
+      text: "provider not configured",
+      className: "border-neon-amber/40 bg-neon-amber/10 text-neon-amber"
+    };
+  }
+  if (c.ok) {
+    return {
+      text: "sent",
+      className: "border-neon-mint/40 bg-neon-mint/10 text-neon-mint"
+    };
+  }
+  return {
+    text: "failed",
+    className: "border-neon-red/40 bg-neon-red/10 text-neon-red"
+  };
+}
+
+function PendingSentPanel({
+  method,
+  guardianEmail,
+  guardianPhone,
+  eduEmail,
+  send,
+  resending,
+  onResend
+}: {
+  method: string | null;
+  guardianEmail: string;
+  guardianPhone: string;
+  eduEmail: string;
+  send: SendResponse | null;
+  resending: boolean;
+  onResend: () => void;
+}) {
+  const isGuardian = method === "guardian_consent";
+  const emailRecipient = isGuardian ? guardianEmail : eduEmail;
+  const phoneRecipient = isGuardian ? guardianPhone : "";
+  const emailBadge = channelBadge(send?.email);
+  const smsBadge = channelBadge(send?.sms);
+
+  const anyProviderMissing =
+    (send?.email?.skipped && send?.email?.attempted) ||
+    (send?.sms?.skipped && send?.sms?.attempted);
+
+  return (
+    <section className="surface-glass tint-mint mt-6 p-7 sm:p-9">
+      <p className="text-[10px] uppercase tracking-widest text-neon-mint/80">
+        ⏳ Almost done — confirm the link we just sent
+      </p>
+      <h2 className="mt-1 font-display text-2xl font-semibold text-white">
+        {isGuardian
+          ? "We've messaged your parent / guardian."
+          : "Check your inbox to finish verifying."}
+      </h2>
+      <p className="mt-2 text-sm leading-relaxed text-white/75">
+        {isGuardian
+          ? "They'll see a one-time link in their email and phone. Either tap unlocks your Students Network access — you don't need both."
+          : "Tap the confirm button in the email we just sent. Your Students Network access unlocks the moment you do."}
+      </p>
+
+      <div className="mt-5 space-y-2">
+        {/* Email row */}
+        {emailRecipient && (
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/30 px-3 py-2.5">
+            <div className="min-w-0">
+              <p className="text-[10px] uppercase tracking-widest text-white/40">
+                Email
+              </p>
+              <p className="truncate text-sm text-white/85">
+                {redactEmail(emailRecipient)}
+              </p>
+              {send?.email?.reason && (
+                <p className="mt-0.5 truncate text-[11px] text-white/45">
+                  {send.email.reason}
+                </p>
+              )}
+            </div>
+            <span
+              className={clsx(
+                "shrink-0 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-widest",
+                emailBadge.className
+              )}
+            >
+              {emailBadge.text}
+            </span>
+          </div>
+        )}
+
+        {/* SMS row — only for guardian path */}
+        {isGuardian && phoneRecipient && (
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/30 px-3 py-2.5">
+            <div className="min-w-0">
+              <p className="text-[10px] uppercase tracking-widest text-white/40">
+                SMS
+              </p>
+              <p className="truncate text-sm text-white/85 font-mono">
+                {redactPhone(phoneRecipient)}
+              </p>
+              {send?.sms?.reason && (
+                <p className="mt-0.5 truncate text-[11px] text-white/45">
+                  {send.sms.reason}
+                </p>
+              )}
+            </div>
+            <span
+              className={clsx(
+                "shrink-0 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-widest",
+                smsBadge.className
+              )}
+            >
+              {smsBadge.text}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {anyProviderMissing && (
+        <p className="mt-3 rounded-xl border border-neon-amber/30 bg-neon-amber/5 px-3 py-2 text-[11px] text-neon-amber/90">
+          One of the providers (Resend for email or Twilio for SMS) isn&apos;t
+          configured on this deployment yet. The operator needs to set the
+          relevant env vars on Netlify and redeploy — your row is saved and
+          will confirm the moment a link is tapped.
+        </p>
+      )}
+
+      <div className="mt-5 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={onResend}
+          disabled={resending}
+          className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/85 hover:bg-white/10 disabled:opacity-60"
+        >
+          {resending ? "Resending…" : "Resend link"}
+        </button>
+        <p className="self-center text-[11px] text-white/45">
+          Didn&apos;t arrive in a minute? Check spam, or tap resend.
+        </p>
+      </div>
     </section>
   );
 }
