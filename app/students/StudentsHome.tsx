@@ -227,7 +227,10 @@ export function StudentsHome({
           )}
           {tab === "verify" && !isVerified && (
             <div id="verify-card">
-              <VerificationGate existing={null} currentUserId={currentUserId} />
+              <VerificationGate
+                existing={verification}
+                currentUserId={currentUserId}
+              />
             </div>
           )}
           {tab === "beacons" && (

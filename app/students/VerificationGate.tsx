@@ -226,6 +226,9 @@ export function VerificationGate({
   const [dob, setDob] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // After a successful submit we flip this so the user gets immediate
+  // feedback even before router.refresh() rehydrates the server props.
+  const [submitted, setSubmitted] = useState(false);
 
   function toggleSubject(s: string) {
     setSubjects((prev) =>
@@ -263,6 +266,7 @@ export function VerificationGate({
         p_dob: dob
       });
       if (error) throw error;
+      setSubmitted(true);
       router.refresh();
     } catch (e: any) {
       setErr(e?.message ?? "Could not submit.");
@@ -271,23 +275,40 @@ export function VerificationGate({
     }
   }
 
-  if (existing?.status === "pending") {
+  if (submitted || existing?.status === "pending") {
+    // submitted may fire before the router.refresh() rehydrates the
+    // server props with the new verification row, so existing can still
+    // be null for a beat — fall back to the values we already have on
+    // the form (everything in this branch came from user input).
+    const isMinorView = existing?.is_minor ?? (
+      dob ? (new Date().getFullYear() - new Date(dob).getFullYear()) < 18 : false
+    );
+    const guardianFlow = method === "guardian_consent";
     return (
       <section className="surface-glass tint-amber mt-6 p-7 sm:p-9">
         <p className="text-[10px] uppercase tracking-widest text-neon-amber/70">
-          ⏳ Verification pending
+          ✓ Submission received · verification pending
         </p>
         <h2 className="mt-1 font-display text-2xl font-semibold text-white">
-          We&apos;re reviewing your verification.
+          {guardianFlow
+            ? "We've sent your guardian a consent link."
+            : "We're reviewing your verification."}
         </h2>
         <p className="mt-2 text-sm text-white/70">
-          {existing.is_minor
-            ? "Because you're under 18, we also wait for your guardian's consent. They got an email + a text."
+          {guardianFlow || isMinorView
+            ? "Because you're under 18, we wait for your guardian's consent. They got an email + a text — once they tap the link, your verification activates automatically."
             : "Edu-email codes verify instantly. ID and result uploads take up to 6 hours."}
         </p>
         <p className="mt-3 text-[11px] text-white/45">
-          Country: {existing.country} · Level: {existing.education_level}
-          {existing.syllabus ? ` · ${existing.syllabus}` : ""}
+          Country: {existing?.country ?? country} · Level:{" "}
+          {existing?.education_level ?? level}
+          {(existing?.syllabus ?? syllabus)
+            ? ` · ${existing?.syllabus ?? syllabus}`
+            : ""}
+        </p>
+        <p className="mt-3 text-[11px] text-white/45">
+          You can leave this page — we&apos;ll surface a notification when
+          your verification activates.
         </p>
       </section>
     );
@@ -308,9 +329,9 @@ export function VerificationGate({
   }
 
   return (
-    <section className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-[1fr_360px]">
+    <section className="mt-6 grid grid-cols-1 gap-5 xl:grid-cols-[1fr_320px]">
       {/* main form */}
-      <div className="surface-glass p-6">
+      <div className="surface-glass min-w-0 p-6">
         <p className="text-[10px] uppercase tracking-widest text-white/40">
           Verify to join (13+ only)
         </p>
@@ -332,16 +353,19 @@ export function VerificationGate({
           Used only to age-gate the network. Never shown publicly.
         </p>
 
-        {/* Country + Level + Syllabus */}
-        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div>
+        {/* Country + Level + Syllabus — stacks on narrow widths, two cols
+            at sm, three at lg, so the constrained tab column stays
+            readable. The selects are min-w-0 + bg-black/30 so the dark
+            dropdown items match the form's surface. */}
+        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="min-w-0">
             <label className="block text-[11px] uppercase tracking-widest text-white/50">
               Country
             </label>
             <select
               value={country}
               onChange={(e) => setCountry(e.target.value)}
-              className="mt-1 w-full rounded-md border border-white/10 px-2 py-1.5 text-sm outline-none"
+              className="mt-1 w-full min-w-0 truncate rounded-md border border-white/10 bg-black/30 px-2 py-2 text-sm text-white outline-none focus:border-neon-mint/40"
             >
               {COUNTRIES.map((c) => (
                 <option key={c} value={c}>
@@ -350,14 +374,14 @@ export function VerificationGate({
               ))}
             </select>
           </div>
-          <div>
+          <div className="min-w-0">
             <label className="block text-[11px] uppercase tracking-widest text-white/50">
               Education level
             </label>
             <select
               value={level}
               onChange={(e) => setLevel(e.target.value)}
-              className="mt-1 w-full rounded-md border border-white/10 px-2 py-1.5 text-sm outline-none"
+              className="mt-1 w-full min-w-0 truncate rounded-md border border-white/10 bg-black/30 px-2 py-2 text-sm text-white outline-none focus:border-neon-mint/40"
             >
               {LEVELS.map((l) => (
                 <option key={l.value} value={l.value}>
@@ -366,14 +390,14 @@ export function VerificationGate({
               ))}
             </select>
           </div>
-          <div>
+          <div className="min-w-0 sm:col-span-2 lg:col-span-1">
             <label className="block text-[11px] uppercase tracking-widest text-white/50">
               Syllabus / exam (optional)
             </label>
             <select
               value={syllabus}
               onChange={(e) => setSyllabus(e.target.value)}
-              className="mt-1 w-full rounded-md border border-white/10 px-2 py-1.5 text-sm outline-none"
+              className="mt-1 w-full min-w-0 truncate rounded-md border border-white/10 bg-black/30 px-2 py-2 text-sm text-white outline-none focus:border-neon-mint/40"
             >
               <option value="">— pick if it applies —</option>
               {COMMON_SYLLABUSES.filter(
