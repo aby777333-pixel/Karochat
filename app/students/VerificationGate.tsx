@@ -220,12 +220,12 @@ const METHODS = [
   {
     value: "id_upload",
     label: "Student ID upload",
-    hint: "Photo of your ID card + selfie. Reviewed within 6 hours."
+    hint: "Photo of your ID card + 'valid until' date. Reviewed within 6 hours."
   },
   {
     value: "result_upload",
     label: "Recent result / marksheet",
-    hint: "For self-studiers prepping for exams (JEE / NEET / SAT…)."
+    hint: "For self-studiers prepping for exams. Upload the marksheet + the exam/result date."
   },
   {
     value: "guardian_consent",
@@ -234,6 +234,13 @@ const METHODS = [
       "Most schools don't issue email — give us a parent's email AND phone. We text + email them a one-time consent link. Required for 13-17."
   }
 ];
+
+// Strip anything outside [A-Za-z0-9_.-] so the upload path stays safe to
+// embed in a URL and predictable in the bucket listing.
+function sanitizeName(name: string): string {
+  const clean = name.replace(/[^A-Za-z0-9._-]+/g, "-").slice(0, 80);
+  return clean.length > 0 ? clean : "upload";
+}
 
 export function VerificationGate({
   existing,
@@ -270,6 +277,15 @@ export function VerificationGate({
   // are configured.
   const [send, setSend] = useState<SendResponse | null>(null);
   const [resending, setResending] = useState(false);
+  // Wave 20.12 — id_upload / result_upload now require a photo + date.
+  // The file is uploaded to the private 'student-verifications' bucket;
+  // we keep only the storage path in state and pass it into
+  // start_verification via verification_metadata.
+  const [idCardFile, setIdCardFile] = useState<File | null>(null);
+  const [idExpiry, setIdExpiry] = useState("");
+  const [marksheetFile, setMarksheetFile] = useState<File | null>(null);
+  const [resultDate, setResultDate] = useState("");
+  const [uploading, setUploading] = useState(false);
   // Geo defaults — fetched from /api/geo on mount so first-time visitors
   // get their own country pre-selected in both the COUNTRY select and
   // the dial-code picker. Skipped when the user already has a saved
@@ -346,6 +362,61 @@ export function VerificationGate({
         meta.guardian_phone = fullGuardianPhone;
         meta.guardian_phone_iso = dialIso;
       }
+
+      // Wave 20.12 — id_upload / result_upload need a photo + date.
+      // Validate locally first, then upload to the private
+      // 'student-verifications' bucket under <user-id>/ so the storage
+      // RLS policy lets the write through. We pass the storage path to
+      // start_verification via metadata so the admin queue can mint a
+      // signed URL for review.
+      if (method === "id_upload") {
+        if (!idCardFile) throw new Error("Pick a photo of your ID card.");
+        if (idCardFile.size > 5 * 1024 * 1024)
+          throw new Error("ID photo is over the 5 MB limit.");
+        if (!idExpiry) throw new Error("Enter the ID's 'valid until' date.");
+        if (new Date(idExpiry) <= new Date())
+          throw new Error("ID expiry date must be in the future.");
+        setUploading(true);
+        try {
+          const path = `${currentUserId}/id-${Date.now()}-${sanitizeName(idCardFile.name)}`;
+          const { error: upErr } = await supabase.storage
+            .from("student-verifications")
+            .upload(path, idCardFile, {
+              cacheControl: "3600",
+              upsert: false,
+              contentType: idCardFile.type || "image/jpeg"
+            });
+          if (upErr) throw new Error(`ID upload failed: ${upErr.message}`);
+          meta.id_card_url = path;
+          meta.id_expiry_date = idExpiry;
+        } finally {
+          setUploading(false);
+        }
+      }
+      if (method === "result_upload") {
+        if (!marksheetFile) throw new Error("Pick a photo of your marksheet / result.");
+        if (marksheetFile.size > 5 * 1024 * 1024)
+          throw new Error("Marksheet photo is over the 5 MB limit.");
+        if (!resultDate) throw new Error("Enter the exam / result date.");
+        if (new Date(resultDate) > new Date())
+          throw new Error("Result date can't be in the future.");
+        setUploading(true);
+        try {
+          const path = `${currentUserId}/result-${Date.now()}-${sanitizeName(marksheetFile.name)}`;
+          const { error: upErr } = await supabase.storage
+            .from("student-verifications")
+            .upload(path, marksheetFile, {
+              cacheControl: "3600",
+              upsert: false,
+              contentType: marksheetFile.type || "image/jpeg"
+            });
+          if (upErr) throw new Error(`Marksheet upload failed: ${upErr.message}`);
+          meta.marksheet_url = path;
+          meta.result_date = resultDate;
+        } finally {
+          setUploading(false);
+        }
+      }
       const payload = {
         p_country: country,
         p_education_level: level,
@@ -413,11 +484,15 @@ export function VerificationGate({
     }
   }
 
-  // Wave 20.11 — after a successful submit, branch on the dispatch
-  // response: edu_email and guardian_consent are 'pending' until the
-  // recipient clicks the link; id_upload / result_upload keep the
-  // historical auto-verify behavior.
+  // Wave 20.11 / 20.12 — after a successful submit, branch on the
+  // method + dispatch response:
+  //   • edu_email + guardian_consent  → "check your inbox / phone" panel
+  //   • id_upload + result_upload     → "in the review queue" panel
+  //   • (legacy auto-verify path)     → "you're in" panel
   if (submitted) {
+    if (method === "id_upload" || method === "result_upload") {
+      return <PendingReviewPanel method={method} />;
+    }
     const dispatchStatus = send?.status ?? "verified";
     if (dispatchStatus === "verified") {
       return (
@@ -712,6 +787,89 @@ export function VerificationGate({
           </div>
         )}
 
+        {method === "id_upload" && (
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="block text-[11px] uppercase tracking-widest text-white/50">
+                ID card photo (5 MB max)
+              </label>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/webp,image/heic,application/pdf"
+                onChange={(e) => setIdCardFile(e.target.files?.[0] ?? null)}
+                className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm file:mr-2 file:rounded-md file:border-0 file:bg-white/10 file:px-2 file:py-1 file:text-white/80 file:hover:bg-white/20"
+              />
+              {idCardFile && (
+                <p className="mt-1 truncate text-[11px] text-white/45">
+                  {idCardFile.name} · {Math.round(idCardFile.size / 1024)} KB
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="block text-[11px] uppercase tracking-widest text-white/50">
+                ID valid until
+              </label>
+              <input
+                type="date"
+                value={idExpiry}
+                min={new Date(Date.now() + 24 * 3600 * 1000)
+                  .toISOString()
+                  .slice(0, 10)}
+                onChange={(e) => setIdExpiry(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none focus:border-neon-mint/40"
+              />
+              <p className="mt-1 text-[11px] text-white/35">
+                Future date — expired IDs are rejected.
+              </p>
+            </div>
+            <p className="sm:col-span-2 text-[11px] text-white/45">
+              Stored privately; only the operator sees this. Reviewed within 6
+              hours.
+            </p>
+          </div>
+        )}
+
+        {method === "result_upload" && (
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="block text-[11px] uppercase tracking-widest text-white/50">
+                Marksheet / result photo (5 MB max)
+              </label>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/webp,image/heic,application/pdf"
+                onChange={(e) => setMarksheetFile(e.target.files?.[0] ?? null)}
+                className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm file:mr-2 file:rounded-md file:border-0 file:bg-white/10 file:px-2 file:py-1 file:text-white/80 file:hover:bg-white/20"
+              />
+              {marksheetFile && (
+                <p className="mt-1 truncate text-[11px] text-white/45">
+                  {marksheetFile.name} ·{" "}
+                  {Math.round(marksheetFile.size / 1024)} KB
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="block text-[11px] uppercase tracking-widest text-white/50">
+                Exam / result date
+              </label>
+              <input
+                type="date"
+                value={resultDate}
+                max={new Date().toISOString().slice(0, 10)}
+                onChange={(e) => setResultDate(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none focus:border-neon-mint/40"
+              />
+              <p className="mt-1 text-[11px] text-white/35">
+                When the result was issued. Cannot be in the future.
+              </p>
+            </div>
+            <p className="sm:col-span-2 text-[11px] text-white/45">
+              Stored privately; only the operator sees this. Reviewed within 6
+              hours.
+            </p>
+          </div>
+        )}
+
         {method === "guardian_consent" && (
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
@@ -799,7 +957,11 @@ export function VerificationGate({
             disabled={busy}
             className="rounded-xl bg-neon-mint px-4 py-2 text-sm font-medium text-ink-900 hover:bg-neon-mint/90 disabled:opacity-60"
           >
-            {busy ? "Submitting…" : "Submit verification"}
+            {uploading
+              ? "Uploading…"
+              : busy
+              ? "Submitting…"
+              : "Submit verification"}
           </button>
           <p className="text-[11px] text-white/45 self-center">
             Edu-email and guardian-consent paths send a one-time
@@ -1001,6 +1163,46 @@ function PendingSentPanel({
           Didn&apos;t arrive in a minute? Check spam, or tap resend.
         </p>
       </div>
+    </section>
+  );
+}
+
+// Wave 20.12 — id_upload / result_upload land here while the operator
+// reviews the photo + date. No-op for legacy auto-verify rows; those
+// keep their existing "you're in" panel.
+function PendingReviewPanel({ method }: { method: string }) {
+  const label =
+    method === "id_upload"
+      ? "Student ID upload"
+      : method === "result_upload"
+      ? "Marksheet / result upload"
+      : "Verification";
+  return (
+    <section className="surface-glass tint-amber mt-6 p-7 sm:p-9">
+      <p className="text-[10px] uppercase tracking-widest text-neon-amber/70">
+        ⏳ In the review queue
+      </p>
+      <h2 className="mt-1 font-display text-2xl font-semibold text-white">
+        Your {label} is in for review.
+      </h2>
+      <p className="mt-2 text-sm leading-relaxed text-white/75">
+        The operator confirms the photo and date — usually within 6 hours.
+        You&apos;ll see the Students Network unlock the moment your row is
+        approved.
+      </p>
+      <div className="mt-5 rounded-2xl border border-white/10 bg-black/30 p-4 text-[13px] leading-relaxed text-white/75">
+        <p className="font-medium text-white">What we have</p>
+        <ul className="mt-2 list-disc space-y-1 pl-5">
+          <li>Your photo upload, stored privately in our verification bucket.</li>
+          <li>The date you supplied (ID expiry or exam / result date).</li>
+          <li>Your country, education level, and subject affinities — used
+          to route Help Beacons once you&apos;re in.</li>
+        </ul>
+      </div>
+      <p className="mt-4 text-[11px] text-white/45">
+        Need to change something? Resubmit the form — the previous pending
+        row gets replaced.
+      </p>
     </section>
   );
 }
