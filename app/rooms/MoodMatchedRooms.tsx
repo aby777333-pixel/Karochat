@@ -19,10 +19,15 @@ const MOOD_EMOJI: Record<string, string> = {
 export async function MoodMatchedRooms() {
   const supabase = createSupabaseServerClient();
   const { data } = await supabase.rpc("find_mood_rooms", { p_limit: 20 });
-  // Wave 20 — student-category rooms live in /students; keep them out of the
-  // mood-matched widget on the main lobby.
+  // Wave 20 — every student-related category lives in /students; keep
+  // them out of the mood-matched widget on the main lobby. Mirrors the
+  // catalog filter in app/rooms/page.tsx.
   const rooms = ((data ?? []) as MoodRow[]).filter(
-    (r) => r.category_slug !== "students"
+    (r) =>
+      !(
+        r.category_slug === "students" ||
+        (r.category_slug ?? "").startsWith("students-")
+      )
   );
   if (rooms.length === 0) return null;
 

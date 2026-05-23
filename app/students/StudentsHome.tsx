@@ -12,6 +12,11 @@ import { HelperSidebar } from "./HelperSidebar";
 import { StudentsLobbies } from "./StudentsLobbies";
 import { StudentRoomsBrowser } from "./StudentRoomsBrowser";
 import { CreateStudentRoom } from "./CreateStudentRoom";
+import {
+  CategoryBrowser,
+  type Category,
+  type Subcategory
+} from "@/app/rooms/CategoryBrowser";
 
 const TIER_BADGE: Record<string, { label: string; color: string }> = {
   student:        { label: "Student",         color: "text-neon-mint border-neon-mint/40 bg-neon-mint/10" },
@@ -35,16 +40,31 @@ export type Verif = {
   expires_at: string | null;
 } | null;
 
-type TabId = "lobbies" | "rooms" | "beacons" | "kit" | "network";
+type TabId = "lobbies" | "catalog" | "rooms" | "beacons" | "kit" | "network";
 
 export function StudentsHome({
   currentUserId,
-  verification
+  verification,
+  catalogCategories,
+  catalogSubcategories
 }: {
   currentUserId: string;
   verification: Verif;
+  catalogCategories?: Category[];
+  catalogSubcategories?: Subcategory[];
 }) {
   const [tab, setTab] = useState<TabId>("lobbies");
+  // Wave 20.1 — show the official student catalog (subjects, exams,
+  // cohorts, discussion). We exclude the 'students' category itself
+  // because its rooms are already surfaced by the Lobbies tab + the
+  // user-created student rooms tab — keeping it here would be redundant.
+  const catalogCats = (catalogCategories ?? []).filter(
+    (c) => c.slug !== "students"
+  );
+  const catalogSubs = (catalogSubcategories ?? []).filter(
+    (s) => s.category_slug !== "students"
+  );
+  const showCatalogTab = catalogCats.length > 0;
   const [composeOpen, setComposeOpen] = useState(false);
   const isVerified =
     !!verification && verification.status === "verified";
@@ -124,13 +144,18 @@ export function StudentsHome({
 
       {/* Tabs */}
       <nav className="surface-glass flex flex-wrap overflow-x-auto px-1 py-1 text-sm">
-        {([
-          ["lobbies", "🛋️ Lobbies"],
-          ["rooms",   "📚 Student rooms"],
-          ["beacons", "🆘 Help Beacons"],
-          ["kit",     "🧰 Teaching kit"],
-          ["network", "👥 Network"]
-        ] as const).map(([id, label]) => (
+        {(
+          [
+            ["lobbies", "🛋️ Lobbies"],
+            ...(showCatalogTab
+              ? ([["catalog", "📚 Catalog"]] as const)
+              : ([] as const)),
+            ["rooms",   "🏠 Student rooms"],
+            ["beacons", "🆘 Help Beacons"],
+            ["kit",     "🧰 Teaching kit"],
+            ["network", "👥 Network"]
+          ] as const
+        ).map(([id, label]) => (
           <button
             key={id}
             type="button"
@@ -156,6 +181,15 @@ export function StudentsHome({
                 hint="Open a new student room and invite your study group. You'll get text, voice, video, screen-share, whiteboard, and the teaching kit."
               />
             </div>
+          )}
+          {tab === "catalog" && showCatalogTab && (
+            <CategoryBrowser
+              categories={catalogCats}
+              subcategories={catalogSubs}
+              hideUserTab
+              title="Browse student rooms"
+              totalsHint={(c, t) => `${c} categories · ${t} rooms`}
+            />
           )}
           {tab === "rooms" && (
             <div className="space-y-5">

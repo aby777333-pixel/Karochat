@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Logo, Wordmark } from "@/components/Brand";
 import { VerificationGate } from "./VerificationGate";
 import { StudentsHome } from "./StudentsHome";
+import type { Category, Subcategory } from "@/app/rooms/CategoryBrowser";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,25 @@ export default async function StudentsPage({
   const { data: verif } = await supabase.rpc("get_my_verification");
   const v = Array.isArray(verif) ? verif[0] : null;
   const showGate = searchParams?.gate === "open";
+
+  // Wave 20.1 — pull every student-related category + its subcategories
+  // (slug starts with 'students') so the Students area can host the
+  // official subject / exam / cohort / discussion catalog that used to
+  // sit on the main /rooms lobby. Mirrors the filter in app/rooms/page.tsx.
+  const [studentCatsResp, studentSubcatsResp] = await Promise.all([
+    supabase
+      .from("room_categories")
+      .select("slug,label,description,icon,position,is_adult")
+      .or("slug.eq.students,slug.like.students-%")
+      .order("position", { ascending: true }),
+    supabase
+      .from("room_subcategories")
+      .select("category_slug,slug,label,position")
+      .or("category_slug.eq.students,category_slug.like.students-%")
+      .order("position", { ascending: true })
+  ]);
+  const studentCategories = (studentCatsResp.data ?? []) as Category[];
+  const studentSubcategories = (studentSubcatsResp.data ?? []) as Subcategory[];
 
   return (
     <main className="mx-auto flex min-h-[100dvh] max-w-6xl flex-col px-3 py-6 md:py-8">
@@ -77,7 +97,12 @@ export default async function StudentsPage({
         </div>
       )}
 
-      <StudentsHome currentUserId={profile.id} verification={v ?? null} />
+      <StudentsHome
+        currentUserId={profile.id}
+        verification={v ?? null}
+        catalogCategories={studentCategories}
+        catalogSubcategories={studentSubcategories}
+      />
 
       <footer className="mt-10 space-y-1 text-center text-[11px] text-white/30">
         <p>

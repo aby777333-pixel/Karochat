@@ -164,15 +164,21 @@ export default async function RoomsPage({
       .select("category_slug,slug,label,position")
       .order("position", { ascending: true })
   ]);
-  // Wave 20 — the 'students' category lives in its own /students area
-  // (verified network on top, common lobbies + student-created rooms
-  // underneath). Hide it from the main lobby catalog so it isn't
-  // double-listed; the header has a "🎓 Students" portal button.
+  // Wave 20 — every student-related top-level category lives in its own
+  // /students area (verified network on top, common lobbies + student-
+  // created rooms underneath). Hide them from the main lobby catalog so
+  // they aren't double-listed; the header has a "🎓 Students" portal
+  // button. The live DB has five such categories: 'students',
+  // 'students-subject', 'students-exam', 'students-cohort',
+  // 'students-meta'. Using a startsWith match keeps any future
+  // 'students-*' category routed through /students too.
+  const isStudentCategory = (slug: string) =>
+    slug === "students" || slug.startsWith("students-");
   const categories = ((categoriesResp.data ?? []) as Category[]).filter(
-    (c) => c.slug !== "students"
+    (c) => !isStudentCategory(c.slug)
   );
   const subcategories = ((subcategoriesResp.data ?? []) as Subcategory[]).filter(
-    (s) => s.category_slug !== "students"
+    (s) => !isStudentCategory(s.category_slug)
   );
 
   // Live (un-expired) stories for the top strip. RLS filters out expired.

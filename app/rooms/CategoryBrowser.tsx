@@ -57,10 +57,24 @@ type CatalogRow = {
  */
 export function CategoryBrowser({
   categories,
-  subcategories
+  subcategories,
+  hideUserTab = false,
+  title,
+  totalsHint
 }: {
   categories: Category[];
   subcategories: Subcategory[];
+  /**
+   * When true, suppresses the "User rooms" tab. Used inside /students,
+   * where user-created student rooms are surfaced separately by
+   * StudentRoomsBrowser, so the embedded user-rooms list would be
+   * redundant + confusing.
+   */
+  hideUserTab?: boolean;
+  /** Override the section heading (default: "Browse rooms"). */
+  title?: string;
+  /** Override the "N categories · M rooms" footer hint text shape. */
+  totalsHint?: (catCount: number, total: number) => string;
 }) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const router = useRouter();
@@ -199,29 +213,36 @@ export function CategoryBrowser({
   return (
     <section className="surface-glass tint-purple p-5">
       <div className="mb-3 flex items-baseline justify-between gap-3">
-        <h2 className="font-display text-lg font-semibold">Browse rooms</h2>
+        <h2 className="font-display text-lg font-semibold">
+          {title ?? "Browse rooms"}
+        </h2>
         {tab === "official" && (
           <span className="text-xs text-white/40">
-            {sortedCategories.length} categories · {totalOfficial} rooms
+            {totalsHint
+              ? totalsHint(sortedCategories.length, totalOfficial)
+              : `${sortedCategories.length} categories · ${totalOfficial} rooms`}
           </span>
         )}
       </div>
 
-      {/* Yahoo!-style two-tab switcher: Karochat (official) vs User rooms */}
-      <div className="mb-3 -mx-1 flex gap-1 border-b border-white/10 px-1">
-        <TabButton
-          active={tab === "official"}
-          onClick={() => setTab("official")}
-          label="Karochat rooms"
-          hint="The official catalog tree"
-        />
-        <TabButton
-          active={tab === "user"}
-          onClick={() => setTab("user")}
-          label="User rooms"
-          hint="Rooms created by people"
-        />
-      </div>
+      {/* Yahoo!-style two-tab switcher: Karochat (official) vs User rooms.
+          Suppressed when the parent already surfaces user rooms elsewhere. */}
+      {!hideUserTab && (
+        <div className="mb-3 -mx-1 flex gap-1 border-b border-white/10 px-1">
+          <TabButton
+            active={tab === "official"}
+            onClick={() => setTab("official")}
+            label="Karochat rooms"
+            hint="The official catalog tree"
+          />
+          <TabButton
+            active={tab === "user"}
+            onClick={() => setTab("user")}
+            label="User rooms"
+            hint="Rooms created by people"
+          />
+        </div>
+      )}
 
       {/* USER ROOMS TAB — render the existing UserRoomsBrowser inline.
           We hide its own outer surface by keeping a wrapper that resets the
