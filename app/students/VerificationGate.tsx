@@ -286,8 +286,17 @@ export function VerificationGate({
   async function submit() {
     setBusy(true);
     setErr(null);
+    // Diagnostic — surface the click in devtools so we can tell whether
+    // the handler ran at all when users report "nothing happened".
+    // eslint-disable-next-line no-console
+    console.info("[verify] submit clicked", { dob, method, country, level });
     try {
-      if (!dob) throw new Error("Date of birth is required.");
+      if (!dob) throw new Error("Date of birth is required. Pick it from the calendar above.");
+      if (method === "guardian_consent") {
+        if (!guardianEmail.trim()) {
+          throw new Error("Guardian email is required for the guardian-consent path.");
+        }
+      }
       // Compose E.164 guardian phone from picker + local number.
       const dialEntry = dialCodeForIso(dialIso);
       const cleanedLocal = guardianPhoneLocal.replace(/[^\d]/g, "");
@@ -295,6 +304,9 @@ export function VerificationGate({
         dialEntry && cleanedLocal
           ? `+${dialEntry.code}${cleanedLocal}`
           : "";
+      if (method === "guardian_consent" && !fullGuardianPhone) {
+        throw new Error("Guardian phone is required for the guardian-consent path.");
+      }
       const meta: Record<string, any> = {};
       if (method === "edu_email") meta.edu_email = eduEmail;
       if (method === "guardian_consent") {
@@ -302,7 +314,7 @@ export function VerificationGate({
         meta.guardian_phone = fullGuardianPhone;
         meta.guardian_phone_iso = dialIso;
       }
-      const { error } = await supabase.rpc("start_verification", {
+      const payload = {
         p_country: country,
         p_education_level: level,
         p_syllabus: syllabus || null,
@@ -315,12 +327,30 @@ export function VerificationGate({
         p_guardian_phone:
           method === "guardian_consent" ? fullGuardianPhone : null,
         p_dob: dob
-      });
-      if (error) throw error;
+      };
+      // eslint-disable-next-line no-console
+      console.info("[verify] calling start_verification", payload);
+      const { data, error } = await supabase.rpc("start_verification", payload);
+      if (error) {
+        // eslint-disable-next-line no-console
+        console.error("[verify] RPC error", error);
+        const detail = [error.message, error.details, error.hint, error.code]
+          .filter(Boolean)
+          .join(" · ");
+        throw new Error(detail || "Verification RPC failed.");
+      }
+      // eslint-disable-next-line no-console
+      console.info("[verify] verified · row id", data);
       setSubmitted(true);
       router.refresh();
     } catch (e: any) {
-      setErr(e?.message ?? "Could not submit.");
+      // eslint-disable-next-line no-console
+      console.error("[verify] caught", e);
+      setErr(
+        e?.message
+          ? `${e.message}`
+          : "Could not submit. Open the browser console (Ctrl+Shift+I → Console) to see the full error and share it back."
+      );
     } finally {
       setBusy(false);
     }
@@ -612,21 +642,32 @@ export function VerificationGate({
         )}
 
         {err && (
-          <p className="mt-3 text-xs text-neon-red">{err}</p>
+          <div className="mt-3 rounded-xl border border-neon-red/40 bg-neon-red/10 p-3">
+            <p className="text-[10px] uppercase tracking-widest text-neon-red/80">
+              Verification couldn&apos;t complete
+            </p>
+            <p className="mt-1 break-words text-sm text-neon-red">{err}</p>
+            <p className="mt-2 text-[11px] text-white/55">
+              Tip — open the browser console (Ctrl+Shift+I → Console tab) and
+              paste anything starting with{" "}
+              <code className="rounded bg-white/10 px-1">[verify]</code> back
+              so we can see what blew up.
+            </p>
+          </div>
         )}
 
         <div className="mt-5 flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => void submit()}
-            disabled={busy || !dob}
+            disabled={busy}
             className="rounded-xl bg-neon-mint px-4 py-2 text-sm font-medium text-ink-900 hover:bg-neon-mint/90 disabled:opacity-60"
           >
             {busy ? "Submitting…" : "Submit verification"}
           </button>
           <p className="text-[11px] text-white/45 self-center">
-            Most edu-email submissions verify automatically; uploads + guardian
-            consent take up to 6 hours.
+            Submissions auto-approve in a second. Audit trail (method,
+            country, guardian contacts, age) is preserved for review.
           </p>
         </div>
       </div>
