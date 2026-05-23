@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Logo, Wordmark } from "@/components/Brand";
 import { StudentsHome } from "./StudentsHome";
+import { VerificationGate } from "./VerificationGate";
 import type { Category, Subcategory } from "@/app/rooms/CategoryBrowser";
 
 export const dynamic = "force-dynamic";
@@ -10,14 +11,10 @@ export const dynamic = "force-dynamic";
 export const metadata = {
   title: "Students Network · Karochat",
   description:
-    "Verified-students learning network — Help Beacons, study squads, office hours, notes — plus open student lobbies and rooms for everyone."
+    "Verified-students learning network — Help Beacons, study squads, office hours, notes, age-band lobbies, and student rooms with chat, voice, video, and a shared whiteboard."
 };
 
-export default async function StudentsPage({
-  searchParams
-}: {
-  searchParams?: { gate?: string };
-}) {
+export default async function StudentsPage() {
   const supabase = createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/?redirect=/students");
@@ -30,33 +27,35 @@ export default async function StudentsPage({
   if (!profile?.username) redirect("/onboarding");
   if (!profile.terms_accepted_at) redirect("/terms");
 
-  // Wave 20 — verification is required for high-trust features (Help
-  // Beacons, helper directory, office hours). The common lobbies and the
-  // student rooms are open to every signed-in user. The VerificationGate
-  // card can still be opened explicitly via ?gate=open from the StudentsHome
-  // CTA when a user actually wants to start verification.
+  // Wave 20.4 — Students Network is verified-only end-to-end.
+  // Unverified, pending, or rejected users see ONLY the VerificationGate
+  // (which renders the right panel for each state). They cannot reach the
+  // lobbies, the catalog, the user-created student rooms, or Help Beacons
+  // until status='verified'.
   const { data: verif } = await supabase.rpc("get_my_verification");
   const v = Array.isArray(verif) ? verif[0] : null;
-  const initialTab = searchParams?.gate === "open" ? "verify" : undefined;
+  const isVerified = v?.status === "verified";
 
-  // Wave 20.1 — pull every student-related category + its subcategories
-  // (slug starts with 'students') so the Students area can host the
-  // official subject / exam / cohort / discussion catalog that used to
-  // sit on the main /rooms lobby. Mirrors the filter in app/rooms/page.tsx.
-  const [studentCatsResp, studentSubcatsResp] = await Promise.all([
-    supabase
-      .from("room_categories")
-      .select("slug,label,description,icon,position,is_adult")
-      .or("slug.eq.students,slug.like.students-%")
-      .order("position", { ascending: true }),
-    supabase
-      .from("room_subcategories")
-      .select("category_slug,slug,label,position")
-      .or("category_slug.eq.students,category_slug.like.students-%")
-      .order("position", { ascending: true })
-  ]);
-  const studentCategories = (studentCatsResp.data ?? []) as Category[];
-  const studentSubcategories = (studentSubcatsResp.data ?? []) as Subcategory[];
+  // Only bother fetching the full student catalog for verified users —
+  // unverified users can't see it anyway.
+  let studentCategories: Category[] = [];
+  let studentSubcategories: Subcategory[] = [];
+  if (isVerified) {
+    const [studentCatsResp, studentSubcatsResp] = await Promise.all([
+      supabase
+        .from("room_categories")
+        .select("slug,label,description,icon,position,is_adult")
+        .or("slug.eq.students,slug.like.students-%")
+        .order("position", { ascending: true }),
+      supabase
+        .from("room_subcategories")
+        .select("category_slug,slug,label,position")
+        .or("category_slug.eq.students,category_slug.like.students-%")
+        .order("position", { ascending: true })
+    ]);
+    studentCategories = (studentCatsResp.data ?? []) as Category[];
+    studentSubcategories = (studentSubcatsResp.data ?? []) as Subcategory[];
+  }
 
   return (
     <main className="mx-auto flex min-h-[100dvh] max-w-6xl flex-col px-3 py-6 md:py-8">
@@ -83,20 +82,35 @@ export default async function StudentsPage({
           Where students help students.
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/75">
-          Open common lobbies, age-band lobbies, and rooms you create — all
-          with chat, voice, video, screen-share, and a shared whiteboard.
-          Verified students and educators can also fire 🆘 Help Beacons,
-          show up as helpers, and run office hours.
+          {isVerified ? (
+            <>
+              Common lobbies, age-band lobbies, the official catalog, rooms you
+              create, and 🆘 Help Beacons — all with chat, voice, video,
+              screen-share, and a shared whiteboard.
+            </>
+          ) : (
+            <>
+              The Students Network is verified-only. Verify yourself once and
+              you unlock common lobbies, age-band lobbies, the official subject
+              / exam / cohort catalog, rooms you create, 🆘 Help Beacons, and
+              the helper network. The platform minimum is age 13.
+            </>
+          )}
         </p>
       </section>
 
-      <StudentsHome
-        currentUserId={profile.id}
-        verification={v ?? null}
-        catalogCategories={studentCategories}
-        catalogSubcategories={studentSubcategories}
-        initialTab={initialTab}
-      />
+      {isVerified ? (
+        <StudentsHome
+          currentUserId={profile.id}
+          verification={v}
+          catalogCategories={studentCategories}
+          catalogSubcategories={studentSubcategories}
+        />
+      ) : (
+        <div id="verify-card" className="mt-2">
+          <VerificationGate existing={v} currentUserId={profile.id} />
+        </div>
+      )}
 
       <footer className="mt-10 space-y-1 text-center text-[11px] text-white/30">
         <p>
