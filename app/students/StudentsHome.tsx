@@ -151,13 +151,16 @@ export function StudentsHome({
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs. Wave 20.9: the Karochat student rooms catalog now lives on
+          the default "Lobbies" tab so it's visible immediately after
+          landing. The standalone "Catalog" tab is retained for users who
+          want a focused, lobbies-free view of just the official tree. */}
       <nav className="surface-glass flex flex-wrap overflow-x-auto px-1 py-1 text-sm">
         {(
           [
-            ["lobbies", "🛋️ Lobbies"],
+            ["lobbies", "🛋️ Lobbies + Rooms"],
             ...(showCatalogTab
-              ? ([["catalog", "📚 Catalog"]] as const)
+              ? ([["catalog", "📚 Catalog only"]] as const)
               : ([] as const)),
             ["rooms",   "🏠 Student rooms"],
             ["beacons", "🆘 Help Beacons"],
@@ -189,6 +192,17 @@ export function StudentsHome({
           {tab === "lobbies" && (
             <div className="space-y-5">
               <StudentsLobbies />
+              {showCatalogTab && (
+                <CategoryBrowser
+                  categories={catalogCats}
+                  subcategories={catalogSubs}
+                  hideUserTab
+                  title="📚 Karochat student rooms"
+                  totalsHint={(c, t) =>
+                    `${c} categories · ${t} official rooms`
+                  }
+                />
+              )}
               <CreateStudentRoom
                 hint="Open a new student room and invite your study group. You'll get text, voice, video, screen-share, whiteboard, and the teaching kit."
               />
