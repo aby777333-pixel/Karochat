@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Logo, Wordmark } from "@/components/Brand";
 import { StudentsHome } from "./StudentsHome";
 import { VerificationGate } from "./VerificationGate";
+import { AdRails } from "@/components/AdRails";
 import type { Category, Subcategory } from "@/app/rooms/CategoryBrowser";
 
 export const dynamic = "force-dynamic";
@@ -58,6 +59,7 @@ export default async function StudentsPage() {
   }
 
   return (
+    <AdRails>
     <main className="mx-auto flex min-h-[100dvh] max-w-6xl flex-col px-3 py-6 md:py-8">
       <header className="surface-glass flex items-center justify-between gap-3 px-4 py-3">
         <Link href="/rooms" className="flex items-center gap-2">
@@ -123,5 +125,6 @@ export default async function StudentsPage() {
         </p>
       </footer>
     </main>
+    </AdRails>
   );
 }
