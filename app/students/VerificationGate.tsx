@@ -1,9 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import {
+  DIAL_CODES,
+  dialCodeForIso,
+  dialCodeLabel,
+  type DialCodeEntry
+} from "@/lib/dialCodes";
 
 type Existing = {
   id: string;
@@ -219,7 +225,10 @@ export function VerificationGate({
   const [method, setMethod] = useState("guardian_consent");
   const [eduEmail, setEduEmail] = useState("");
   const [guardianEmail, setGuardianEmail] = useState("");
-  const [guardianPhone, setGuardianPhone] = useState("");
+  // Guardian phone is split into a dial-code picker + the local number.
+  // We combine them as `+<code> <number>` on submit.
+  const [dialIso, setDialIso] = useState<string>(existing?.country ?? "IN");
+  const [guardianPhoneLocal, setGuardianPhoneLocal] = useState("");
   const [subjects, setSubjects] = useState<string[]>(
     existing?.subject_affinities ?? []
   );
@@ -229,6 +238,40 @@ export function VerificationGate({
   // After a successful submit we flip this so the user gets immediate
   // feedback even before router.refresh() rehydrates the server props.
   const [submitted, setSubmitted] = useState(false);
+  // Geo defaults — fetched from /api/geo on mount so first-time visitors
+  // get their own country pre-selected in both the COUNTRY select and
+  // the dial-code picker. Skipped when the user already has a saved
+  // verification (their stored values win).
+  useEffect(() => {
+    if (existing) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const resp = await fetch("/api/geo", { cache: "no-store" });
+        if (!resp.ok) return;
+        const data = (await resp.json()) as { country?: string | null };
+        const detected = data.country?.toUpperCase();
+        if (cancelled || !detected) return;
+        // Only seed if the user hasn't already picked something themselves.
+        setCountry((cur) => (cur === "IN" ? detected : cur));
+        setDialIso((cur) => (cur === "IN" ? detected : cur));
+      } catch {
+        // Geo is best-effort; navigator.language is the final fallback.
+        try {
+          const lang = (navigator.language ?? "").split("-")[1]?.toUpperCase();
+          if (lang && lang.length === 2) {
+            setCountry((cur) => (cur === "IN" ? lang : cur));
+            setDialIso((cur) => (cur === "IN" ? lang : cur));
+          }
+        } catch {
+          // ignore
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [existing]);
 
   function toggleSubject(s: string) {
     setSubjects((prev) =>
@@ -245,11 +288,19 @@ export function VerificationGate({
     setErr(null);
     try {
       if (!dob) throw new Error("Date of birth is required.");
+      // Compose E.164 guardian phone from picker + local number.
+      const dialEntry = dialCodeForIso(dialIso);
+      const cleanedLocal = guardianPhoneLocal.replace(/[^\d]/g, "");
+      const fullGuardianPhone =
+        dialEntry && cleanedLocal
+          ? `+${dialEntry.code}${cleanedLocal}`
+          : "";
       const meta: Record<string, any> = {};
       if (method === "edu_email") meta.edu_email = eduEmail;
       if (method === "guardian_consent") {
         meta.guardian_email = guardianEmail;
-        meta.guardian_phone = guardianPhone;
+        meta.guardian_phone = fullGuardianPhone;
+        meta.guardian_phone_iso = dialIso;
       }
       const { error } = await supabase.rpc("start_verification", {
         p_country: country,
@@ -262,7 +313,7 @@ export function VerificationGate({
         p_guardian_email:
           method === "guardian_consent" ? guardianEmail : null,
         p_guardian_phone:
-          method === "guardian_consent" ? guardianPhone : null,
+          method === "guardian_consent" ? fullGuardianPhone : null,
         p_dob: dob
       });
       if (error) throw error;
@@ -504,13 +555,45 @@ export function VerificationGate({
               <label className="block text-[11px] uppercase tracking-widest text-white/50">
                 Parent / guardian phone
               </label>
-              <input
-                type="tel"
-                value={guardianPhone}
-                onChange={(e) => setGuardianPhone(e.target.value.slice(0, 30))}
-                placeholder="+91 98xxxxxxxx"
-                className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none focus:border-neon-mint/40"
-              />
+              <div className="mt-1 flex gap-1.5">
+                <select
+                  value={dialIso}
+                  onChange={(e) => setDialIso(e.target.value)}
+                  aria-label="Country dial code"
+                  title={(() => {
+                    const d = dialCodeForIso(dialIso);
+                    return d ? `${d.flag} +${d.code} ${d.name}` : "Country code";
+                  })()}
+                  className="w-[6.5rem] shrink-0 truncate rounded-xl border border-white/10 bg-black/30 px-2 py-2 text-sm text-white outline-none focus:border-neon-mint/40"
+                >
+                  {DIAL_CODES.map((d) => (
+                    <option key={d.iso} value={d.iso}>
+                      {dialCodeLabel(d)}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel-national"
+                  value={guardianPhoneLocal}
+                  onChange={(e) =>
+                    setGuardianPhoneLocal(e.target.value.slice(0, 20))
+                  }
+                  placeholder="98xxxxxxxx"
+                  className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none focus:border-neon-mint/40"
+                />
+              </div>
+              {(() => {
+                const d = dialCodeForIso(dialIso);
+                const cleaned = guardianPhoneLocal.replace(/[^\d]/g, "");
+                if (!d || !cleaned) return null;
+                return (
+                  <p className="mt-1 text-[11px] text-white/45">
+                    Will send to <span className="font-mono">+{d.code} {cleaned}</span>
+                  </p>
+                );
+              })()}
             </div>
             <p className="sm:col-span-2 mt-0 text-[11px] text-white/45">
               We send a one-time consent link to <em>both</em> email and phone.
