@@ -326,40 +326,48 @@ export function VerificationGate({
     }
   }
 
-  if (submitted || existing?.status === "pending") {
-    // submitted may fire before the router.refresh() rehydrates the
-    // server props with the new verification row, so existing can still
-    // be null for a beat — fall back to the values we already have on
-    // the form (everything in this branch came from user input).
-    const isMinorView = existing?.is_minor ?? (
-      dob ? (new Date().getFullYear() - new Date(dob).getFullYear()) < 18 : false
+  if (submitted) {
+    // Auto-approval path (migration 0038): start_verification now sets
+    // status='verified' immediately, so the server-side render will
+    // re-mount the parent with the full StudentsHome the moment
+    // router.refresh() lands. Show a short "you're in" panel during
+    // the in-between beat.
+    return (
+      <section className="surface-glass tint-mint mt-6 p-7 sm:p-9">
+        <p className="text-[10px] uppercase tracking-widest text-neon-mint/80">
+          ✓ Verified — welcome to the Students Network
+        </p>
+        <h2 className="mt-1 font-display text-2xl font-semibold text-white">
+          You&apos;re in. Loading your area…
+        </h2>
+        <p className="mt-2 text-sm text-white/70">
+          Lobbies, the catalog, student rooms, Help Beacons, and the
+          teaching kit are unlocking now. If this screen doesn&apos;t flip
+          in a few seconds, refresh the page.
+        </p>
+      </section>
     );
-    const guardianFlow = method === "guardian_consent";
+  }
+
+  if (existing?.status === "pending") {
+    // Defensive fallback — current migrations auto-approve so this
+    // branch only fires for legacy rows created before Wave 20.6.
     return (
       <section className="surface-glass tint-amber mt-6 p-7 sm:p-9">
         <p className="text-[10px] uppercase tracking-widest text-neon-amber/70">
-          ✓ Submission received · verification pending
+          ⏳ Verification pending
         </p>
         <h2 className="mt-1 font-display text-2xl font-semibold text-white">
-          {guardianFlow
-            ? "We've sent your guardian a consent link."
-            : "We're reviewing your verification."}
+          We&apos;re reviewing your verification.
         </h2>
         <p className="mt-2 text-sm text-white/70">
-          {guardianFlow || isMinorView
-            ? "Because you're under 18, we wait for your guardian's consent. They got an email + a text — once they tap the link, your verification activates automatically."
+          {existing.is_minor
+            ? "Because you're under 18, we also wait for your guardian's consent."
             : "Edu-email codes verify instantly. ID and result uploads take up to 6 hours."}
         </p>
         <p className="mt-3 text-[11px] text-white/45">
-          Country: {existing?.country ?? country} · Level:{" "}
-          {existing?.education_level ?? level}
-          {(existing?.syllabus ?? syllabus)
-            ? ` · ${existing?.syllabus ?? syllabus}`
-            : ""}
-        </p>
-        <p className="mt-3 text-[11px] text-white/45">
-          You can leave this page — we&apos;ll surface a notification when
-          your verification activates.
+          Country: {existing.country} · Level: {existing.education_level}
+          {existing.syllabus ? ` · ${existing.syllabus}` : ""}
         </p>
       </section>
     );
