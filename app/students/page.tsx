@@ -5,6 +5,7 @@ import { Logo, Wordmark } from "@/components/Brand";
 import { StudentsHome } from "./StudentsHome";
 import { VerificationGate } from "./VerificationGate";
 import { AdRails } from "@/components/AdRails";
+import { AccountMenu } from "@/components/AccountMenu";
 import type { Category, Subcategory } from "@/app/rooms/CategoryBrowser";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +23,7 @@ export default async function StudentsPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, username, display_name, terms_accepted_at")
+    .select("id, username, display_name, avatar_url, privacy_mode, terms_accepted_at")
     .eq("id", user.id)
     .maybeSingle();
   if (!profile?.username) redirect("/onboarding");
@@ -66,13 +67,32 @@ export default async function StudentsPage() {
           <Logo className="h-6 w-6" />
           <Wordmark className="text-lg" />
         </Link>
-        <div className="flex items-center gap-2 text-xs">
+        <div className="flex items-center gap-2 text-xs md:gap-3">
+          <Link
+            href="/books"
+            className="rounded-lg border border-neon-blue/40 bg-neon-blue/10 px-3 py-1.5 text-neon-blue hover:bg-neon-blue/20"
+          >
+            📚 Books
+          </Link>
           <Link
             href="/rooms"
             className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-white/80 hover:bg-white/10 hover:text-white"
           >
             ← Rooms
           </Link>
+          <AccountMenu
+            username={profile.username as string}
+            displayName={profile.display_name as string | null}
+            avatarUrl={(profile as any).avatar_url ?? null}
+            initialPrivacyMode={
+              ((profile as any).privacy_mode as
+                | "open"
+                | "friends_only"
+                | "invisible"
+                | "decoy"
+                | "stealth") ?? "open"
+            }
+          />
         </div>
       </header>
 

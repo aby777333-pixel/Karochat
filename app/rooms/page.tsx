@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Logo, Wordmark } from "@/components/Brand";
 import { SignOutButton } from "@/components/SignOutButton";
+import { AccountMenu } from "@/components/AccountMenu";
 import { AdRails } from "@/components/AdRails";
 import { RoomsClient } from "./RoomsClient";
 import { SavedRoomButton } from "./SavedRoomButton";
@@ -56,7 +57,7 @@ export default async function RoomsPage({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, username, display_name, terms_accepted_at")
+    .select("id, username, display_name, avatar_url, privacy_mode, terms_accepted_at")
     .eq("id", user.id)
     .maybeSingle();
   if (!profile?.username) redirect("/onboarding");
@@ -200,6 +201,13 @@ export default async function RoomsPage({
           </Link>
           <div className="flex items-center gap-2 text-xs md:gap-3">
             <Link
+              href="/books"
+              className="rounded-lg border border-neon-blue/40 bg-neon-blue/10 px-3 py-1.5 text-neon-blue hover:bg-neon-blue/20"
+              title="Books — global library (Phase 2)"
+            >
+              📚 Books
+            </Link>
+            <Link
               href="/students"
               className="rounded-lg border border-neon-mint/40 bg-neon-mint/10 px-3 py-1.5 text-neon-mint hover:bg-neon-mint/20"
               title="Students Network — verified peer learning"
@@ -212,11 +220,19 @@ export default async function RoomsPage({
             >
               🎬 Shorts
             </Link>
-            <div className="hidden text-right text-xs md:block">
-              <p className="text-white">{profile.display_name}</p>
-              <p className="text-white/40">@{profile.username}</p>
-            </div>
-            <SignOutButton />
+            <AccountMenu
+              username={profile.username as string}
+              displayName={profile.display_name as string | null}
+              avatarUrl={(profile as any).avatar_url ?? null}
+              initialPrivacyMode={
+                ((profile as any).privacy_mode as
+                  | "open"
+                  | "friends_only"
+                  | "invisible"
+                  | "decoy"
+                  | "stealth") ?? "open"
+              }
+            />
           </div>
         </header>
 
