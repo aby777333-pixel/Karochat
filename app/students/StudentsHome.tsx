@@ -12,6 +12,7 @@ import { HelperSidebar } from "./HelperSidebar";
 import { StudentsLobbies } from "./StudentsLobbies";
 import { StudentRoomsBrowser } from "./StudentRoomsBrowser";
 import { CreateStudentRoom } from "./CreateStudentRoom";
+import { VerificationGate } from "./VerificationGate";
 import {
   CategoryBrowser,
   type Category,
@@ -40,20 +41,29 @@ export type Verif = {
   expires_at: string | null;
 } | null;
 
-type TabId = "lobbies" | "catalog" | "rooms" | "beacons" | "kit" | "network";
+type TabId =
+  | "lobbies"
+  | "catalog"
+  | "rooms"
+  | "beacons"
+  | "kit"
+  | "network"
+  | "verify";
 
 export function StudentsHome({
   currentUserId,
   verification,
   catalogCategories,
-  catalogSubcategories
+  catalogSubcategories,
+  initialTab
 }: {
   currentUserId: string;
   verification: Verif;
   catalogCategories?: Category[];
   catalogSubcategories?: Subcategory[];
+  initialTab?: TabId;
 }) {
-  const [tab, setTab] = useState<TabId>("lobbies");
+  const [tab, setTab] = useState<TabId>(initialTab ?? "lobbies");
   // Wave 20.1 — show the official student catalog (subjects, exams,
   // cohorts, discussion). We exclude the 'students' category itself
   // because its rooms are already surfaced by the Lobbies tab + the
@@ -113,11 +123,10 @@ export function StudentsHome({
         </div>
         <div className="flex items-center gap-2">
           {!isVerified && (
-            <Link
-              href="#verify"
-              onClick={(e) => {
-                e.preventDefault();
-                setTab("beacons");
+            <button
+              type="button"
+              onClick={() => {
+                setTab("verify");
                 queueMicrotask(() =>
                   document.getElementById("verify-card")?.scrollIntoView({
                     behavior: "smooth",
@@ -128,7 +137,7 @@ export function StudentsHome({
               className="rounded-xl border border-neon-mint/40 bg-neon-mint/10 px-3 py-1.5 text-xs font-semibold text-neon-mint hover:bg-neon-mint/20"
             >
               🎓 Get verified
-            </Link>
+            </button>
           )}
           {isVerified && (
             <button
@@ -153,7 +162,10 @@ export function StudentsHome({
             ["rooms",   "🏠 Student rooms"],
             ["beacons", "🆘 Help Beacons"],
             ["kit",     "🧰 Teaching kit"],
-            ["network", "👥 Network"]
+            ["network", "👥 Network"],
+            ...(isVerified
+              ? ([] as const)
+              : ([["verify", "🎓 Verify"]] as const))
           ] as const
         ).map(([id, label]) => (
           <button
@@ -183,18 +195,39 @@ export function StudentsHome({
             </div>
           )}
           {tab === "catalog" && showCatalogTab && (
-            <CategoryBrowser
-              categories={catalogCats}
-              subcategories={catalogSubs}
-              hideUserTab
-              title="Browse student rooms"
-              totalsHint={(c, t) => `${c} categories · ${t} rooms`}
-            />
+            isVerified ? (
+              <CategoryBrowser
+                categories={catalogCats}
+                subcategories={catalogSubs}
+                hideUserTab
+                title="Browse student rooms"
+                totalsHint={(c, t) => `${c} categories · ${t} rooms`}
+              />
+            ) : (
+              <VerifyCallout
+                onOpenVerify={() => setTab("verify")}
+                title="The Karochat student catalog is verified-only"
+                body="Subject rooms (AP, IB, A-Level, CBSE…), exam rooms (JEE, NEET, USMLE…), and university cohort rooms unlock once you verify as a student or educator. The common lobbies and the user-created student rooms above stay open to everyone."
+              />
+            )
           )}
           {tab === "rooms" && (
             <div className="space-y-5">
-              <CreateStudentRoom />
+              {isVerified ? (
+                <CreateStudentRoom />
+              ) : (
+                <VerifyCallout
+                  onOpenVerify={() => setTab("verify")}
+                  title="Verify to create student rooms"
+                  body="Any verified student or educator can spin up a study room and invite friends. Browsing + joining the existing rooms below stays open to everyone."
+                />
+              )}
               <StudentRoomsBrowser />
+            </div>
+          )}
+          {tab === "verify" && !isVerified && (
+            <div id="verify-card">
+              <VerificationGate existing={null} currentUserId={currentUserId} />
             </div>
           )}
           {tab === "beacons" && (
@@ -203,6 +236,7 @@ export function StudentsHome({
               subjects={verification?.subject_affinities ?? []}
               isVerified={isVerified}
               verification={verification}
+              onOpenVerify={() => setTab("verify")}
             />
           )}
           {tab === "kit" && <TeachingKitTab />}
@@ -256,13 +290,16 @@ function BeaconsTab({
   currentUserId,
   subjects,
   isVerified,
-  verification
+  verification,
+  onOpenVerify
 }: {
   currentUserId: string;
   subjects: string[];
   isVerified: boolean;
   verification: Verif;
+  onOpenVerify: () => void;
 }) {
+  void verification;
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [beacons, setBeacons] = useState<any[]>([]);
   const [loading, setLoading] = useState(isVerified);
@@ -331,14 +368,14 @@ function BeaconsTab({
           <li>🛡️ A subject badge on your profile (Student / Senior / Educator / Professor)</li>
         </ul>
         <div className="mt-5">
-          <Link
-            href="/students?gate=open#verify-card"
+          <button
+            type="button"
+            onClick={onOpenVerify}
             className="inline-flex items-center gap-2 rounded-xl bg-neon-mint px-4 py-2 text-sm font-semibold text-ink-900 shadow-glow hover:bg-neon-mint/90"
           >
             Start verification →
-          </Link>
+          </button>
         </div>
-        <VerificationInlineGate currentUserId={currentUserId} />
       </section>
     );
   }
@@ -359,14 +396,6 @@ function BeaconsTab({
       ))}
     </ul>
   );
-}
-
-function VerificationInlineGate({ currentUserId }: { currentUserId: string }) {
-  // For now, point to the existing /students?gate=open server-side flow
-  // and keep this lightweight. The page's URL search params get noticed by
-  // the parent server component when ?gate=open is set, which we re-use to
-  // show the existing VerificationGate card.
-  return null;
 }
 
 function TeachingKitTab() {
@@ -450,6 +479,40 @@ function NetworkTab({ currentUserId }: { currentUserId: string }) {
         Network surfaces unlock once you&apos;ve participated in 1+ Help
         Beacon session.
       </p>
+    </section>
+  );
+}
+
+function VerifyCallout({
+  title,
+  body,
+  onOpenVerify
+}: {
+  title: string;
+  body: string;
+  onOpenVerify: () => void;
+}) {
+  return (
+    <section className="surface-glass tint-mint p-6">
+      <h3 className="font-display text-lg font-semibold text-white">
+        🎓 {title}
+      </h3>
+      <p className="mt-2 text-sm leading-relaxed text-white/75">{body}</p>
+      <ul className="mt-3 space-y-1 text-sm text-white/75">
+        <li>📚 Subject + exam + cohort rooms (200+ catalog rooms)</li>
+        <li>🆘 Fire and answer Help Beacons</li>
+        <li>🛡️ A subject badge on your profile (Student / Senior / Educator / Professor)</li>
+        <li>📅 Office hours (verified educators only)</li>
+      </ul>
+      <div className="mt-5">
+        <button
+          type="button"
+          onClick={onOpenVerify}
+          className="inline-flex items-center gap-2 rounded-xl bg-neon-mint px-4 py-2 text-sm font-semibold text-ink-900 shadow-glow hover:bg-neon-mint/90"
+        >
+          Start verification →
+        </button>
+      </div>
     </section>
   );
 }

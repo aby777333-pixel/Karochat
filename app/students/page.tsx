@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Logo, Wordmark } from "@/components/Brand";
-import { VerificationGate } from "./VerificationGate";
 import { StudentsHome } from "./StudentsHome";
 import type { Category, Subcategory } from "@/app/rooms/CategoryBrowser";
 
@@ -38,7 +37,7 @@ export default async function StudentsPage({
   // CTA when a user actually wants to start verification.
   const { data: verif } = await supabase.rpc("get_my_verification");
   const v = Array.isArray(verif) ? verif[0] : null;
-  const showGate = searchParams?.gate === "open";
+  const initialTab = searchParams?.gate === "open" ? "verify" : undefined;
 
   // Wave 20.1 — pull every student-related category + its subcategories
   // (slug starts with 'students') so the Students area can host the
@@ -91,17 +90,12 @@ export default async function StudentsPage({
         </p>
       </section>
 
-      {showGate && (
-        <div id="verify-card" className="mt-6">
-          <VerificationGate existing={v} currentUserId={profile.id} />
-        </div>
-      )}
-
       <StudentsHome
         currentUserId={profile.id}
         verification={v ?? null}
         catalogCategories={studentCategories}
         catalogSubcategories={studentSubcategories}
+        initialTab={initialTab}
       />
 
       <footer className="mt-10 space-y-1 text-center text-[11px] text-white/30">
