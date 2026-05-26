@@ -1,17 +1,22 @@
 "use client";
 
-// Karochat — Book detail + pop-up reader + report modal (v9 Phase 2).
+// Karochat — Book detail + pop-up reader + report modal (v9 Phase 2,
+// extended in Phase 2.1 with EPUB reader, OpenLibrary/Gutenberg
+// cross-reference, and a Karo "explain a passage" panel).
 //
-// The reader uses an iframe to the browser's native PDF viewer (with a
-// signed URL from Supabase Storage). EPUB/MOBI fall back to download.
-// Per-paragraph translate / explain / TTS land in a later phase once
-// PDF.js + Karo integrations come online.
+// PDF: native browser viewer in an iframe (unchanged from Phase 2).
+// EPUB: epubjs-powered inline reader (Phase 2.1).
+// MOBI: still falls back to download — MOBI inline rendering is
+// browser-hostile; will land with a server-side mobi→epub convert step.
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { EpubReader } from "./EpubReader";
+import { ExternalRefsPanel } from "./ExternalRefsPanel";
+import { ExplainPanel } from "./ExplainPanel";
 
 type Book = {
   id: string;
@@ -75,6 +80,8 @@ export function BookDetail({
   }
 
   const isPdf = book.format === "pdf";
+  const isEpub = book.format === "epub";
+  const canOpenInline = isPdf || isEpub;
   const sizeMb = book.file_size_bytes
     ? (book.file_size_bytes / (1024 * 1024)).toFixed(2)
     : null;
@@ -194,14 +201,30 @@ export function BookDetail({
             </p>
           )}
 
-          {!isPdf && book.can_read && (
+          {!canOpenInline && book.can_read && (
             <p className="mt-3 text-[11px] text-white/45">
-              EPUB / MOBI in-app reader lands in a follow-up phase — for now,
-              download and open in your e-reader of choice.
+              In-app MOBI reader hasn&apos;t landed yet — for now, download and
+              open in your e-reader of choice.
             </p>
           )}
         </div>
       </section>
+
+      {book.can_read && (
+        <>
+          <ExternalRefsPanel title={book.title} author={book.author} />
+          <ExplainPanel bookTitle={book.title} bookAuthor={book.author} />
+        </>
+      )}
+
+      {readerOpen && signedUrl && isEpub && (
+        <EpubReader
+          bookId={book.id}
+          fileUrl={signedUrl}
+          title={book.title}
+          onClose={() => setReaderOpen(false)}
+        />
+      )}
 
       {readerOpen && signedUrl && isPdf &&
         typeof document !== "undefined" &&
