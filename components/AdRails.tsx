@@ -1,15 +1,16 @@
 import clsx from "clsx";
-import Image from "next/image";
-import Link from "next/link";
 
 /**
  * Adds left + right ad rails around the main content. Visible only on xl+
  * screens so phones and tablets keep the full chat width. Each rail is a
  * sticky 200px column with one tall (~200×600) slot and one short (~200×250)
- * slot, in a checker pattern: white-dark on the left, dark-white on the right.
+ * slot.
+ *
+ * Slots are currently EMPTY — sponsor content was cleared per owner request
+ * 2026-05-26. The layout / dimensions / aria are preserved so future creatives
+ * can be re-added by populating <SponsorSlot src=... alt=... href=... /> (see
+ * the legacy snippet in this file's git history, commit prior to 06ab4ab).
  */
-
-const AD_LINK = "https://www.ghlindiaventures.com";
 
 export function AdRails({
   children,
@@ -27,70 +28,32 @@ export function AdRails({
     >
       <aside
         className="sticky top-4 hidden h-[100dvh] w-[200px] shrink-0 flex-col gap-3 py-4 xl:flex"
-        aria-label="Sponsor"
+        aria-label="Sponsor slot (left rail)"
       >
-        <AdSlot
-          tall
-          src="/ads/ghl-1.png"
-          alt="GHL India Ventures — strategic capital for HNIs"
-        />
-        <AdSlot
-          src="/ads/gioraptor-1.png"
-          alt="GIO RAPTOR — AI-powered brokerage infrastructure"
-        />
+        <EmptySlot tall />
+        <EmptySlot />
       </aside>
       <div className="min-w-0 flex-1">{children}</div>
       <aside
         className="sticky top-4 hidden h-[100dvh] w-[200px] shrink-0 flex-col gap-3 py-4 xl:flex"
-        aria-label="Sponsor"
+        aria-label="Sponsor slot (right rail)"
       >
-        <AdSlot
-          tall
-          src="/ads/gioraptor-2.png"
-          alt="GIO RAPTOR — modern markets, smarter infrastructure"
-        />
-        <AdSlot
-          src="/ads/ghl-2.png"
-          alt="GHL India Ventures — structure creates confidence"
-        />
+        <EmptySlot tall />
+        <EmptySlot />
       </aside>
     </div>
   );
 }
 
-function AdSlot({
-  src,
-  alt,
-  tall
-}: {
-  src: string;
-  alt: string;
-  tall?: boolean;
-}) {
+function EmptySlot({ tall }: { tall?: boolean }) {
   return (
-    <Link
-      href={AD_LINK}
-      target="_blank"
-      rel="sponsored noopener noreferrer"
-      title={alt}
-      aria-label={alt}
+    <div
+      aria-hidden="true"
       className={clsx(
-        "relative block w-full overflow-hidden rounded-2xl border border-white/10 bg-black/40 shadow-lg transition hover:border-white/20",
+        "relative block w-full overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]",
         // Roughly match the canonical 200×600 / 200×250 split (~12:5).
         tall ? "flex-[12_1_0%]" : "flex-[5_1_0%]"
       )}
-    >
-      <Image
-        src={src}
-        alt={alt}
-        fill
-        sizes="200px"
-        className="object-cover"
-        priority={tall}
-      />
-      <span className="pointer-events-none absolute bottom-1 right-1 rounded bg-black/55 px-1 text-[8px] uppercase tracking-widest text-white/55 backdrop-blur">
-        ad
-      </span>
-    </Link>
+    />
   );
 }
