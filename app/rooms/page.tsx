@@ -208,6 +208,13 @@ export default async function RoomsPage({
               📚 Books
             </Link>
             <Link
+              href="/sexed"
+              className="rounded-lg border border-neon-mint/40 bg-neon-mint/10 px-3 py-1.5 text-neon-mint hover:bg-neon-mint/20"
+              title="Sex education — age-tiered, queer-affirming (Phase 3)"
+            >
+              💞 Sex ed
+            </Link>
+            <Link
               href="/students"
               className="rounded-lg border border-neon-mint/40 bg-neon-mint/10 px-3 py-1.5 text-neon-mint hover:bg-neon-mint/20"
               title="Students Network — verified peer learning"
