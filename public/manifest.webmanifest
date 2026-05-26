@@ -1,14 +1,64 @@
 {
   "name": "Karochat",
   "short_name": "Karochat",
-  "description": "Meet your mate, chat, make friends. Realtime cross-platform messaging.",
-  "start_url": "/",
+  "description": "Free, anon-friendly, identity-affirming chat. Rooms, DMs, voice + video, books, sex ed, and Karo AI — all in one app.",
+  "start_url": "/rooms",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#0A0A0A",
-  "theme_color": "#0A0A0A",
-  "orientation": "any",
+  "display_override": ["standalone", "minimal-ui"],
+  "background_color": "#0b0c0f",
+  "theme_color": "#0b0c0f",
+  "orientation": "portrait",
+  "categories": ["social", "communication", "lifestyle"],
+  "lang": "en",
+  "dir": "ltr",
   "icons": [
     { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
-    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+    { "src": "/icons/icon-48.webp", "sizes": "48x48", "type": "image/webp", "purpose": "any" },
+    { "src": "/icons/icon-72.webp", "sizes": "72x72", "type": "image/webp", "purpose": "any" },
+    { "src": "/icons/icon-96.webp", "sizes": "96x96", "type": "image/webp", "purpose": "any" },
+    { "src": "/icons/icon-128.webp", "sizes": "128x128", "type": "image/webp", "purpose": "any" },
+    { "src": "/icons/icon-192.webp", "sizes": "192x192", "type": "image/webp", "purpose": "any" },
+    { "src": "/icons/icon-256.webp", "sizes": "256x256", "type": "image/webp", "purpose": "any" },
+    { "src": "/icons/icon-512.webp", "sizes": "512x512", "type": "image/webp", "purpose": "any" },
+    { "src": "/icons/icon-512.webp", "sizes": "512x512", "type": "image/webp", "purpose": "maskable" },
+    { "src": "/icons/icon-1024.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Rooms",
+      "short_name": "Rooms",
+      "url": "/rooms",
+      "icons": [{ "src": "/icons/icon-192.webp", "sizes": "192x192" }]
+    },
+    {
+      "name": "Sex ed",
+      "short_name": "Sex ed",
+      "url": "/sexed",
+      "icons": [{ "src": "/icons/icon-192.webp", "sizes": "192x192" }]
+    },
+    {
+      "name": "Books",
+      "short_name": "Books",
+      "url": "/books",
+      "icons": [{ "src": "/icons/icon-192.webp", "sizes": "192x192" }]
+    },
+    {
+      "name": "Students",
+      "short_name": "Students",
+      "url": "/students",
+      "icons": [{ "src": "/icons/icon-192.webp", "sizes": "192x192" }]
+    }
+  ],
+  "prefer_related_applications": false,
+  "related_applications": [
+    {
+      "platform": "play",
+      "id": "com.karochat.app"
+    },
+    {
+      "platform": "itunes",
+      "url": "https://apps.apple.com/app/karochat/id000000000"
+    }
   ]
 }

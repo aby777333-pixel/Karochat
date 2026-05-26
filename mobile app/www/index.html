@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#0b0c0f" />
+    <title>Karochat</title>
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100vw;
+        height: 100vh;
+        background: #0b0c0f;
+        color: #e8eaed;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        overscroll-behavior: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .wrap { padding: 24px; max-width: 360px; }
+      h1 { font-size: 22px; margin: 12px 0 8px; letter-spacing: 0.5px; }
+      p { font-size: 13.5px; line-height: 1.55; color: rgba(255,255,255,0.7); margin: 0 0 16px; }
+      .pulse {
+        display: inline-block;
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+        background: linear-gradient(135deg, #5eead4, #38bdf8);
+        box-shadow: 0 8px 24px rgba(94, 234, 212, 0.25);
+        animation: pulse 1.6s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); opacity: 0.85; }
+        50% { transform: scale(1.07); opacity: 1; }
+      }
+      .retry {
+        display: inline-block;
+        margin-top: 12px;
+        padding: 10px 18px;
+        border-radius: 12px;
+        background: rgba(255,255,255,0.08);
+        color: #e8eaed;
+        font-size: 13px;
+        text-decoration: none;
+        border: 1px solid rgba(255,255,255,0.15);
+      }
+      .retry:active { transform: scale(0.98); }
+      .small { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 22px; }
+    </style>
+  </head>
+  <body>
+    <!--
+      Offline / pre-load shell. Capacitor will replace this in-memory with
+      the production app on first paint. The HTML here only ever shows
+      when the device has no network at launch.
+
+      The retry button reloads the WebView, which triggers Capacitor's
+      server.url fetch again.
+    -->
+    <div class="wrap">
+      <div class="pulse" aria-hidden="true"></div>
+      <h1>Karochat</h1>
+      <p id="status">Connecting to Karochat…</p>
+      <p class="small">If this screen stays up, you may be offline. Karochat needs network to load chat, rooms, and the library.</p>
+      <a class="retry" href="javascript:location.reload()">Retry</a>
+      <p class="small">v1.0.0</p>
+    </div>
+    <script>
+      // Best-effort: if the device is offline, surface that in the status
+      // copy. Online or not, Capacitor will swap this view with the live
+      // app within ~1.5s on a good network.
+      function refresh() {
+        var s = document.getElementById('status');
+        if (s) {
+          s.textContent = navigator.onLine
+            ? 'Connecting to Karochat…'
+            : "You're offline — connect to Wi-Fi or mobile data.";
+        }
+      }
+      window.addEventListener('online', refresh);
+      window.addEventListener('offline', refresh);
+      refresh();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>Karochat</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
+	<key>UIRequiredDeviceCapabilities</key>
+	<array>
+		<string>armv7</string>
+	</array>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<true/>
+
+	<!-- Karochat — privacy usage descriptions. App Store reviewers reject
+	     builds that ask for a permission without explaining WHY. Keep
+	     these honest and specific. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Karochat uses the camera when you tap "📷" in a chat to send a photo, or when a room is using video. You can deny — image uploads will still work from your library.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Karochat asks to pick photos from your library when you attach an image to a chat or post a story.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Karochat saves a chat receipt or story to your library when you tap "Save image".</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Karochat uses the microphone for voice notes (Wave 18) and voice/video rooms. You can deny — text chat still works.</string>
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>Karochat sends a push when you get a DM, room mention, friend request, or Karo reply. You can turn this off in iOS Settings.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Karochat uses your local network when you place a voice or video call so it can find the lowest-latency route.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Karochat uses Bluetooth so you can route call audio to your earphones or car kit.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Karochat uses Bluetooth so you can route call audio to your earphones or car kit.</string>
+
+	<!-- App-bound domains lock the WebView to the production host. Lifts
+	     iOS 14+ restrictions on cookies/storage for trusted domains. -->
+	<key>WKAppBoundDomains</key>
+	<array>
+		<string>magical-heliotrope-e4d7df.netlify.app</string>
+		<string>karochat.com</string>
+	</array>
+
+	<!-- Background modes: push notifications + remote notifications. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+
+	<!-- App Transport Security: HTTPS only in release. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+
+	<!-- Encryption export compliance. Karochat uses standard HTTPS — no
+	     proprietary crypto — so it's exempt from export-control filings. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+
+	<!-- Custom URL scheme for deep links from emails / SMS / shares. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.karochat.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>karochat</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

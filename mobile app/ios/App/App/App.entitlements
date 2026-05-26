@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Push Notifications: APNs. The Xcode "Push Notifications"
+	     capability adds this key automatically — committed here so a
+	     fresh checkout doesn't need a manual Xcode step.
+	     Set to "development" for debug builds, "production" for App Store. -->
+	<key>aps-environment</key>
+	<string>development</string>
+
+	<!-- Associated Domains: lets Safari + Mail open karochat.com links
+	     in the app instead of the browser. Requires the matching
+	     /.well-known/apple-app-site-association file on the server. -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:magical-heliotrope-e4d7df.netlify.app</string>
+		<string>applinks:karochat.com</string>
+	</array>
+</dict>
+</plist>

@@ -1,0 +1,43 @@
+# Capacitor build artefacts and platform-managed files.
+# Source-of-truth lives in capacitor.config.ts + scripts/; the native
+# `android/` and `ios/` directories are regenerated from those.
+
+node_modules
+.DS_Store
+.env
+.env.*
+!.env.example
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/app/release/
+android/app/debug/
+android/local.properties
+android/.idea/
+android/.cxx/
+android/captures/
+android/app/google-services.json
+android/keystore.properties
+*.keystore
+*.jks
+
+# iOS
+ios/Pods/
+ios/App/build/
+ios/App/Pods/
+ios/DerivedData/
+ios/App/App.xcworkspace/xcuserdata/
+ios/App/App.xcodeproj/xcuserdata/
+ios/App/App/GoogleService-Info.plist
+ios/App/App/AuthKey_*.p8
+
+# Assets generation
+resources/.cache/
+
+# Bundle outputs for sharing the downloadable installer.
+dist/
+*.apk
+*.aab
+*.ipa

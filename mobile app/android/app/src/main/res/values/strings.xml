@@ -1,0 +1,13 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Karochat</string>
+    <string name="title_activity_main">Karochat</string>
+    <string name="package_name">com.karochat.app</string>
+    <string name="custom_url_scheme">karochat</string>
+
+    <!-- Default notification channel for FCM push messages. See
+         AndroidManifest <meta-data … default_notification_channel_id />. -->
+    <string name="default_notification_channel_id">karochat_default</string>
+    <string name="default_notification_channel_name">Karochat messages</string>
+    <string name="default_notification_channel_description">Direct messages, room mentions, friend requests, and Karo replies.</string>
+</resources>
