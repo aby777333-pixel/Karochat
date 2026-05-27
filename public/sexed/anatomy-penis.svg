@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="Labeled diagram of the penis and scrotum">
+  <style>
+    .stroke{fill:none;stroke:#c7d8f7;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+    .fine{fill:none;stroke:#c7d8f7;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round;opacity:.75}
+    .label{fill:#e6efff;font:14px ui-sans-serif,system-ui,sans-serif}
+    .small{fill:#9fb8ef;font:11px ui-sans-serif,system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase}
+    .lead{fill:none;stroke:#9fb8ef;stroke-width:1;opacity:.7}
+    .dot{fill:#9fb8ef}
+  </style>
+  <text x="20" y="30" class="small">Penis &amp; scrotum — external anatomy</text>
+  <!-- Shaft (horizontal) -->
+  <path class="stroke" d="M150 220 L 400 220 Q 420 220 420 200 L 420 180 Q 420 160 400 160 L 150 160 Q 130 160 130 180 L 130 200 Q 130 220 150 220 Z"/>
+  <!-- Glans -->
+  <path class="stroke" d="M400 158 Q 470 160 480 188 Q 470 222 400 222"/>
+  <!-- Coronal ridge -->
+  <path class="fine" d="M408 158 Q 412 190 408 222"/>
+  <!-- Frenulum mark (underside of glans) -->
+  <circle cx="450" cy="212" r="4" class="dot"/>
+  <!-- Urethral opening -->
+  <ellipse cx="478" cy="190" rx="3.5" ry="6" class="stroke"/>
+  <!-- Scrotum -->
+  <path class="stroke" d="M170 230 Q 130 290 170 340 Q 220 360 250 340 Q 280 360 330 340 Q 360 290 320 230"/>
+  <!-- Testes hint -->
+  <ellipse cx="205" cy="295" rx="22" ry="32" class="fine"/>
+  <ellipse cx="290" cy="295" rx="22" ry="32" class="fine"/>
+  <!-- Labels -->
+  <g class="lead">
+    <line x1="270" y1="190" x2="270" y2="100"/>
+    <line x1="410" y1="190" x2="500" y2="105"/>
+    <line x1="450" y1="212" x2="530" y2="270"/>
+    <line x1="478" y1="190" x2="555" y2="160"/>
+    <line x1="247" y1="335" x2="450" y2="370"/>
+    <line x1="402" y1="190" x2="500" y2="225"/>
+  </g>
+  <text x="200" y="92" class="label">Shaft (corpus cavernosum / spongiosum)</text>
+  <text x="505" y="100" class="label">Glans</text>
+  <text x="503" y="229" class="label">Coronal ridge</text>
+  <text x="540" y="280" class="label">Frenulum</text>
+  <text x="560" y="164" class="label">Urethra</text>
+  <text x="455" y="376" class="label">Scrotum / testes</text>
+  <text x="20" y="400" class="small">The frenulum + coronal ridge hold most of the nerve endings.</text>
+</svg>

@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="Cross-section showing prostate location relative to the rectum">
+  <style>
+    .stroke{fill:none;stroke:#f3c7d8;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+    .fine{fill:none;stroke:#f3c7d8;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round;opacity:.75}
+    .fill{fill:#f3c7d8;opacity:.18;stroke:#f3c7d8;stroke-width:1.5}
+    .label{fill:#fde7ee;font:14px ui-sans-serif,system-ui,sans-serif}
+    .small{fill:#e7a9bf;font:11px ui-sans-serif,system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase}
+    .lead{fill:none;stroke:#e7a9bf;stroke-width:1;opacity:.7}
+  </style>
+  <text x="20" y="30" class="small">Prostate — anatomy cross-section</text>
+  <!-- Body outline (side view, hip to thigh) -->
+  <path class="stroke" d="M60 90 C 110 80, 220 80, 300 110 C 360 140, 400 180, 420 230 C 440 290, 430 350, 380 380 L 240 380 C 220 350, 200 310, 180 280 C 160 250, 130 230, 90 220 C 60 210, 50 180, 60 150 Z"/>
+  <!-- Bladder -->
+  <ellipse cx="240" cy="180" rx="55" ry="40" class="fine"/>
+  <!-- Urethra path -->
+  <path class="fine" d="M240 220 Q 250 250 290 270 L 360 290"/>
+  <!-- Rectum (parallel canal behind the prostate) -->
+  <path class="stroke" d="M180 240 Q 240 270 320 290 Q 360 305 380 330"/>
+  <!-- Prostate (walnut-shaped, between bladder and rectum) -->
+  <ellipse cx="288" cy="252" rx="30" ry="22" class="fill"/>
+  <!-- Finger from rectum reaching prostate -->
+  <path class="fine" d="M380 330 Q 350 305 320 290 Q 310 282 305 273"/>
+  <text x="400" y="335" class="label">Finger / toy enters rectum →</text>
+  <!-- Labels -->
+  <g class="lead">
+    <line x1="240" y1="180" x2="120" y2="120"/>
+    <line x1="288" y1="252" x2="510" y2="220"/>
+    <line x1="280" y1="290" x2="510" y2="280"/>
+    <line x1="290" y1="270" x2="510" y2="150"/>
+  </g>
+  <text x="20" y="118" class="label">Bladder</text>
+  <text x="515" y="226" class="label">Prostate (~5–7 cm in,</text>
+  <text x="515" y="244" class="label">on the front wall)</text>
+  <text x="515" y="286" class="label">Rectum</text>
+  <text x="515" y="156" class="label">Urethra</text>
+  <text x="20" y="400" class="small">Curl finger "come here" — front wall, 5–7 cm in.</text>
+</svg>

@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 520" role="img" aria-label="Eight common sex positions, abstract line drawings">
+  <style>
+    .a{fill:none;stroke:#c7f7e3;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+    .b{fill:none;stroke:#c7d8f7;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+    .floor{fill:none;stroke:#888;stroke-width:1;opacity:.4;stroke-dasharray:4 4}
+    .label{fill:#e6fbf2;font:12px ui-sans-serif,system-ui,sans-serif;text-anchor:middle}
+    .title{fill:#9fe7c8;font:11px ui-sans-serif,system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;text-anchor:middle}
+  </style>
+  <text x="360" y="22" class="title">Common positions — abstract</text>
+
+  <!-- Tile 1: Missionary -->
+  <g transform="translate(0,40)">
+    <line class="floor" x1="20" y1="120" x2="180" y2="120"/>
+    <!-- bottom person on back -->
+    <circle class="a" cx="50" cy="90" r="10"/>
+    <path class="a" d="M60 95 L 150 115"/>
+    <path class="a" d="M105 102 L 110 130"/>
+    <path class="a" d="M150 115 L 165 95"/>
+    <!-- top person over -->
+    <circle class="b" cx="90" cy="60" r="10"/>
+    <path class="b" d="M100 65 L 145 80 Q 155 85 145 95"/>
+    <path class="b" d="M125 72 L 130 110"/>
+    <text x="100" y="160" class="label">Missionary</text>
+  </g>
+
+  <!-- Tile 2: Cowgirl (rider on top) -->
+  <g transform="translate(180,40)">
+    <line class="floor" x1="20" y1="120" x2="180" y2="120"/>
+    <circle class="a" cx="50" cy="100" r="10"/>
+    <path class="a" d="M60 105 L 160 115"/>
+    <path class="a" d="M120 110 L 130 65"/>
+    <circle class="b" cx="130" cy="50" r="10"/>
+    <path class="b" d="M130 60 L 130 95"/>
+    <path class="b" d="M130 75 L 105 85"/>
+    <path class="b" d="M130 75 L 155 85"/>
+    <text x="100" y="160" class="label">Cowgirl / rider on top</text>
+  </g>
+
+  <!-- Tile 3: Doggy -->
+  <g transform="translate(360,40)">
+    <line class="floor" x1="20" y1="120" x2="180" y2="120"/>
+    <circle class="a" cx="40" cy="90" r="10"/>
+    <path class="a" d="M50 95 L 110 90 L 110 115"/>
+    <path class="a" d="M50 95 L 50 115"/>
+    <circle class="b" cx="155" cy="80" r="10"/>
+    <path class="b" d="M155 90 L 130 95"/>
+    <path class="b" d="M150 90 L 165 115"/>
+    <path class="b" d="M150 90 L 140 115"/>
+    <text x="100" y="160" class="label">Doggy / from behind</text>
+  </g>
+
+  <!-- Tile 4: Spooning -->
+  <g transform="translate(540,40)">
+    <line class="floor" x1="20" y1="120" x2="180" y2="120"/>
+    <circle class="a" cx="55" cy="100" r="10"/>
+    <path class="a" d="M65 100 L 130 100"/>
+    <circle class="b" cx="85" cy="92" r="10"/>
+    <path class="b" d="M95 95 L 150 95"/>
+    <text x="100" y="160" class="label">Spooning</text>
+  </g>
+
+  <!-- Tile 5: Reverse cowgirl -->
+  <g transform="translate(0,220)">
+    <line class="floor" x1="20" y1="120" x2="180" y2="120"/>
+    <circle class="a" cx="50" cy="100" r="10"/>
+    <path class="a" d="M60 105 L 160 115"/>
+    <circle class="b" cx="130" cy="50" r="10"/>
+    <path class="b" d="M130 60 L 130 95"/>
+    <path class="b" d="M130 75 L 155 65"/>
+    <text x="100" y="160" class="label">Reverse cowgirl</text>
+  </g>
+
+  <!-- Tile 6: Standing -->
+  <g transform="translate(180,220)">
+    <line class="floor" x1="20" y1="170" x2="180" y2="170"/>
+    <circle class="a" cx="80" cy="50" r="10"/>
+    <path class="a" d="M80 60 L 80 165"/>
+    <path class="a" d="M80 95 L 60 120"/>
+    <circle class="b" cx="120" cy="55" r="10"/>
+    <path class="b" d="M120 65 L 120 165"/>
+    <path class="b" d="M120 95 L 140 120"/>
+    <text x="100" y="195" class="label">Standing / face-to-face</text>
+  </g>
+
+  <!-- Tile 7: Side-by-side -->
+  <g transform="translate(360,220)">
+    <line class="floor" x1="20" y1="120" x2="180" y2="120"/>
+    <circle class="a" cx="60" cy="100" r="10"/>
+    <path class="a" d="M70 100 L 130 100"/>
+    <circle class="b" cx="140" cy="100" r="10"/>
+    <path class="b" d="M130 100 L 70 100"/>
+    <text x="100" y="160" class="label">Side-by-side / scissoring</text>
+  </g>
+
+  <!-- Tile 8: Seated / lap -->
+  <g transform="translate(540,220)">
+    <rect x="60" y="85" width="80" height="35" class="a"/>
+    <circle class="a" cx="80" cy="70" r="10"/>
+    <circle class="b" cx="110" cy="50" r="10"/>
+    <path class="b" d="M110 60 L 110 90"/>
+    <text x="100" y="160" class="label">Seated lap / chair</text>
+  </g>
+
+  <text x="360" y="500" class="title">Receiver-controlled (5, 7) tend to be the gentlest first-time options.</text>
+</svg>

@@ -9,12 +9,17 @@
 //   • `### Heading 3` and `## Heading 2`.
 //   • Bullet lists (`- item`).
 //   • Numbered lists (`1. item`).
+//   • `![alt](/path/to/image.svg)` images (block — on their own line).
 //   • **bold** and *italic* inline.
 //   • `inline code`.
 //   • Bare URLs (auto-linked).
 //
-// Not supported (by design): images, tables, footnotes, blockquotes,
-// nested lists, raw HTML. The seed articles don't use these.
+// Image src must be a same-origin path starting with `/` (e.g. `/sexed/foo.svg`)
+// so we don't render arbitrary external content. Anything else falls through
+// as text. The seeded sex-ed articles use this for anatomy + position diagrams.
+//
+// Not supported (by design): tables, footnotes, blockquotes, nested lists,
+// raw HTML.
 
 import React, { Fragment } from "react";
 
@@ -23,7 +28,10 @@ type Block =
   | { kind: "h2"; text: string }
   | { kind: "h3"; text: string }
   | { kind: "ul"; items: string[] }
-  | { kind: "ol"; items: string[] };
+  | { kind: "ol"; items: string[] }
+  | { kind: "img"; alt: string; src: string };
+
+const IMAGE_BLOCK_RE = /^!\[([^\]]*)\]\((\/[^\s)]+)\)\s*$/;
 
 function tokenize(src: string): Block[] {
   const lines = src.replace(/\r\n?/g, "\n").split("\n");
@@ -42,6 +50,12 @@ function tokenize(src: string): Block[] {
     }
     if (line.startsWith("## ")) {
       blocks.push({ kind: "h2", text: line.slice(3).trim() });
+      i += 1;
+      continue;
+    }
+    const imgMatch = line.match(IMAGE_BLOCK_RE);
+    if (imgMatch) {
+      blocks.push({ kind: "img", alt: imgMatch[1] ?? "", src: imgMatch[2] ?? "" });
       i += 1;
       continue;
     }
@@ -70,7 +84,8 @@ function tokenize(src: string): Block[] {
       (lines[i] ?? "").trim() !== "" &&
       !(lines[i] ?? "").startsWith("#") &&
       !/^- /.test(lines[i] ?? "") &&
-      !/^\d+\. /.test(lines[i] ?? "")
+      !/^\d+\. /.test(lines[i] ?? "") &&
+      !IMAGE_BLOCK_RE.test(lines[i] ?? "")
     ) {
       para.push((lines[i] ?? "").trim());
       i += 1;
@@ -218,6 +233,27 @@ export function Markdown({ source }: { source: string }) {
                 <li key={j}>{renderInline(it, `ol-${idx}-${j}-`)}</li>
               ))}
             </ol>
+          );
+        }
+        if (b.kind === "img") {
+          return (
+            <figure
+              key={idx}
+              className="my-6 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={b.src}
+                alt={b.alt}
+                loading="lazy"
+                className="mx-auto block max-h-[420px] w-full max-w-[640px] object-contain"
+              />
+              {b.alt ? (
+                <figcaption className="mt-3 text-center text-[11px] uppercase tracking-widest text-white/45">
+                  {b.alt}
+                </figcaption>
+              ) : null}
+            </figure>
           );
         }
         return (

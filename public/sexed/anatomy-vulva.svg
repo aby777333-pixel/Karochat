@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="Labeled diagram of the vulva">
+  <style>
+    .stroke{fill:none;stroke:#c7f7e3;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+    .fine{fill:none;stroke:#c7f7e3;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round;opacity:.75}
+    .label{fill:#e6fbf2;font:14px ui-sans-serif,system-ui,sans-serif}
+    .small{fill:#9fe7c8;font:11px ui-sans-serif,system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase}
+    .lead{fill:none;stroke:#9fe7c8;stroke-width:1;opacity:.7}
+    .dot{fill:#9fe7c8}
+  </style>
+  <text x="20" y="30" class="small">Vulva — external anatomy</text>
+  <!-- Outer labia (almond outline) -->
+  <path class="stroke" d="M260 80 C 200 140, 200 320, 260 380 C 290 395, 330 395, 360 380 C 420 320, 420 140, 360 80 C 330 65, 290 65, 260 80 Z"/>
+  <!-- Inner labia -->
+  <path class="fine" d="M285 110 C 250 170, 250 290, 295 350 C 308 358, 320 358, 330 350 C 370 290, 370 170, 335 110 C 320 100, 300 100, 285 110 Z"/>
+  <!-- Clitoral hood -->
+  <path class="stroke" d="M295 118 C 305 100, 320 100, 330 118 C 333 130, 327 142, 312 142 C 298 142, 292 130, 295 118 Z"/>
+  <!-- Clitoral glans -->
+  <circle cx="312" cy="135" r="6" class="dot"/>
+  <!-- Urethra -->
+  <ellipse cx="312" cy="178" rx="6" ry="3" class="stroke"/>
+  <!-- Vaginal opening -->
+  <path class="stroke" d="M295 215 C 305 205, 320 205, 330 215 C 332 240, 320 252, 312 252 C 304 252, 292 240, 295 215 Z"/>
+  <!-- Perineum -->
+  <line class="fine" x1="312" y1="300" x2="312" y2="340"/>
+  <!-- Anus -->
+  <circle cx="312" cy="360" r="9" class="stroke"/>
+  <!-- Labels -->
+  <g class="lead">
+    <line x1="312" y1="135" x2="500" y2="115"/>
+    <line x1="312" y1="118" x2="500" y2="80"/>
+    <line x1="312" y1="178" x2="500" y2="180"/>
+    <line x1="312" y1="232" x2="500" y2="240"/>
+    <line x1="265" y1="195" x2="120" y2="200"/>
+    <line x1="290" y1="120" x2="120" y2="115"/>
+    <line x1="312" y1="320" x2="500" y2="320"/>
+    <line x1="312" y1="360" x2="500" y2="370"/>
+  </g>
+  <text x="505" y="84" class="label">Clitoral hood</text>
+  <text x="505" y="119" class="label">Clitoral glans</text>
+  <text x="505" y="184" class="label">Urethral opening</text>
+  <text x="505" y="244" class="label">Vaginal opening</text>
+  <text x="505" y="324" class="label">Perineum</text>
+  <text x="505" y="374" class="label">Anus</text>
+  <text x="20" y="119" class="label" text-anchor="start">Outer labia (majora)</text>
+  <text x="20" y="204" class="label" text-anchor="start">Inner labia (minora)</text>
+  <text x="20" y="400" class="small">Karochat sex-ed — for education</text>
+</svg>

@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="Side-section showing finger angle for G-spot stimulation, with thumb on clitoris">
+  <style>
+    .stroke{fill:none;stroke:#c7f7e3;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+    .fine{fill:none;stroke:#c7f7e3;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round;opacity:.75}
+    .fill{fill:#c7f7e3;opacity:.16;stroke:#c7f7e3;stroke-width:1.5}
+    .label{fill:#e6fbf2;font:14px ui-sans-serif,system-ui,sans-serif}
+    .small{fill:#9fe7c8;font:11px ui-sans-serif,system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase}
+    .lead{fill:none;stroke:#9fe7c8;stroke-width:1;opacity:.7}
+    .arrow{fill:none;stroke:#ffd089;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  </style>
+  <text x="20" y="30" class="small">"Come-here" technique — side-section</text>
+  <!-- Pelvic outline -->
+  <path class="stroke" d="M120 110 Q 220 80 320 110 Q 360 140 380 200 Q 380 270 350 320 Q 290 360 240 350 Q 180 340 140 290 Q 100 230 120 110 Z"/>
+  <!-- Vagina canal -->
+  <path class="fine" d="M280 200 Q 240 230 200 250 Q 170 260 150 270"/>
+  <!-- G-spot zone (front wall, ~5-7 cm) -->
+  <ellipse cx="225" cy="218" rx="20" ry="12" class="fill"/>
+  <!-- Clitoris external -->
+  <circle cx="175" cy="285" r="6" class="stroke"/>
+  <!-- Hand: index/middle inside, thumb on clitoris -->
+  <path class="stroke" d="M430 290 L 360 280 Q 310 270 270 245 Q 250 232 235 222"/>
+  <path class="stroke" d="M430 290 L 400 250 Q 360 230 320 220 Q 290 218 250 220"/>
+  <!-- Thumb -->
+  <path class="stroke" d="M430 290 L 360 305 Q 300 315 220 295 Q 195 290 180 287"/>
+  <!-- Palm -->
+  <path class="fine" d="M430 290 Q 470 320 510 300"/>
+  <!-- Arrow showing curl direction -->
+  <path class="arrow" d="M260 235 Q 240 220 230 215"/>
+  <polygon points="225,213 234,214 232,220" fill="#ffd089"/>
+  <!-- Labels -->
+  <g class="lead">
+    <line x1="225" y1="218" x2="500" y2="170"/>
+    <line x1="175" y1="285" x2="500" y2="350"/>
+    <line x1="260" y1="235" x2="500" y2="220"/>
+  </g>
+  <text x="505" y="176" class="label">G-spot zone (front wall)</text>
+  <text x="505" y="226" class="label">Curl ↑ "come here"</text>
+  <text x="505" y="356" class="label">Thumb on clitoral hood</text>
+  <text x="20" y="400" class="small">Two fingers curling up + thumb circling the clit = the textbook combo.</text>
+</svg>

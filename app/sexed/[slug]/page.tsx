@@ -28,6 +28,14 @@ type Article = {
   reviewed_at: string | null;
 };
 
+type NeighborArticle = {
+  id: string;
+  slug: string;
+  title: string;
+  topic: string | null;
+  age_band: "13_15" | "16_17" | "18plus" | "all";
+};
+
 type Helpline = {
   id: string;
   country: string;
@@ -59,10 +67,16 @@ export default async function ArticlePage({
   } = await supabase.auth.getUser();
   if (!user) redirect(`/?redirect=/sexed/${params.slug}`);
 
-  const [{ data: rows, error }, { data: helplineData }] = await Promise.all([
-    supabase.rpc("get_sexed_article", { p_slug: params.slug }),
-    supabase.rpc("list_helplines_for", { p_country: "IN", p_kinds: null })
-  ]);
+  const [{ data: rows, error }, { data: helplineData }, { data: siblingsData }] =
+    await Promise.all([
+      supabase.rpc("get_sexed_article", { p_slug: params.slug }),
+      supabase.rpc("list_helplines_for", { p_country: "IN", p_kinds: null }),
+      supabase.rpc("list_sexed_articles", {
+        p_topic: null,
+        p_language: "en",
+        p_limit: 200
+      })
+    ]);
   if (error) {
     return (
       <Shell>
@@ -76,6 +90,36 @@ export default async function ArticlePage({
   if (!article) notFound();
   const ag = AGE_LABEL[article.age_band] ?? AGE_LABEL.all!;
   const helplines = (helplineData ?? []) as Helpline[];
+
+  // Prev/next within the visible-to-this-user library. list_sexed_articles
+  // already applies age-tier filtering server-side, so any link we render
+  // here is one the caller is allowed to read. Ordering matches the
+  // library (newest first); "Previous" = newer (lower index), "Next" =
+  // older (higher index). Falls back to topic-scoped if a topic exists.
+  const siblings = (siblingsData ?? []) as NeighborArticle[];
+  const sameTopic = article.topic
+    ? siblings.filter((s) => s.topic === article.topic)
+    : [];
+  const orderedAll = siblings;
+  const orderedTopic = sameTopic.length >= 2 ? sameTopic : orderedAll;
+  const idxAll = orderedAll.findIndex((s) => s.slug === article.slug);
+  const idxTopic = orderedTopic.findIndex((s) => s.slug === article.slug);
+  const prevArticle: NeighborArticle | null =
+    idxTopic > 0 ? orderedTopic[idxTopic - 1] ?? null : null;
+  const nextArticle: NeighborArticle | null =
+    idxTopic >= 0 && idxTopic < orderedTopic.length - 1
+      ? orderedTopic[idxTopic + 1] ?? null
+      : null;
+  // If topic-scoped didn't find this article (shouldn't happen, but
+  // defensive), fall back to global order.
+  const fallbackPrev: NeighborArticle | null =
+    prevArticle === null && idxAll > 0 ? orderedAll[idxAll - 1] ?? null : prevArticle;
+  const fallbackNext: NeighborArticle | null =
+    nextArticle === null && idxAll >= 0 && idxAll < orderedAll.length - 1
+      ? orderedAll[idxAll + 1] ?? null
+      : nextArticle;
+  const prev = fallbackPrev;
+  const next = fallbackNext;
 
   return (
     <Shell>
@@ -113,6 +157,44 @@ export default async function ArticlePage({
           <div className="mt-6">
             <Markdown source={article.body_markdown} />
           </div>
+
+          {(prev || next) && (
+            <nav
+              aria-label="Article navigation"
+              className="mt-10 grid grid-cols-2 gap-3"
+            >
+              {prev ? (
+                <Link
+                  href={`/sexed/${prev.slug}`}
+                  className="surface-glass group block p-4 transition hover:bg-white/10"
+                >
+                  <p className="text-[10px] uppercase tracking-widest text-white/45">
+                    ← Previous
+                  </p>
+                  <p className="mt-1 font-display text-[15px] font-semibold text-white line-clamp-2">
+                    {prev.title}
+                  </p>
+                </Link>
+              ) : (
+                <span aria-hidden className="block" />
+              )}
+              {next ? (
+                <Link
+                  href={`/sexed/${next.slug}`}
+                  className="surface-glass group block p-4 text-right transition hover:bg-white/10"
+                >
+                  <p className="text-[10px] uppercase tracking-widest text-white/45">
+                    Next →
+                  </p>
+                  <p className="mt-1 font-display text-[15px] font-semibold text-white line-clamp-2">
+                    {next.title}
+                  </p>
+                </Link>
+              ) : (
+                <span aria-hidden className="block" />
+              )}
+            </nav>
+          )}
 
           <div className="surface-glass mt-10 p-5">
             <p className="text-[10px] uppercase tracking-widest text-white/45">
