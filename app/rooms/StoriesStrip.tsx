@@ -52,7 +52,7 @@ export function StoriesStrip({
 
   if (stories.length === 0) {
     return (
-      <section className="surface-glass tint-purple mt-3 flex items-center gap-3 overflow-x-auto px-4 py-3">
+      <section className="surface-glass tint-purple flex items-center gap-3 overflow-x-auto px-4 py-3 pr-10">
         <Link
           href="/stories/new"
           className="flex shrink-0 items-center gap-2 rounded-xl border border-dashed border-neon-blue/40 bg-neon-blue/5 px-3 py-2 text-xs text-neon-blue hover:bg-neon-blue/10"
@@ -67,7 +67,7 @@ export function StoriesStrip({
 
   return (
     <>
-      <section className="surface-glass tint-purple mt-3 flex items-center gap-2 overflow-x-auto px-3 py-3">
+      <section className="surface-glass tint-purple flex items-center gap-2 overflow-x-auto px-3 py-3 pr-10">
         <Link
           href="/stories/new"
           className="flex shrink-0 flex-col items-center gap-1 rounded-xl border border-dashed border-neon-blue/40 bg-neon-blue/5 px-3 py-2 text-[11px] text-neon-blue hover:bg-neon-blue/10"

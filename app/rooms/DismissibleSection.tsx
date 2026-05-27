@@ -11,9 +11,17 @@ const HIDDEN_PREFIX = "karochat:hide:";
  */
 export function DismissibleSection({
   id,
+  className,
   children
 }: {
   id: string;
+  /**
+   * Optional extra classes merged onto the relative wrapper. Use this for
+   * outer spacing (e.g. `mt-3`) — keeping the spacing on the wrapper rather
+   * than inside the child keeps the ✕ button's `top-3` anchor aligned with
+   * the visible card edge instead of floating in the margin gap above it.
+   */
+  className?: string;
   children: React.ReactNode;
 }) {
   const storageKey = `${HIDDEN_PREFIX}${id}`;
@@ -32,7 +40,7 @@ export function DismissibleSection({
   if (hidden) return null;
 
   return (
-    <div className="relative">
+    <div className={"relative" + (className ? ` ${className}` : "")}>
       {children}
       <button
         type="button"

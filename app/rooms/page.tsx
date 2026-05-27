@@ -265,7 +265,7 @@ export default async function RoomsPage({
         </DismissibleSection>
         */}
 
-        <DismissibleSection id="stories">
+        <DismissibleSection id="stories" className="mt-3">
           <StoriesStrip initialStories={liveStories} currentUserId={user.id} />
         </DismissibleSection>
 
