@@ -10,6 +10,8 @@ const EMAIL_KEY = "karochat:last-email";
 export function LoginForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [pwSubmitting, setPwSubmitting] = useState(false);
   const [remembered, setRemembered] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -104,6 +106,33 @@ export function LoginForm() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!email) return;
+    // If a password was provided, try password sign-in first. On any
+    // failure (no password set on this account, wrong password, etc.)
+    // we silently fall back to the magic-link flow so we never get
+    // stuck — the user always has a path forward.
+    if (password) {
+      setPwSubmitting(true);
+      setErrorMsg(null);
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      setPwSubmitting(false);
+      if (!error) {
+        rememberEmail(email);
+        router.replace("/rooms");
+        router.refresh();
+        return;
+      }
+      // Common cases: "Invalid login credentials", "Email not confirmed".
+      // Show the specific error but also offer the magic link.
+      setErrorMsg(
+        `${error.message}. We can email you a sign-in link instead — click "Send magic link" below.`
+      );
+      // Don't auto-send; let the user decide.
+      return;
+    }
     await sendLink(email);
   }
 
@@ -248,12 +277,43 @@ export function LoginForm() {
           onChange={(e) => setEmail(e.target.value)}
           className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder-white/30 outline-none ring-0 transition focus:border-neon-blue/60 focus:bg-black/40"
         />
-        <Button type="submit" disabled={status === "sending"} className="w-full">
-          {status === "sending" ? "Sending link…" : "Send magic link"}
+        <label className="block text-xs uppercase tracking-widest text-white/50">
+          Password (returning users)
+        </label>
+        <input
+          type="password"
+          autoComplete="current-password"
+          placeholder="Leave blank to get a magic link"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder-white/30 outline-none ring-0 transition focus:border-neon-blue/60 focus:bg-black/40"
+        />
+        <Button
+          type="submit"
+          disabled={status === "sending" || pwSubmitting}
+          className="w-full"
+        >
+          {pwSubmitting
+            ? "Signing in…"
+            : status === "sending"
+            ? "Sending link…"
+            : password
+            ? "Log in"
+            : "Send magic link"}
         </Button>
-        {status === "error" && (
-          <p className="text-xs text-neon-red">{errorMsg ?? "Something went wrong."}</p>
+        {errorMsg && (
+          <p className="text-xs text-neon-red">{errorMsg}</p>
         )}
+        {!errorMsg && status === "error" && (
+          <p className="text-xs text-neon-red">Something went wrong.</p>
+        )}
+        <p className="text-[11px] text-white/40">
+          New here?{" "}
+          <a href="/signup" className="text-neon-mint underline-offset-2 hover:underline">
+            Create an account with a password
+          </a>
+          {" "}— faster sign-in next time.
+        </p>
       </form>
 
       <DividerOr />

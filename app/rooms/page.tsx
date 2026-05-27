@@ -215,6 +215,20 @@ export default async function RoomsPage({
               💞 Sex ed
             </Link>
             <Link
+              href="/read"
+              className="rounded-lg border border-neon-purple/40 bg-neon-purple/10 px-3 py-1.5 text-neon-purple hover:bg-neon-purple/20"
+              title="Read community-published stories, essays, journals"
+            >
+              📖 Read
+            </Link>
+            <Link
+              href="/write"
+              className="rounded-lg border border-neon-mint/40 bg-neon-mint/10 px-3 py-1.5 text-neon-mint hover:bg-neon-mint/20"
+              title="Your writing — drafts, published, new piece"
+            >
+              ✍ Write
+            </Link>
+            <Link
               href="/students"
               className="rounded-lg border border-neon-mint/40 bg-neon-mint/10 px-3 py-1.5 text-neon-mint hover:bg-neon-mint/20"
               title="Students Network — verified peer learning"
