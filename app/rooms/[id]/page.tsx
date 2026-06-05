@@ -222,8 +222,8 @@ export default async function RoomPage({
 
   return (
     <AdRails>
-    <main className="mx-auto flex h-[100dvh] max-w-6xl flex-col px-1 py-4 md:py-6">
-      <header className="surface-glass flex items-center justify-between gap-3 px-4 py-3">
+    <main className="mx-auto flex h-[100dvh] max-w-6xl flex-col overflow-x-hidden px-1 py-4 md:py-6">
+      <header className="surface-glass flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <Link
             href="/rooms"
@@ -260,7 +260,7 @@ export default async function RoomPage({
             )}
           </div>
         </div>
-        <div className="-mr-1 flex shrink-0 items-center gap-1.5 overflow-x-clip overflow-y-visible pr-1 md:gap-2">
+        <div className="-mr-1 flex flex-wrap items-center gap-1.5 overflow-visible pr-1 sm:justify-end md:gap-2">
           <Link
             href="/shorts"
             className="shrink-0 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-white/80 transition hover:bg-white/10 hover:text-white"
@@ -340,7 +340,7 @@ export default async function RoomPage({
       )}
 
       <div className="mt-0 flex flex-1 gap-3 overflow-hidden">
-        <div className="flex flex-1 flex-col">
+        <div className="flex min-w-0 flex-1 flex-col">
           <RoomChat
             roomId={room.id}
             roomName={headerName}

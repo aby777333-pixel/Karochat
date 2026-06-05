@@ -186,6 +186,20 @@ export function RoomChat({
     full: fullSize
   } = useResizableHeight(resizerKey);
 
+  // On phones, ignore the persisted desktop chat width — a width saved while
+  // resizing on desktop would otherwise force the chat wider than the
+  // viewport and break the mobile layout. Height stays as-is.
+  const [isNarrow, setIsNarrow] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(max-width: 768px)");
+    const update = () => setIsNarrow(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  const effectiveWPx = isNarrow ? null : chatWPx;
+
   // Wave 18 — composer extras + search + forwarding + voice + TTL.
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -1096,20 +1110,20 @@ export function RoomChat({
         // popovers (emoji/gif/voice/mention/ttl) can extend above the
         // section bounds without being clipped. Internal scroller has
         // its own overflow-y-auto.
-        "surface-glass tint-blue relative mt-3 flex min-h-0 flex-col overflow-visible transition-[filter,opacity] duration-700",
+        "surface-glass tint-blue relative mt-3 flex min-h-0 min-w-0 flex-col overflow-visible transition-[filter,opacity] duration-700",
         // When no explicit height lock is set, fill the available space.
         chatPx === null && "flex-1",
         shaking && "animate-nudgeShake",
         lightsOut && "[filter:brightness(0.55)_saturate(0.8)]"
       )}
       style={
-        chatPx !== null || chatWPx !== null
+        chatPx !== null || effectiveWPx !== null
           ? {
               ...(chatPx !== null
                 ? { height: chatPx, flex: "0 0 auto" }
                 : {}),
-              ...(chatWPx !== null
-                ? { width: chatWPx, flexBasis: "auto", flexGrow: 0 }
+              ...(effectiveWPx !== null
+                ? { width: effectiveWPx, flexBasis: "auto", flexGrow: 0 }
                 : {})
             }
           : undefined
@@ -1121,7 +1135,7 @@ export function RoomChat({
       <EdgeHandles
         targetRef={sectionRef}
         px={chatPx}
-        wPx={chatWPx}
+        wPx={effectiveWPx}
         onBeginDrag={beginDrag}
       />
 
@@ -1393,7 +1407,7 @@ export function RoomChat({
             </button>
           </div>
         )}
-        <div className="relative flex items-end gap-2">
+        <div className="relative flex flex-wrap items-end gap-2">
           <div className="relative">
             <button
               type="button"
@@ -1659,7 +1673,7 @@ export function RoomChat({
             placeholder={`Say something, @${currentUsername}… (paste images too)`}
             rows={1}
             maxLength={2000}
-            className="max-h-40 min-h-[44px] flex-1 resize-none rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none placeholder:text-white/30 focus:border-neon-blue/60"
+            className="max-h-40 min-h-[44px] min-w-[140px] flex-1 resize-none rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none placeholder:text-white/30 focus:border-neon-blue/60"
           />
           <Button onClick={() => void sendText()} disabled={sending || uploading || !draft.trim()}>
             {sending ? "…" : "Send"}
