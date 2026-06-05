@@ -78,12 +78,12 @@ export default async function ReadPage({
 
   return (
     <main className="mx-auto flex min-h-[100dvh] max-w-6xl flex-col px-3 py-6 md:py-8">
-      <header className="surface-glass flex items-center justify-between gap-3 px-4 py-3">
+      <header className="surface-glass flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <Link href={isSignedIn ? "/rooms" : "/"} className="flex items-center gap-2">
           <Logo className="h-6 w-6" />
           <Wordmark className="text-lg" />
         </Link>
-        <div className="flex items-center gap-2 text-xs md:gap-3">
+        <div className="flex flex-wrap items-center gap-2 text-xs sm:justify-end md:gap-3">
           {isSignedIn ? (
             <>
               <Link

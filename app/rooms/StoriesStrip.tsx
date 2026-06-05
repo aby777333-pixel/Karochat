@@ -21,10 +21,12 @@ export type StoryRow = {
 
 export function StoriesStrip({
   initialStories,
-  currentUserId
+  currentUserId,
+  isAdmin = false
 }: {
   initialStories: StoryRow[];
   currentUserId: string;
+  isAdmin?: boolean;
 }) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const router = useRouter();
@@ -40,14 +42,25 @@ export function StoriesStrip({
     return () => clearInterval(t);
   }, []);
 
-  async function deleteStory(id: string) {
-    if (!confirm("Delete this story?")) return;
-    const { error } = await supabase.from("stories").delete().eq("id", id);
-    if (!error) {
-      setStories((prev) => prev.filter((s) => s.id !== id));
-      setOpenIndex(null);
-      router.refresh();
+  // You can always delete your own moment (RLS: stories_delete_own); an
+  // operator can take down anyone's via the admin_delete_story RPC.
+  function canDelete(story: StoryRow) {
+    return story.author_id === currentUserId || isAdmin;
+  }
+
+  async function deleteStory(story: StoryRow) {
+    if (!confirm("Delete this moment?")) return;
+    const mine = story.author_id === currentUserId;
+    const { error } = mine
+      ? await supabase.from("stories").delete().eq("id", story.id)
+      : await supabase.rpc("admin_delete_story", { p_id: story.id });
+    if (error) {
+      alert(error.message);
+      return;
     }
+    setStories((prev) => prev.filter((s) => s.id !== story.id));
+    setOpenIndex(null);
+    router.refresh();
   }
 
   if (stories.length === 0) {
@@ -79,9 +92,7 @@ export function StoriesStrip({
         {stories.map((s, i) => {
           const author = s.author_display_name ?? s.author_username ?? "anon";
           const handle = s.author_username ?? "anon";
-          // You can only delete your own moments (RLS: stories_delete_own),
-          // so the quick-remove ✕ only shows on tiles you authored.
-          const isMine = s.author_id === currentUserId;
+          const mine = s.author_id === currentUserId;
           return (
             <div key={s.id} className="relative shrink-0">
               <button
@@ -109,13 +120,13 @@ export function StoriesStrip({
                   @{handle}
                 </span>
               </button>
-              {isMine && (
+              {canDelete(s) && (
                 <button
                   type="button"
-                  onClick={() => void deleteStory(s.id)}
+                  onClick={() => void deleteStory(s)}
                   className="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full border border-white/15 bg-ink-800/90 text-[11px] leading-none text-white/70 shadow-sm hover:bg-neon-red/20 hover:text-neon-red"
-                  aria-label="Delete your moment"
-                  title="Delete this moment"
+                  aria-label={mine ? "Delete your moment" : "Remove this moment (admin)"}
+                  title={mine ? "Delete this moment" : "Remove this moment (admin)"}
                 >
                   ✕
                 </button>
@@ -134,8 +145,8 @@ export function StoriesStrip({
           onNext={() => setOpenIndex(Math.min(stories.length - 1, openIndex + 1))}
           onClose={() => setOpenIndex(null)}
           onDelete={
-            stories[openIndex]!.author_id === currentUserId
-              ? () => void deleteStory(stories[openIndex]!.id)
+            canDelete(stories[openIndex]!)
+              ? () => void deleteStory(stories[openIndex]!)
               : undefined
           }
         />

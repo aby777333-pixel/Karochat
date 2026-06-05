@@ -57,7 +57,7 @@ export default async function RoomsPage({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, username, display_name, avatar_url, privacy_mode, terms_accepted_at")
+    .select("id, username, display_name, avatar_url, privacy_mode, terms_accepted_at, is_admin")
     .eq("id", user.id)
     .maybeSingle();
   if (!profile?.username) redirect("/onboarding");
@@ -194,12 +194,12 @@ export default async function RoomsPage({
   return (
     <AdRails>
       <main className="mx-auto flex min-h-[100dvh] max-w-6xl flex-col px-1 py-5 md:py-7">
-        <header className="surface-glass flex items-center justify-between gap-3 px-4 py-3">
+        <header className="surface-glass flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <Link href="/rooms" className="flex items-center gap-2">
             <Logo className="h-6 w-6" />
             <Wordmark className="text-lg" />
           </Link>
-          <div className="flex items-center gap-2 text-xs md:gap-3">
+          <div className="flex flex-wrap items-center gap-2 text-xs sm:justify-end md:gap-3">
             <Link
               href="/books"
               className="rounded-lg border border-neon-blue/40 bg-neon-blue/10 px-3 py-1.5 text-neon-blue hover:bg-neon-blue/20"
@@ -283,7 +283,11 @@ export default async function RoomsPage({
         */}
 
         <DismissibleSection id="stories" className="mt-3">
-          <StoriesStrip initialStories={liveStories} currentUserId={user.id} />
+          <StoriesStrip
+            initialStories={liveStories}
+            currentUserId={user.id}
+            isAdmin={!!(profile as any).is_admin}
+          />
         </DismissibleSection>
 
         <div className="mt-5 grid flex-1 grid-cols-1 gap-5 lg:grid-cols-[1fr_340px]">

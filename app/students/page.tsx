@@ -69,12 +69,12 @@ export default async function StudentsPage() {
   return (
     <AdRails>
     <main className="mx-auto flex min-h-[100dvh] max-w-6xl flex-col px-3 py-6 md:py-8">
-      <header className="surface-glass flex items-center justify-between gap-3 px-4 py-3">
+      <header className="surface-glass flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <Link href="/rooms" className="flex items-center gap-2">
           <Logo className="h-6 w-6" />
           <Wordmark className="text-lg" />
         </Link>
-        <div className="flex items-center gap-2 text-xs md:gap-3">
+        <div className="flex flex-wrap items-center gap-2 text-xs sm:justify-end md:gap-3">
           <Link
             href="/books"
             className="rounded-lg border border-neon-blue/40 bg-neon-blue/10 px-3 py-1.5 text-neon-blue hover:bg-neon-blue/20"
