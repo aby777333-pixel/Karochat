@@ -79,33 +79,48 @@ export function StoriesStrip({
         {stories.map((s, i) => {
           const author = s.author_display_name ?? s.author_username ?? "anon";
           const handle = s.author_username ?? "anon";
+          // You can only delete your own moments (RLS: stories_delete_own),
+          // so the quick-remove ✕ only shows on tiles you authored.
+          const isMine = s.author_id === currentUserId;
           return (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => setOpenIndex(i)}
-              className="flex shrink-0 flex-col items-center gap-1 rounded-xl border border-white/10 bg-white/5 px-2 py-2 hover:bg-white/10"
-              aria-label={`Open story by ${author}`}
-            >
-              <div className="h-12 w-12 overflow-hidden rounded-lg bg-black/30">
-                {s.kind === "image" && s.image_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={s.image_url}
-                    alt=""
-                    className="h-full w-full object-cover"
-                    loading="lazy"
-                  />
-                ) : (
-                  <div className="grid h-full w-full place-items-center bg-gradient-to-br from-neon-purple/30 via-neon-blue/30 to-neon-mint/30 text-[10px] text-white/85">
-                    📝
-                  </div>
-                )}
-              </div>
-              <span className="max-w-[64px] truncate text-[10px] text-white/70">
-                @{handle}
-              </span>
-            </button>
+            <div key={s.id} className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => setOpenIndex(i)}
+                className="flex flex-col items-center gap-1 rounded-xl border border-white/10 bg-white/5 px-2 py-2 hover:bg-white/10"
+                aria-label={`Open story by ${author}`}
+              >
+                <div className="h-12 w-12 overflow-hidden rounded-lg bg-black/30">
+                  {s.kind === "image" && s.image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={s.image_url}
+                      alt=""
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="grid h-full w-full place-items-center bg-gradient-to-br from-neon-purple/30 via-neon-blue/30 to-neon-mint/30 text-[10px] text-white/85">
+                      📝
+                    </div>
+                  )}
+                </div>
+                <span className="max-w-[64px] truncate text-[10px] text-white/70">
+                  @{handle}
+                </span>
+              </button>
+              {isMine && (
+                <button
+                  type="button"
+                  onClick={() => void deleteStory(s.id)}
+                  className="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full border border-white/15 bg-ink-800/90 text-[11px] leading-none text-white/70 shadow-sm hover:bg-neon-red/20 hover:text-neon-red"
+                  aria-label="Delete your moment"
+                  title="Delete this moment"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
           );
         })}
       </section>

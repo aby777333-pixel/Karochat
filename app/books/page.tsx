@@ -118,12 +118,15 @@ export default async function BooksPage({
           >
             ← Rooms
           </Link>
+          {/* 🎓 Students — hidden while the module is spun out into a
+              separate app. Keep for easy re-enable.
           <Link
             href="/students"
             className="rounded-lg border border-neon-mint/40 bg-neon-mint/10 px-3 py-1.5 text-neon-mint hover:bg-neon-mint/20"
           >
             🎓 Students
           </Link>
+          */}
           <AccountMenu
             username={profile.username as string}
             displayName={profile.display_name as string | null}

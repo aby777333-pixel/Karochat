@@ -33,12 +33,15 @@ export default async function CapsulePage({
           <Logo className="h-7 w-7" />
           <Wordmark className="text-lg" />
         </Link>
+        {/* Students module hidden for now (being spun out into a separate
+            app). Keep this CTA for easy re-enable.
         <Link
           href="/students"
           className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/80 hover:bg-white/10"
         >
           Join Karochat Students →
         </Link>
+        */}
       </header>
 
       <section className="surface-glass tint-mint mt-8 p-7 sm:p-9">

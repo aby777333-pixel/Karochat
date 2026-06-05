@@ -16,7 +16,14 @@ export const metadata = {
     "Verified-students learning network — Help Beacons, study squads, office hours, notes, age-band lobbies, and student rooms with chat, voice, video, and a shared whiteboard."
 };
 
+// The Students Network is being spun out into its own standalone app, so it's
+// hidden from this build for now. Flip this to `false` to bring the whole
+// module back — all the page code below is kept intact.
+const STUDENTS_HIDDEN: boolean = true;
+
 export default async function StudentsPage() {
+  if (STUDENTS_HIDDEN) redirect("/rooms");
+
   const supabase = createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/?redirect=/students");
