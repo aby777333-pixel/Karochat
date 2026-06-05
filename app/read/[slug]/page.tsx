@@ -10,6 +10,7 @@ import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Logo, Wordmark } from "@/components/Brand";
 import { Markdown } from "@/components/Markdown";
+import { ReportButton } from "./ReportButton";
 
 export const dynamic = "force-dynamic";
 
@@ -218,6 +219,11 @@ export default async function PublicationReaderPage({
                   </span>
                 ))}
               </p>
+            </div>
+          )}
+          {!isOwner && user && !isDraft && (
+            <div className="surface-glass p-3 text-[12px]">
+              <ReportButton publicationId={article.id} />
             </div>
           )}
         </aside>
