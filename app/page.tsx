@@ -24,21 +24,11 @@ export default async function Home() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-6xl flex-col px-6 py-8">
-      <header className="flex items-center justify-between">
+      <header className="flex items-center">
         <Link href="/" className="flex items-center gap-2">
           <Logo />
           <Wordmark />
         </Link>
-        <nav className="text-sm text-white/60">
-          <a
-            href="https://github.com/aby777333333-pixel/Karochat"
-            className="hover:text-white"
-            target="_blank"
-            rel="noreferrer"
-          >
-            github
-          </a>
-        </nav>
       </header>
 
       <section className="mt-16 grid flex-1 grid-cols-1 items-center gap-10 md:mt-24 md:grid-cols-2">
