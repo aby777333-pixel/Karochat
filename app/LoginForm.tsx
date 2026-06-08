@@ -9,6 +9,23 @@ import { COUNTRY_CODES, DEFAULT_COUNTRY_VALUE, dialOf } from "@/lib/countryCodes
 const EMAIL_KEY = "karochat:last-email";
 const PHONE_KEY = "karochat:last-phone";
 const COUNTRY_KEY = "karochat:last-country";
+const PENDING_KEY = "karochat:pending-contact";
+
+// Deterministic password derived from the email so a returning user with the
+// same email logs back into the SAME account (data intact) without a code or
+// link. Note: this is email-keyed access by design (the operator's choice for
+// frictionless onboarding) — add real verification before a wide launch.
+async function derivePassword(email: string): Promise<string> {
+  const data = new TextEncoder().encode("karochat:v1:" + email);
+  const buf = await crypto.subtle.digest("SHA-256", data);
+  const bytes = new Uint8Array(buf);
+  let bin = "";
+  bytes.forEach((x) => {
+    bin += String.fromCharCode(x);
+  });
+  const b64 = btoa(bin).replace(/[^a-zA-Z0-9]/g, "");
+  return "Kc1!" + b64.slice(0, 36);
+}
 
 export function LoginForm() {
   const router = useRouter();
@@ -82,29 +99,69 @@ export function LoginForm() {
     setBusy(true);
     setErrorMsg(null);
     const supabase = createSupabaseBrowserClient();
-    const { error: authErr } = await supabase.auth.signInAnonymously();
-    if (authErr) {
+    const loginEmail = addr.toLowerCase();
+    const pw = await derivePassword(loginEmail);
+
+    // 1) Returning user — same email → same account, all data intact.
+    const si = await supabase.auth.signInWithPassword({ email: loginEmail, password: pw });
+    if (!si.error && si.data?.session) {
+      remember(addr, ph);
       setBusy(false);
-      setStatus("error");
+      router.replace("/rooms");
+      router.refresh();
+      return;
+    }
+
+    // 2) Guards: phone tied to another email, or a pre-existing account.
+    const { data: avail } = await supabase.rpc("check_contact_availability", {
+      p_email: loginEmail,
+      p_phone: fullPhone
+    });
+    if (avail?.phone_conflict) {
+      setBusy(false);
       setErrorMsg(
-        authErr.message.includes("disabled")
-          ? "Instant access isn't enabled on the server yet — enable Anonymous Sign-Ins in Supabase Auth."
-          : authErr.message
+        `That phone is already registered to ${avail.masked_email || "another account"}. Please sign in with that email.`
       );
       return;
     }
-    const { error: rpcErr } = await supabase.rpc("register_contact", {
-      p_email: addr,
-      p_phone: fullPhone
-    });
-    setBusy(false);
-    if (rpcErr) {
-      setErrorMsg(rpcErr.message);
+    if (avail?.email_known) {
+      // Existing account we can't password-in (e.g. an older magic-link
+      // account) — finish with a one-time sign-in link/code.
+      stashPending(loginEmail, fullPhone);
+      await sendLink();
+      setBusy(false);
       return;
     }
-    remember(addr, ph);
-    router.replace("/terms");
-    router.refresh();
+
+    // 3) New account — create it with the derived password.
+    const su = await supabase.auth.signUp({ email: loginEmail, password: pw });
+    if (su.error) {
+      stashPending(loginEmail, fullPhone);
+      await sendLink();
+      setBusy(false);
+      return;
+    }
+    if (su.data?.session) {
+      // Instant (email confirmation is OFF on the server).
+      await supabase.rpc("register_contact", { p_email: loginEmail, p_phone: fullPhone });
+      remember(addr, ph);
+      setBusy(false);
+      router.replace("/terms");
+      router.refresh();
+      return;
+    }
+    // No session → email confirmation is ON: finish via the one-time link/code.
+    stashPending(loginEmail, fullPhone);
+    await sendLink();
+    setBusy(false);
+  }
+
+  function stashPending(addr: string, fullPhone: string) {
+    try {
+      window.localStorage.setItem(PENDING_KEY, JSON.stringify({ email: addr, phone: fullPhone }));
+    } catch {
+      /* ignore */
+    }
   }
 
   // SECONDARY — email a magic link + 6-digit code (returning users).
