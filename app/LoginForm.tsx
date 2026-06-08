@@ -9,7 +9,6 @@ import { COUNTRY_CODES, DEFAULT_COUNTRY_VALUE, dialOf } from "@/lib/countryCodes
 const EMAIL_KEY = "karochat:last-email";
 const PHONE_KEY = "karochat:last-phone";
 const COUNTRY_KEY = "karochat:last-country";
-const PENDING_KEY = "karochat:pending-contact";
 
 // Deterministic password derived from the email so a returning user with the
 // same email logs back into the SAME account (data intact) without a code or
@@ -112,56 +111,44 @@ export function LoginForm() {
       return;
     }
 
-    // 2) Guards: phone tied to another email, or a pre-existing account.
-    const { data: avail } = await supabase.rpc("check_contact_availability", {
-      p_email: loginEmail,
-      p_phone: fullPhone
+    // 2) Create / repair the account SERVER-SIDE (service role) — no email is
+    //    sent, so there are no email rate limits. Also enforces the
+    //    one-account-per-phone rule.
+    const fn = await supabase.functions.invoke("instant-auth", {
+      body: { email: loginEmail, phone: fullPhone, password: pw }
     });
-    if (avail?.phone_conflict) {
+    const res: any = fn.data;
+    if (fn.error || !res) {
       setBusy(false);
-      setErrorMsg(
-        `That phone is already registered to ${avail.masked_email || "another account"}. Please sign in with that email.`
-      );
+      setErrorMsg("Couldn't sign you in right now. Please try again.");
       return;
     }
-    if (avail?.email_known) {
-      // Existing account we can't password-in (e.g. an older magic-link
-      // account) — finish with a one-time sign-in link/code.
-      stashPending(loginEmail, fullPhone);
-      await sendLink();
+    if (!res.ok) {
       setBusy(false);
+      if (res.code === "phone_conflict") {
+        setErrorMsg(
+          `That phone is already registered to ${res.masked || "another account"}. Please sign in with that email.`
+        );
+      } else if (res.code === "bad_email") {
+        setErrorMsg("Please enter a valid email.");
+      } else if (res.code === "bad_phone") {
+        setErrorMsg("Please enter a valid phone number.");
+      } else {
+        setErrorMsg("Couldn't sign you in right now. Please try again.");
+      }
       return;
     }
 
-    // 3) New account — create it with the derived password.
-    const su = await supabase.auth.signUp({ email: loginEmail, password: pw });
-    if (su.error) {
-      stashPending(loginEmail, fullPhone);
-      await sendLink();
-      setBusy(false);
-      return;
-    }
-    if (su.data?.session) {
-      // Instant (email confirmation is OFF on the server).
-      await supabase.rpc("register_contact", { p_email: loginEmail, p_phone: fullPhone });
+    // 3) Account is ready (confirmed, no email) → sign in.
+    const si2 = await supabase.auth.signInWithPassword({ email: loginEmail, password: pw });
+    setBusy(false);
+    if (!si2.error && si2.data?.session) {
       remember(addr, ph);
-      setBusy(false);
       router.replace("/terms");
       router.refresh();
       return;
     }
-    // No session → email confirmation is ON: finish via the one-time link/code.
-    stashPending(loginEmail, fullPhone);
-    await sendLink();
-    setBusy(false);
-  }
-
-  function stashPending(addr: string, fullPhone: string) {
-    try {
-      window.localStorage.setItem(PENDING_KEY, JSON.stringify({ email: addr, phone: fullPhone }));
-    } catch {
-      /* ignore */
-    }
+    setErrorMsg(si2.error?.message ?? "Couldn't sign you in. Please try again.");
   }
 
   // SECONDARY — email a magic link + 6-digit code (returning users).
