@@ -6,13 +6,14 @@ import clsx from "clsx";
  * it never distorts inside the square sizing classes callers pass in).
  */
 export function Logo({ className }: { className?: string }) {
-  // New mark (Wave 22): a speech bubble cradling a heart, in the brand
-  // purple→magenta gradient. Crisp inline SVG so it stays sharp at any size.
+  // New mark (Wave 22): two people leaning into an embrace with a heart
+  // between them — a universally readable "connection" symbol in the brand
+  // purple→magenta gradient. Crisp inline SVG, sharp at any size.
   return (
     <svg
       viewBox="0 0 48 48"
       role="img"
-      aria-label="Karochat"
+      aria-label="Karochat — two people, one heart"
       xmlns="http://www.w3.org/2000/svg"
       className={clsx("h-7 w-7", className)}
     >
@@ -22,7 +23,7 @@ export function Logo({ className }: { className?: string }) {
           x1="6"
           y1="4"
           x2="42"
-          y2="42"
+          y2="44"
           gradientUnits="userSpaceOnUse"
         >
           <stop stopColor="#9B30B5" />
@@ -30,14 +31,19 @@ export function Logo({ className }: { className?: string }) {
           <stop offset="1" stopColor="#E0218A" />
         </linearGradient>
       </defs>
-      {/* chat bubble with a bottom-left tail */}
+      <g fill="url(#karoLogoGrad)">
+        {/* person on the right, slightly behind */}
+        <g opacity="0.6">
+          <circle cx="31" cy="17" r="6" />
+          <path d="M22 43c0-9.4 4-12.5 9-12.5s9 3.1 9 12.5z" />
+        </g>
+        {/* person on the left, in front */}
+        <circle cx="18" cy="18" r="6.6" />
+        <path d="M7 43c0-9.7 4.4-12.9 11-12.9S29 33.3 29 43z" />
+      </g>
+      {/* heart between them */}
       <path
-        d="M16 6H32A12 12 0 0 1 44 18V24A12 12 0 0 1 32 36H22L14 44L18 36H16A12 12 0 0 1 4 24V18A12 12 0 0 1 16 6Z"
-        fill="url(#karoLogoGrad)"
-      />
-      {/* heart */}
-      <path
-        d="M24 29.5c-7-5-11-8.6-11-12.6 0-2.7 2.1-4.9 4.9-4.9 1.8 0 3.5 1 6.1 3.7 2.6-2.7 4.3-3.7 6.1-3.7 2.8 0 4.9 2.2 4.9 4.9 0 4-4 7.6-11 12.6z"
+        d="M24.5 13.4c-3-2.3-5-3.9-5-6 0-1.5 1.2-2.6 2.6-2.6 1 0 1.9.6 2.4 1.5.5-.9 1.4-1.5 2.4-1.5 1.4 0 2.6 1.1 2.6 2.6 0 2.1-2 3.7-5 6z"
         fill="#fff"
       />
     </svg>
