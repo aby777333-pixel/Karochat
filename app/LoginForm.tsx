@@ -4,7 +4,14 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/Button";
-import { COUNTRY_CODES, DEFAULT_COUNTRY_VALUE, dialOf } from "@/lib/countryCodes";
+import {
+  COUNTRY_CODES,
+  DEFAULT_COUNTRY_VALUE,
+  dialOf,
+  localPhone,
+  stripLeadingCode,
+  valueForIso
+} from "@/lib/countryCodes";
 
 const EMAIL_KEY = "karochat:last-email";
 const PHONE_KEY = "karochat:last-phone";
@@ -47,12 +54,30 @@ export function LoginForm() {
       const savedE = window.localStorage.getItem(EMAIL_KEY);
       if (savedE && /\S+@\S+\.\S+/.test(savedE)) setEmail(savedE);
       const savedP = window.localStorage.getItem(PHONE_KEY);
-      if (savedP) setPhone(savedP);
+      if (savedP) setPhone(stripLeadingCode(savedP));
       const savedC = window.localStorage.getItem(COUNTRY_KEY);
       if (savedC && savedC.includes(":")) setCountry(savedC);
     } catch {
       /* ignore */
     }
+  }, []);
+
+  // Auto-select the dial code from the visitor's country (GeoIP).
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const r = await fetch("/api/geo");
+        const j = await r.json();
+        const v = valueForIso(j?.country);
+        if (alive && v) setCountry(v);
+      } catch {
+        /* keep default */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -85,13 +110,14 @@ export function LoginForm() {
   async function onInstant(e: React.FormEvent) {
     e.preventDefault();
     const addr = email.trim();
-    const ph = phone.trim();
-    const fullPhone = `${dialOf(country)} ${ph}`.trim();
+    const dial = dialOf(country);
+    const local = localPhone(phone, dial); // local digits only — no dup of the code
+    const fullPhone = `${dial} ${local}`.trim();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(addr)) {
       setErrorMsg("Please enter a valid email.");
       return;
     }
-    if (ph.replace(/\D/g, "").length < 6) {
+    if (local.length < 6) {
       setErrorMsg("Please enter a valid phone number.");
       return;
     }
@@ -104,7 +130,7 @@ export function LoginForm() {
     // 1) Returning user — same email → same account, all data intact.
     const si = await supabase.auth.signInWithPassword({ email: loginEmail, password: pw });
     if (!si.error && si.data?.session) {
-      remember(addr, ph);
+      remember(addr, local);
       setBusy(false);
       router.replace("/rooms");
       router.refresh();
@@ -143,7 +169,7 @@ export function LoginForm() {
     const si2 = await supabase.auth.signInWithPassword({ email: loginEmail, password: pw });
     setBusy(false);
     if (!si2.error && si2.data?.session) {
-      remember(addr, ph);
+      remember(addr, local);
       router.replace("/terms");
       router.refresh();
       return;

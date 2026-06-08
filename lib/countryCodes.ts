@@ -59,3 +59,27 @@ export const DEFAULT_COUNTRY_VALUE = "IN:+91";
 export function dialOf(value: string): string {
   return value.split(":")[1] ?? value;
 }
+
+/** Maps an ISO country code (e.g. "IN") to a select value, or null. */
+export function valueForIso(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const c = COUNTRY_CODES.find((x) => x.iso === iso.toUpperCase());
+  return c ? `${c.iso}:${c.dial}` : null;
+}
+
+/**
+ * Normalises a typed phone number to just the LOCAL digits — strips a leading
+ * "+", and a leading copy of the selected dial code, so prefixing the dial
+ * again never duplicates it.
+ */
+export function localPhone(raw: string, dial: string): string {
+  const digits = (raw || "").replace(/\D/g, "");
+  const dd = (dial || "").replace(/\D/g, "");
+  if (dd && digits.startsWith(dd)) return digits.slice(dd.length);
+  return digits;
+}
+
+/** Strips a leading "+<code> " prefix for display (when reloading a saved value). */
+export function stripLeadingCode(raw: string): string {
+  return (raw || "").replace(/^\s*\+\d{1,4}[\s-]*/, "").trim();
+}

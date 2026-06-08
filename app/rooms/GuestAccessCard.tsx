@@ -8,7 +8,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { COUNTRY_CODES, DEFAULT_COUNTRY_VALUE, dialOf } from "@/lib/countryCodes";
+import { COUNTRY_CODES, DEFAULT_COUNTRY_VALUE, dialOf, localPhone, valueForIso } from "@/lib/countryCodes";
 
 export function GuestAccessCard() {
   const router = useRouter();
@@ -49,16 +49,34 @@ export function GuestAccessCard() {
     };
   }, []);
 
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const r = await fetch("/api/geo");
+        const j = await r.json();
+        const v = valueForIso(j?.country);
+        if (alive && v) setCountry(v);
+      } catch {
+        /* keep default */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   async function unlock(e: React.FormEvent) {
     e.preventDefault();
     const addr = email.trim();
-    const ph = phone.trim();
-    const fullPhone = `${dialOf(country)} ${ph}`.trim();
+    const dial = dialOf(country);
+    const local = localPhone(phone, dial);
+    const fullPhone = `${dial} ${local}`.trim();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(addr)) {
       setError("Please enter a valid email.");
       return;
     }
-    if (ph.replace(/\D/g, "").length < 6) {
+    if (local.length < 6) {
       setError("Please enter a valid phone number.");
       return;
     }
