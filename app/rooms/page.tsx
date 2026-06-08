@@ -197,9 +197,9 @@ export default async function RoomsPage({
   return (
     <AdRails>
       <main className="mx-auto flex min-h-[100dvh] max-w-6xl flex-col px-1 py-5 md:py-7">
-        <header className="surface-glass flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <Link href="/rooms" className="flex items-center gap-2">
-            <Logo className="h-6 w-6" />
+        <header className="surface-glass flex flex-row items-center justify-between gap-2 px-3 py-2 md:px-4 md:py-3">
+          <Link href="/rooms" className="flex shrink-0 items-center gap-2">
+            <Logo className="h-7 w-7" />
             <Wordmark className="text-lg" />
           </Link>
           <div className="flex flex-wrap items-center gap-2 text-xs sm:justify-end md:gap-3">
