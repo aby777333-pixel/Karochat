@@ -6,14 +6,14 @@ import clsx from "clsx";
  * it never distorts inside the square sizing classes callers pass in).
  */
 export function Logo({ className }: { className?: string }) {
-  // New mark (Wave 22): two people leaning into an embrace with a heart
-  // between them — a universally readable "connection" symbol in the brand
-  // purple→magenta gradient. Crisp inline SVG, sharp at any size.
+  // New mark (Wave 22): two people talking — heads with a small speech bubble
+  // (dots) between them — a universally readable "conversation" symbol in the
+  // brand purple→magenta gradient. Crisp inline SVG, sharp at any size.
   return (
     <svg
       viewBox="0 0 48 48"
       role="img"
-      aria-label="Karochat — two people, one heart"
+      aria-label="Karochat — two people talking"
       xmlns="http://www.w3.org/2000/svg"
       className={clsx("h-7 w-7", className)}
     >
@@ -41,11 +41,16 @@ export function Logo({ className }: { className?: string }) {
         <circle cx="18" cy="18" r="6.6" />
         <path d="M7 43c0-9.7 4.4-12.9 11-12.9S29 33.3 29 43z" />
       </g>
-      {/* heart between them */}
+      {/* speech bubble between them (talking) */}
       <path
-        d="M24.5 13.4c-3-2.3-5-3.9-5-6 0-1.5 1.2-2.6 2.6-2.6 1 0 1.9.6 2.4 1.5.5-.9 1.4-1.5 2.4-1.5 1.4 0 2.6 1.1 2.6 2.6 0 2.1-2 3.7-5 6z"
+        d="M22.5 3.4H26.5A3 3 0 0 1 29.5 6.4V7.6A3 3 0 0 1 26.5 10.6H25.4L24 13l-1.1-2.4H22.5A3 3 0 0 1 19.5 7.6V6.4A3 3 0 0 1 22.5 3.4Z"
         fill="#fff"
       />
+      <g fill="url(#karoLogoGrad)">
+        <circle cx="22.6" cy="7" r="0.9" />
+        <circle cx="24.5" cy="7" r="0.9" />
+        <circle cx="26.4" cy="7" r="0.9" />
+      </g>
     </svg>
   );
 }
