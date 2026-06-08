@@ -6,6 +6,7 @@ import { GuestBanner } from "@/components/GuestBanner";
 import { NativeBridge } from "@/components/NativeBridge";
 import { MobileNav } from "@/components/MobileNav";
 import { VoiceCommand } from "@/components/VoiceCommand";
+import { InstallPrompt } from "@/components/InstallPrompt";
 
 const SLOGAN =
   "Meet your mate, chat, make friends, accept, adapt, share and care, live and let live, be happy because life is too short, and the future is uncertain.";
@@ -57,6 +58,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <NativeBridge />
         <VoiceCommand />
         <MobileNav />
+        <InstallPrompt />
       </body>
     </html>
   );
