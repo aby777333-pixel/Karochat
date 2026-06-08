@@ -1712,7 +1712,9 @@ export function RoomChat({
             </button>
           </div>
         )}
-        <div className="relative flex flex-wrap items-end gap-2">
+        <div className="relative flex flex-col gap-2">
+          {/* Row 1 — action buttons ("left tags"). */}
+          <div className="flex flex-wrap items-center gap-1.5">
           <div className="relative">
             <button
               type="button"
@@ -2002,6 +2004,9 @@ export function RoomChat({
             className="hidden"
             onChange={onFile}
           />
+          </div>
+          {/* Row 2 — the full-width message box + Send, under the tags. */}
+          <div className="flex items-end gap-2">
           <textarea
             ref={textareaRef}
             value={draft}
@@ -2009,13 +2014,14 @@ export function RoomChat({
             onKeyDown={onKeyDown}
             onPaste={onPaste}
             placeholder={`Say something, @${currentUsername}… (paste images too)`}
-            rows={1}
+            rows={2}
             maxLength={2000}
-            className="max-h-40 min-h-[44px] min-w-[140px] flex-1 resize-none rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none placeholder:text-white/30 focus:border-neon-blue/60"
+            className="max-h-44 min-h-[52px] w-full flex-1 resize-none rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none placeholder:text-white/30 focus:border-neon-blue/60"
           />
           <Button onClick={() => void sendText()} disabled={sending || uploading || !draft.trim()}>
             {sending ? "…" : "Send"}
           </Button>
+          </div>
         </div>
         <p className="mt-1.5 px-1 text-[10px] text-white/30">
           Enter to send · Shift+Enter for newline · 📎 image · 📁 file · 🎤 voice-type · 🎙 voice note · 😊 emoji · GIF · ⏳ disappear ·{" "}
