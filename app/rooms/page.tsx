@@ -206,6 +206,13 @@ export default async function RoomsPage({
                 has room to breathe. */}
             <div className="hidden flex-wrap items-center gap-2 md:flex md:gap-3">
               <Link
+                href="/rooms"
+                className="rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-white hover:bg-white/15"
+                title="Lobby — your rooms, friends, and discovery"
+              >
+                🏠 Lobby
+              </Link>
+              <Link
                 href="/books"
                 className="rounded-lg border border-neon-blue/40 bg-neon-blue/10 px-3 py-1.5 text-neon-blue hover:bg-neon-blue/20"
                 title="Books — global library (Phase 2)"
