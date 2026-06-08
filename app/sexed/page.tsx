@@ -55,6 +55,7 @@ const TOPIC_GROUPS: Array<{ key: string; label: string; emoji: string }> = [
   { key: "sti", label: "STIs", emoji: "🧪" },
   { key: "pleasure", label: "Pleasure & anatomy", emoji: "💗" },
   { key: "technique", label: "Sex — technique", emoji: "🔥" },
+  { key: "relationships", label: "Relationships & non-monogamy", emoji: "💞" },
   { key: "queer", label: "LGBTQ-specific", emoji: "🏳️‍🌈" },
   { key: "kink", label: "Kink & BDSM", emoji: "🪢" }
 ];

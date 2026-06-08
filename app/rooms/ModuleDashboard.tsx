@@ -21,9 +21,9 @@ const SECTIONS: Section[] = [
   {
     title: "Spontaneous",
     tiles: [
+      { href: "/rooms/00000000-0000-0000-0000-00000000aaaa", label: "Lobby", emoji: "🏠", grad: "from-amber-300 via-orange-400 to-pink-500" },
       { href: "/meet/now", label: "Meet now", emoji: "⚡", grad: "from-amber-300 via-orange-400 to-orange-600" },
       { href: "/handshake", label: "Handshake", emoji: "🤝", grad: "from-emerald-300 via-teal-400 to-cyan-500" },
-      { href: "/shorts", label: "Shorts", emoji: "🎬", grad: "from-pink-400 via-rose-500 to-fuchsia-600" },
       { href: "/rooms?create=1", label: "New room", emoji: "➕", grad: "from-sky-300 via-blue-500 to-indigo-600" }
     ]
   },
@@ -39,10 +39,10 @@ const SECTIONS: Section[] = [
   {
     title: "Community",
     tiles: [
-      { href: "/rooms/00000000-0000-0000-0000-00000000aaaa", label: "Enter lobby", emoji: "🏠", grad: "from-cyan-300 via-sky-400 to-blue-600" },
+      { href: "/shorts", label: "Shorts", emoji: "🎬", grad: "from-pink-400 via-rose-500 to-fuchsia-600" },
       { href: "/stories/new", label: "Add story", emoji: "✨", grad: "from-fuchsia-400 via-purple-500 to-indigo-600" },
       { href: "/shorts/new", label: "Post short", emoji: "📹", grad: "from-orange-300 via-red-400 to-rose-600" },
-      { href: "/write/new", label: "New post", emoji: "📝", grad: "from-lime-300 via-green-400 to-emerald-600" }
+      { href: "/charter", label: "Charter", emoji: "🌍", grad: "from-cyan-300 via-sky-400 to-blue-600" }
     ]
   }
 ];
