@@ -209,9 +209,9 @@ export default async function RoomsPage({
                 has room to breathe. */}
             <div className="hidden flex-wrap items-center gap-2 md:flex md:gap-3">
               <Link
-                href="/rooms"
-                className="rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-white hover:bg-white/15"
-                title="Lobby — your rooms, friends, and discovery"
+                href="/rooms/00000000-0000-0000-0000-00000000aaaa"
+                className="rounded-lg border border-neon-amber/40 bg-neon-amber/10 px-3 py-1.5 text-neon-amber hover:bg-neon-amber/20"
+                title="Enter the Lobby — everybody hangs here"
               >
                 🏠 Lobby
               </Link>

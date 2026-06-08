@@ -4,32 +4,23 @@
       <stop stop-color="#1A1622"/>
       <stop offset="1" stop-color="#0A0A0A"/>
     </linearGradient>
-    <radialGradient id="glow" cx="0.3" cy="0.24" r="0.85">
+    <radialGradient id="glow" cx="0.3" cy="0.22" r="0.85">
       <stop stop-color="#C42A95" stop-opacity="0.4"/>
       <stop offset="0.6" stop-color="#C42A95" stop-opacity="0"/>
     </radialGradient>
-    <linearGradient id="mark" x1="6" y1="4" x2="42" y2="44" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#9B30B5"/>
-      <stop offset="0.5" stop-color="#C42A95"/>
-      <stop offset="1" stop-color="#E0218A"/>
+    <linearGradient id="body" x1="0" y1="70" x2="0" y2="196" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#9A4FB5"/>
+      <stop offset="1" stop-color="#2E2A8C"/>
+    </linearGradient>
+    <linearGradient id="head" x1="0" y1="18" x2="0" y2="66" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FBB04C"/>
+      <stop offset="1" stop-color="#EE3C8B"/>
     </linearGradient>
   </defs>
   <rect width="512" height="512" rx="112" fill="url(#bg)"/>
   <rect width="512" height="512" rx="112" fill="url(#glow)"/>
-  <g transform="translate(64 76) scale(8)">
-    <g fill="url(#mark)">
-      <g opacity="0.6">
-        <circle cx="31" cy="17" r="6"/>
-        <path d="M22 43c0-9.4 4-12.5 9-12.5s9 3.1 9 12.5z"/>
-      </g>
-      <circle cx="18" cy="18" r="6.6"/>
-      <path d="M7 43c0-9.7 4.4-12.9 11-12.9S29 33.3 29 43z"/>
-    </g>
-    <path d="M22.5 3.4H26.5A3 3 0 0 1 29.5 6.4V7.6A3 3 0 0 1 26.5 10.6H25.4L24 13l-1.1-2.4H22.5A3 3 0 0 1 19.5 7.6V6.4A3 3 0 0 1 22.5 3.4Z" fill="#ffffff"/>
-    <g fill="url(#mark)">
-      <circle cx="22.6" cy="7" r="0.9"/>
-      <circle cx="24.5" cy="7" r="0.9"/>
-      <circle cx="26.4" cy="7" r="0.9"/>
-    </g>
+  <g transform="translate(26 12) scale(2.3)">
+    <circle cx="100" cy="42" r="24" fill="url(#head)"/>
+    <path d="M24 84 L86 132 L100 194 L114 132 L176 84 L100 118 Z" fill="url(#body)"/>
   </g>
 </svg>
