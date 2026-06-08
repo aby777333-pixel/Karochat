@@ -4,14 +4,17 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/Button";
+import { COUNTRY_CODES, DEFAULT_COUNTRY_VALUE, dialOf } from "@/lib/countryCodes";
 
 const EMAIL_KEY = "karochat:last-email";
 const PHONE_KEY = "karochat:last-phone";
+const COUNTRY_KEY = "karochat:last-country";
 
 export function LoginForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [country, setCountry] = useState(DEFAULT_COUNTRY_VALUE);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -29,6 +32,8 @@ export function LoginForm() {
       if (savedE && /\S+@\S+\.\S+/.test(savedE)) setEmail(savedE);
       const savedP = window.localStorage.getItem(PHONE_KEY);
       if (savedP) setPhone(savedP);
+      const savedC = window.localStorage.getItem(COUNTRY_KEY);
+      if (savedC && savedC.includes(":")) setCountry(savedC);
     } catch {
       /* ignore */
     }
@@ -52,6 +57,7 @@ export function LoginForm() {
     try {
       window.localStorage.setItem(EMAIL_KEY, addr);
       window.localStorage.setItem(PHONE_KEY, ph);
+      window.localStorage.setItem(COUNTRY_KEY, country);
     } catch {
       /* ignore */
     }
@@ -64,11 +70,12 @@ export function LoginForm() {
     e.preventDefault();
     const addr = email.trim();
     const ph = phone.trim();
+    const fullPhone = `${dialOf(country)} ${ph}`.trim();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(addr)) {
       setErrorMsg("Please enter a valid email.");
       return;
     }
-    if (ph.replace(/\D/g, "").length < 7) {
+    if (ph.replace(/\D/g, "").length < 6) {
       setErrorMsg("Please enter a valid phone number.");
       return;
     }
@@ -88,7 +95,7 @@ export function LoginForm() {
     }
     const { error: rpcErr } = await supabase.rpc("register_contact", {
       p_email: addr,
-      p_phone: ph
+      p_phone: fullPhone
     });
     setBusy(false);
     if (rpcErr) {
@@ -237,16 +244,30 @@ export function LoginForm() {
         <label className="block text-xs uppercase tracking-widest text-white/50">
           Phone
         </label>
-        <input
-          type="tel"
-          required
-          autoComplete="tel"
-          inputMode="tel"
-          placeholder="+91 98765 43210"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder-white/30 outline-none transition focus:border-neon-blue/60 focus:bg-black/40"
-        />
+        <div className="flex gap-2">
+          <select
+            aria-label="Country code"
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
+            className="w-[6.5rem] shrink-0 rounded-xl border border-white/10 bg-black/30 px-2 py-3 text-sm text-white outline-none transition focus:border-neon-blue/60"
+          >
+            {COUNTRY_CODES.map((c) => (
+              <option key={c.iso} value={`${c.iso}:${c.dial}`}>
+                {c.flag} {c.dial}
+              </option>
+            ))}
+          </select>
+          <input
+            type="tel"
+            required
+            autoComplete="tel"
+            inputMode="tel"
+            placeholder="98765 43210"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder-white/30 outline-none transition focus:border-neon-blue/60 focus:bg-black/40"
+          />
+        </div>
         <Button type="submit" disabled={busy} className="w-full">
           {busy ? "Getting you in…" : "Get instant access →"}
         </Button>

@@ -8,12 +8,14 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { COUNTRY_CODES, DEFAULT_COUNTRY_VALUE, dialOf } from "@/lib/countryCodes";
 
 export function GuestAccessCard() {
   const router = useRouter();
   const [isGuest, setIsGuest] = useState<boolean | null>(null);
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [country, setCountry] = useState(DEFAULT_COUNTRY_VALUE);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fromUpgradeRedirect, setFromUpgradeRedirect] = useState(false);
@@ -51,11 +53,12 @@ export function GuestAccessCard() {
     e.preventDefault();
     const addr = email.trim();
     const ph = phone.trim();
+    const fullPhone = `${dialOf(country)} ${ph}`.trim();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(addr)) {
       setError("Please enter a valid email.");
       return;
     }
-    if (ph.replace(/\D/g, "").length < 7) {
+    if (ph.replace(/\D/g, "").length < 6) {
       setError("Please enter a valid phone number.");
       return;
     }
@@ -64,7 +67,7 @@ export function GuestAccessCard() {
     const supabase = createSupabaseBrowserClient();
     const { error: rpcErr } = await supabase.rpc("register_contact", {
       p_email: addr,
-      p_phone: ph
+      p_phone: fullPhone
     });
     setBusy(false);
     if (rpcErr) {
@@ -105,16 +108,30 @@ export function GuestAccessCard() {
           onChange={(e) => setEmail(e.target.value)}
           className="rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white placeholder-white/30 outline-none focus:border-neon-amber/60"
         />
-        <input
-          type="tel"
-          required
-          autoComplete="tel"
-          inputMode="tel"
-          placeholder="+91 98765 43210"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          className="rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white placeholder-white/30 outline-none focus:border-neon-amber/60"
-        />
+        <div className="flex gap-2">
+          <select
+            aria-label="Country code"
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
+            className="w-[6rem] shrink-0 rounded-xl border border-white/10 bg-black/30 px-2 py-2.5 text-sm text-white outline-none focus:border-neon-amber/60"
+          >
+            {COUNTRY_CODES.map((c) => (
+              <option key={c.iso} value={`${c.iso}:${c.dial}`}>
+                {c.flag} {c.dial}
+              </option>
+            ))}
+          </select>
+          <input
+            type="tel"
+            required
+            autoComplete="tel"
+            inputMode="tel"
+            placeholder="98765 43210"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white placeholder-white/30 outline-none focus:border-neon-amber/60"
+          />
+        </div>
         <button
           type="submit"
           disabled={busy}

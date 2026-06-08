@@ -67,7 +67,8 @@ export default async function Home() {
         <div className="surface-glass mx-auto w-full max-w-md p-6 md:p-7">
           <h2 className="font-display text-2xl font-semibold">Sign in</h2>
           <p className="mt-1 text-sm text-white/60">
-            Enter your email, we&apos;ll send you a magic link. No password.
+            Enter your email &amp; phone for instant full access — no password, no
+            verification. Or continue as a guest.
           </p>
           <div className="mt-5">
             <LoginForm />
