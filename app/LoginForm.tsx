@@ -129,54 +129,33 @@ export function LoginForm() {
     const loginEmail = addr.toLowerCase();
     const pw = await derivePassword(loginEmail);
 
-    // 1) Returning user — same email → same account, all data intact.
-    const si = await supabase.auth.signInWithPassword({ email: loginEmail, password: pw });
-    if (!si.error && si.data?.session) {
-      remember(addr, local);
-      setBusy(false);
-      router.replace("/rooms");
-      router.refresh();
-      return;
-    }
-
-    // 2) Create / repair the account SERVER-SIDE (service role) — no email is
-    //    sent, so there are no email rate limits. Also enforces the
-    //    one-account-per-phone rule.
+    // 1) Create / repair + CONFIRM the account SERVER-SIDE first (service role,
+    //    no email is ever sent → no email rate limits). This must run before
+    //    any signInWithPassword, otherwise an unconfirmed account would make
+    //    Supabase try to (re)send a confirmation email and hit the limit.
     const fn = await supabase.functions.invoke("instant-auth", {
       body: { email: loginEmail, phone: fullPhone, password: pw }
     });
     const res: any = fn.data;
-    if (fn.error || !res) {
+    if (fn.error || !res || !res.ok) {
       setBusy(false);
-      setErrorMsg("Couldn't sign you in right now. Please try again.");
-      return;
-    }
-    if (!res.ok) {
-      setBusy(false);
-      if (res.code === "phone_conflict") {
-        setErrorMsg(
-          `That phone is already registered to ${res.masked || "another account"}. Please sign in with that email.`
-        );
-      } else if (res.code === "bad_email") {
-        setErrorMsg("Please enter a valid email.");
-      } else if (res.code === "bad_phone") {
-        setErrorMsg("Please enter a valid phone number.");
-      } else {
-        setErrorMsg("Couldn't sign you in right now. Please try again.");
-      }
+      if (res?.code === "bad_email") setErrorMsg("Please enter a valid email address.");
+      else if (res?.code === "bad_phone") setErrorMsg("Please enter a valid phone number.");
+      else setErrorMsg("Couldn't sign you in right now. Please try again.");
       return;
     }
 
-    // 3) Account is ready (confirmed, no email) → sign in.
-    const si2 = await supabase.auth.signInWithPassword({ email: loginEmail, password: pw });
+    // 2) Account is ready (confirmed, no email) → sign in. Same email next
+    //    time signs back into the same account with all data intact.
+    const si = await supabase.auth.signInWithPassword({ email: loginEmail, password: pw });
     setBusy(false);
-    if (!si2.error && si2.data?.session) {
+    if (!si.error && si.data?.session) {
       remember(addr, local);
-      router.replace("/terms");
+      router.replace("/rooms");
       router.refresh();
       return;
     }
-    setErrorMsg(si2.error?.message ?? "Couldn't sign you in. Please try again.");
+    setErrorMsg(si.error?.message ?? "Couldn't sign you in. Please try again.");
   }
 
   // SECONDARY — email a magic link + 6-digit code (returning users).
