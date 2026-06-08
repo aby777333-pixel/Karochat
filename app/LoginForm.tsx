@@ -141,6 +141,7 @@ export function LoginForm() {
       setBusy(false);
       if (res?.code === "bad_email") setErrorMsg("Please enter a valid email address.");
       else if (res?.code === "bad_phone") setErrorMsg("Please enter a valid phone number.");
+      else if (res?.code === "blocked") setErrorMsg("Access from your network has been blocked.");
       else setErrorMsg("Couldn't sign you in right now. Please try again.");
       return;
     }

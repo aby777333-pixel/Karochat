@@ -35,6 +35,7 @@ import { EmojiPicker } from "@/components/EmojiPicker";
 import { GifPicker } from "@/components/GifPicker";
 import { MentionMenu } from "@/components/MentionMenu";
 import { VoiceRecorder } from "@/components/VoiceRecorder";
+import { flagCategory, flagWarning, reportFlag, type FlagCategory } from "@/lib/flaggedTerms";
 import { PinnedStrip } from "@/components/PinnedStrip";
 import { MessageSearchBar } from "@/components/MessageSearchBar";
 import { ForwardModal } from "@/components/ForwardModal";
@@ -436,6 +437,7 @@ export function RoomChat({
   const [intentMenuOpen, setIntentMenuOpen] = useState(false);
   const [lightsOut, setLightsOut] = useState(false);
   const [fourLinesWarning, setFourLinesWarning] = useState<string | null>(null);
+  const [flaggedCat, setFlaggedCat] = useState<FlagCategory | null>(null);
   const [threadParentId, setThreadParentId] = useState<string | null>(null);
   const [reportTarget, setReportTarget] = useState<
     | { kind: "message"; id: string; preview: string }
@@ -944,6 +946,15 @@ export function RoomChat({
   async function sendText() {
     const text = draft.trim();
     if (!text || sending) return;
+
+    // Hard line — sexual content about minors / terrorism. BLOCK the send,
+    // warn sternly, and log the attempt with the offender's IP (/api/flag).
+    const flagged = flagCategory(text);
+    if (flagged) {
+      reportFlag(flagged, text, roomId);
+      setFlaggedCat(flagged);
+      return;
+    }
 
     // v7 People's Charter — soft 4-lines warning. One-time per session.
     // Never blocks. Just signals "you're being seen" if the narrow keyword
@@ -2072,6 +2083,43 @@ export function RoomChat({
           inviteCode={roomInviteCode ?? null}
           onClose={() => setWidgetCallMode(null)}
         />
+      )}
+
+      {flaggedCat !== null && (
+        <div
+          className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-black/85 p-4 backdrop-blur-sm sm:items-center"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setFlaggedCat(null);
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="surface-glass my-auto w-[min(460px,94vw)] border border-neon-red/50 bg-neon-red/[0.08] p-5"
+          >
+            <p className="font-display text-base font-semibold text-neon-red">
+              🚫 Blocked — hard line crossed
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-white/90">
+              {flagWarning(flaggedCat)}
+            </p>
+            <p className="mt-2 text-xs leading-relaxed text-white/55">
+              If this was a mistake or you were discussing this for support /
+              awareness, edit your message and send again. See the{" "}
+              <Link href="/charter" className="underline hover:text-white">
+                People&apos;s Charter
+              </Link>
+              .
+            </p>
+            <button
+              type="button"
+              onClick={() => setFlaggedCat(null)}
+              className="mt-4 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/85 hover:bg-white/10"
+            >
+              I understand
+            </button>
+          </div>
+        </div>
       )}
 
       {fourLinesWarning !== null && (

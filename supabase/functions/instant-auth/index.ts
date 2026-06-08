@@ -48,6 +48,18 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false }
     });
 
+    // 0) Blacklist — refuse blacklisted IPs (safety-notice enforcement).
+    const ip =
+      (req.headers.get("x-forwarded-for") || "").split(",")[0]?.trim() ||
+      req.headers.get("x-real-ip") ||
+      "";
+    if (ip) {
+      const bl = await admin.rpc("is_ip_blacklisted", { p_ip: ip });
+      if (!bl.error && bl.data === true) {
+        return json({ ok: false, code: "blocked" }, 200);
+      }
+    }
+
     // 1) Phone uniqueness — reject reusing a phone tied to another email.
     const avail = await admin.rpc("check_contact_availability", {
       p_email: email,

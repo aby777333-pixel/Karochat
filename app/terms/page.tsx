@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Logo, Wordmark } from "@/components/Brand";
 import { AcceptTermsForm } from "./AcceptTermsForm";
+import { TermsContent } from "./TermsContent";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +76,10 @@ export default async function TermsGatePage() {
             </p>
           </li>
         </ul>
+
+        <div className="mt-6 max-h-[48vh] overflow-y-auto rounded-xl border border-white/10 bg-black/30 p-4 scroll-thin">
+          <TermsContent />
+        </div>
 
         <AcceptTermsForm />
       </section>

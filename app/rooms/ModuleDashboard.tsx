@@ -19,6 +19,15 @@ type Section = { title: string; tiles: Tile[] };
 
 const SECTIONS: Section[] = [
   {
+    title: "Your space",
+    tiles: [
+      { href: "#saved", label: "Saved", emoji: "💾", grad: "from-slate-300 via-slate-500 to-slate-700" },
+      { href: "#friends", label: "Friends", emoji: "🧑‍🤝‍🧑", grad: "from-emerald-300 via-teal-400 to-cyan-500" },
+      { href: "#dms", label: "Messages", emoji: "💬", grad: "from-sky-300 via-blue-500 to-indigo-600" },
+      { href: "#browse-rooms", label: "My rooms", emoji: "🚪", grad: "from-violet-400 via-purple-500 to-fuchsia-600" }
+    ]
+  },
+  {
     title: "Spontaneous",
     tiles: [
       { href: "/rooms/00000000-0000-0000-0000-00000000aaaa", label: "Lobby", emoji: "🏠", grad: "from-amber-300 via-orange-400 to-pink-500" },

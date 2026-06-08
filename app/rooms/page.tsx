@@ -318,14 +318,17 @@ export default async function RoomsPage({
               <ModuleDashboard />
             </DismissibleSection>
 
+            <div id="saved" className="scroll-mt-24" />
             <DismissibleSection id="saved">
               <SavedRoomButton />
             </DismissibleSection>
 
+            <div id="friends" className="scroll-mt-24" />
             <DismissibleSection id="friends">
               <FriendsAndRequests currentUserId={user.id} />
             </DismissibleSection>
 
+            <div id="dms" className="scroll-mt-24" />
             {dms.length > 0 && (
               <DismissibleSection id="dms">
                 <section className="surface-glass tint-purple p-5">
