@@ -51,14 +51,14 @@ function TileLink({ tile }: { tile: Tile }) {
   return (
     <Link
       href={tile.href}
-      className="group flex flex-col items-center gap-1.5 rounded-2xl p-1.5 text-center transition active:scale-95"
+      className="group flex flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.05] px-2 py-4 text-center shadow-sm shadow-black/20 transition hover:-translate-y-0.5 hover:border-white/25 hover:bg-white/[0.09] active:scale-95"
     >
       <span
-        className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${tile.grad} text-2xl shadow-lg shadow-black/30 transition group-hover:scale-105`}
+        className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${tile.grad} text-[26px] shadow-lg shadow-black/40 ring-1 ring-white/15 transition group-hover:scale-110`}
       >
         {tile.emoji}
       </span>
-      <span className="text-[11px] font-medium leading-tight text-white/80">
+      <span className="text-xs font-semibold leading-tight text-white">
         {tile.label}
       </span>
     </Link>
@@ -72,13 +72,14 @@ export function ModuleDashboard() {
         <h2 className="font-display text-lg font-semibold">Explore Karochat</h2>
         <span className="text-[11px] text-white/40">tap to jump in</span>
       </div>
-      <div className="space-y-4">
+      <div className="mt-3 space-y-5">
         {SECTIONS.map((s) => (
           <div key={s.title}>
-            <p className="mb-1.5 mt-2 text-[11px] font-semibold uppercase tracking-widest text-white/45">
+            <p className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-white/55">
+              <span className="h-1 w-1 rounded-full bg-neon-purple" aria-hidden />
               {s.title}
             </p>
-            <div className="grid grid-cols-4 gap-2 sm:grid-cols-4">
+            <div className="grid grid-cols-4 gap-2.5 sm:gap-3">
               {s.tiles.map((t) => (
                 <TileLink key={t.label} tile={t} />
               ))}
