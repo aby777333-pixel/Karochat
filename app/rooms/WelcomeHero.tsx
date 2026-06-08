@@ -23,9 +23,19 @@ export function WelcomeHero() {
         <h2 className="mt-0.5 font-display text-2xl font-semibold leading-tight text-white sm:text-3xl">
           Everyone&apos;s welcome here.
         </h2>
-        <p className="mt-1 hidden max-w-md text-sm text-white/75 sm:block">
-          Every colour, every culture, every kind of human. Meet your mate,
-          make friends, share and care. Be kind. Be real.
+        <p className="mt-2 max-w-3xl text-[13px] leading-relaxed text-white/80 sm:text-sm">
+          <span className="font-semibold text-white">KaroChat is for everyone</span> — a place
+          where kindness, respect, friendship, and understanding come first, where people are
+          encouraged to be nice to one another, to choose love over hate, to share and care, to
+          help and support each other, to smile more and frown less, to celebrate what unites us
+          rather than focus on what divides us, to stand together against cruelty, negativity,
+          injustice, and those forces that seek to create fear and conflict, to build bridges
+          instead of walls, to make love and not war — because life is short, precious, and
+          unpredictable, because the past cannot be changed and the future is uncertain, and
+          because all we truly have is this present moment, this gift of now: a moment to live
+          fully, appreciate deeply, laugh freely, forgive generously, connect meaningfully,
+          create beautiful memories, and make the world a little better through our words, our
+          actions, and our humanity — one conversation at a time.
         </p>
       </div>
     </section>
