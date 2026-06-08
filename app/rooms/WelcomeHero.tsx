@@ -1,65 +1,37 @@
 // Karochat — welcome hero (Wave 22).
 //
-// A warm, inclusive banner at the top of the lobby that puts people of every
-// ethnicity, age and culture front-and-centre — echoing the People's Charter
+// A warm, inclusive banner at the top of the lobby — a candid photo of people
+// of every ethnicity, age and culture, echoing the People's Charter
 // ("Karochat is for people. All of them."). Pure presentational server
 // component: no client JS, nothing to break.
-
-// A deliberately diverse cast: varied skin tones, ages, genders and cultural
-// markers (hijab, turban, elder, child) so the banner reads as "everyone".
-const FACES = [
-  "👩🏿‍🦱",
-  "🧑🏽",
-  "👳🏾‍♂️",
-  "👵🏼",
-  "🧕🏽",
-  "👨🏻‍🦰",
-  "🧑🏿‍🦲",
-  "👩🏾‍🦰",
-  "👨🏽",
-  "🧒🏻"
-];
 
 export function WelcomeHero() {
   return (
     <section className="surface-glass relative overflow-hidden p-0">
-      {/* warm, inclusive gradient wash */}
-      <div
-        className="pointer-events-none absolute inset-0 opacity-90"
-        style={{
-          backgroundImage:
-            "linear-gradient(120deg, rgba(163,113,255,0.30), rgba(255,45,85,0.22) 45%, rgba(255,176,32,0.22) 75%, rgba(25,229,193,0.22))"
-        }}
-        aria-hidden
-      />
-      <div className="relative flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-        <div className="min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-white/70">
+      <div className="relative h-40 w-full sm:h-52">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/welcome-people.webp"
+          alt="A diverse group of people of many ethnicities, ages and cultures laughing together outdoors"
+          className="h-full w-full object-cover object-center"
+          loading="eager"
+        />
+        {/* legibility scrim */}
+        <div
+          className="absolute inset-0 bg-gradient-to-t from-ink-900 via-ink-900/55 to-ink-900/5"
+          aria-hidden
+        />
+        <div className="absolute inset-x-0 bottom-0 p-4 sm:p-5">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-white/75">
             Karochat is for people — all of them
           </p>
-          <h2 className="mt-1 font-display text-2xl font-semibold leading-tight text-white sm:text-3xl">
+          <h2 className="mt-0.5 font-display text-2xl font-semibold leading-tight text-white drop-shadow sm:text-3xl">
             Everyone&apos;s welcome here.
           </h2>
-          <p className="mt-1 max-w-md text-sm text-white/75">
+          <p className="mt-1 hidden max-w-md text-sm text-white/85 drop-shadow sm:block">
             Every colour, every culture, every kind of human. Meet your mate,
             make friends, share and care. Be kind. Be real.
           </p>
-        </div>
-
-        {/* Overlapping circle of diverse faces — "a picture of people of all
-            ethnicities" rendered with full-colour emoji so it works on every
-            device with zero external assets. */}
-        <div className="flex shrink-0 -space-x-3 self-start sm:self-center">
-          {FACES.map((face, i) => (
-            <span
-              key={i}
-              className="grid h-11 w-11 place-items-center rounded-full bg-white/10 text-2xl shadow-md shadow-black/30 ring-2 ring-ink-900 backdrop-blur-sm sm:h-12 sm:w-12"
-              style={{ zIndex: FACES.length - i }}
-              aria-hidden
-            >
-              {face}
-            </span>
-          ))}
         </div>
       </div>
     </section>
