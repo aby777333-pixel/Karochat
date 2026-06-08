@@ -18,6 +18,7 @@ import { CategoryBrowser, type Category, type Subcategory } from "./CategoryBrow
 import { OwnedRoomDeleteButton } from "./OwnedRoomDeleteButton";
 import { LobbyLeaveButton } from "./LobbyLeaveButton";
 import { MoodMatchedRooms } from "./MoodMatchedRooms";
+import { ModuleDashboard } from "./ModuleDashboard";
 // import { DailyPrompt } from "./DailyPrompt"; // hidden by request — keep file for re-enable
 
 export const dynamic = "force-dynamic";
@@ -200,50 +201,55 @@ export default async function RoomsPage({
             <Wordmark className="text-lg" />
           </Link>
           <div className="flex flex-wrap items-center gap-2 text-xs sm:justify-end md:gap-3">
-            <Link
-              href="/books"
-              className="rounded-lg border border-neon-blue/40 bg-neon-blue/10 px-3 py-1.5 text-neon-blue hover:bg-neon-blue/20"
-              title="Books — global library (Phase 2)"
-            >
-              📚 Books
-            </Link>
-            <Link
-              href="/sexed"
-              className="rounded-lg border border-neon-mint/40 bg-neon-mint/10 px-3 py-1.5 text-neon-mint hover:bg-neon-mint/20"
-              title="Sex education — age-tiered, queer-affirming (Phase 3)"
-            >
-              💞 Sex ed
-            </Link>
-            <Link
-              href="/read"
-              className="rounded-lg border border-neon-purple/40 bg-neon-purple/10 px-3 py-1.5 text-neon-purple hover:bg-neon-purple/20"
-              title="Read community-published stories, essays, journals"
-            >
-              📖 Read
-            </Link>
-            <Link
-              href="/write"
-              className="rounded-lg border border-neon-mint/40 bg-neon-mint/10 px-3 py-1.5 text-neon-mint hover:bg-neon-mint/20"
-              title="Your writing — drafts, published, new piece"
-            >
-              ✍ Write
-            </Link>
-            {/* 🎓 Students — module hidden for now; it's being spun out into a
-                separate application. Keep the link here for easy re-enable.
-            <Link
-              href="/students"
-              className="rounded-lg border border-neon-mint/40 bg-neon-mint/10 px-3 py-1.5 text-neon-mint hover:bg-neon-mint/20"
-              title="Students Network — verified peer learning"
-            >
-              🎓 Students
-            </Link>
-            */}
-            <Link
-              href="/shorts"
-              className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-white/80 hover:bg-white/10 hover:text-white"
-            >
-              🎬 Shorts
-            </Link>
+            {/* Module shortcuts — hidden on mobile (the colourful dashboard +
+                bottom nav cover them there); kept on desktop where the header
+                has room to breathe. */}
+            <div className="hidden flex-wrap items-center gap-2 md:flex md:gap-3">
+              <Link
+                href="/books"
+                className="rounded-lg border border-neon-blue/40 bg-neon-blue/10 px-3 py-1.5 text-neon-blue hover:bg-neon-blue/20"
+                title="Books — global library (Phase 2)"
+              >
+                📚 Books
+              </Link>
+              <Link
+                href="/sexed"
+                className="rounded-lg border border-neon-mint/40 bg-neon-mint/10 px-3 py-1.5 text-neon-mint hover:bg-neon-mint/20"
+                title="Sex education — age-tiered, queer-affirming (Phase 3)"
+              >
+                💞 Sex ed
+              </Link>
+              <Link
+                href="/read"
+                className="rounded-lg border border-neon-purple/40 bg-neon-purple/10 px-3 py-1.5 text-neon-purple hover:bg-neon-purple/20"
+                title="Read community-published stories, essays, journals"
+              >
+                📖 Read
+              </Link>
+              <Link
+                href="/write"
+                className="rounded-lg border border-neon-mint/40 bg-neon-mint/10 px-3 py-1.5 text-neon-mint hover:bg-neon-mint/20"
+                title="Your writing — drafts, published, new piece"
+              >
+                ✍ Write
+              </Link>
+              {/* 🎓 Students — module hidden for now; it's being spun out into a
+                  separate application. Keep the link here for easy re-enable.
+              <Link
+                href="/students"
+                className="rounded-lg border border-neon-mint/40 bg-neon-mint/10 px-3 py-1.5 text-neon-mint hover:bg-neon-mint/20"
+                title="Students Network — verified peer learning"
+              >
+                🎓 Students
+              </Link>
+              */}
+              <Link
+                href="/shorts"
+                className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-white/80 hover:bg-white/10 hover:text-white"
+              >
+                🎬 Shorts
+              </Link>
+            </div>
             <AccountMenu
               username={profile.username as string}
               displayName={profile.display_name as string | null}
@@ -292,6 +298,10 @@ export default async function RoomsPage({
 
         <div className="mt-5 grid flex-1 grid-cols-1 gap-5 lg:grid-cols-[1fr_340px]">
           <div className="space-y-5">
+            <DismissibleSection id="explore">
+              <ModuleDashboard />
+            </DismissibleSection>
+
             <DismissibleSection id="saved">
               <SavedRoomButton />
             </DismissibleSection>

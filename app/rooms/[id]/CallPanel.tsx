@@ -516,11 +516,11 @@ export function CallPanel({
             <button
               type="button"
               onClick={() => void copyInvite()}
-              title="Copy invite link to share with anyone"
-              aria-label="Copy invite link"
-              className="rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs text-white/80 hover:bg-white/10"
+              title="Copy a link to add more people to this call"
+              aria-label="Add people — copy invite link"
+              className="rounded-lg border border-neon-mint/40 bg-neon-mint/10 px-2 py-1.5 text-xs text-neon-mint hover:bg-neon-mint/20"
             >
-              {copiedInvite ? "✓ Copied" : "↗ Invite"}
+              {copiedInvite ? "✓ Link copied" : "👥 Add people"}
             </button>
             {!fullscreen && (panelWidth !== null || panelHeight !== null) && (
               <button

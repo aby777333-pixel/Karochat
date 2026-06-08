@@ -85,6 +85,22 @@ body::before {
   text-wrap: balance;
 }
 
+/* ---------------------------------------------------------------------------
+   Mobile bottom navigation (Wave 21)
+   The bar is position:fixed, so reserve matching space at the bottom of the
+   page whenever it's present (body gets `has-mobile-nav` from <MobileNav/>).
+   Only applies on small screens — the bar is md:hidden. env(safe-area-*)
+   keeps it clear of the iOS home indicator / Android gesture bar.
+--------------------------------------------------------------------------- */
+.mobile-nav {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+@media (max-width: 767px) {
+  body.has-mobile-nav {
+    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
+  }
+}
+
 /* scrollbar */
 .scroll-thin::-webkit-scrollbar { width: 10px; height: 10px; }
 .scroll-thin::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 8px; }

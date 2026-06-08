@@ -4,6 +4,8 @@ import { PanicExit } from "@/components/PanicExit";
 import { SleepMode } from "@/components/SleepMode";
 import { GuestBanner } from "@/components/GuestBanner";
 import { NativeBridge } from "@/components/NativeBridge";
+import { MobileNav } from "@/components/MobileNav";
+import { VoiceCommand } from "@/components/VoiceCommand";
 
 const SLOGAN =
   "Meet your mate, chat, make friends, accept, adapt, share and care, live and let live, be happy because life is too short, and the future is uncertain.";
@@ -53,6 +55,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SleepMode />
         <PanicExit />
         <NativeBridge />
+        <VoiceCommand />
+        <MobileNav />
       </body>
     </html>
   );
