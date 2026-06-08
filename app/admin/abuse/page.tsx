@@ -2,35 +2,21 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Logo, Wordmark } from "@/components/Brand";
-import { ReportRow } from "./ReportRow";
+import { AbuseConsole, type AbuseEvent } from "./AbuseConsole";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Admin · Reports · Karochat",
+  title: "Admin · Abuse & IP blacklist · Karochat",
   robots: { index: false, follow: false }
 };
 
-type Report = {
-  id: string;
-  reporter_id: string | null;
-  reporter_handle: string | null;
-  target_kind: "message" | "user" | "room";
-  target_id: string;
-  category: string;
-  body: string | null;
-  status: "new" | "triaged" | "actioned" | "dismissed";
-  reviewer_id: string | null;
-  priority: number;
-  created_at: string;
-};
-
-export default async function AdminReportsPage() {
+export default async function AdminAbusePage() {
   const supabase = createSupabaseServerClient();
   const {
     data: { user }
   } = await supabase.auth.getUser();
-  if (!user) redirect("/?redirect=/admin/reports");
+  if (!user) redirect("/?redirect=/admin/abuse");
 
   const { data: prof } = await supabase
     .from("profiles")
@@ -44,9 +30,8 @@ export default async function AdminReportsPage() {
         <Logo className="h-10 w-10" />
         <Wordmark className="mt-3 text-2xl" />
         <p className="mt-6 text-sm text-white/70">
-          The admin dashboard is restricted to operators. If you should have
-          access, flip <code className="font-mono">profiles.is_admin = true</code>{" "}
-          in the database for your account.
+          Restricted to operators. Set{" "}
+          <code className="font-mono">profiles.is_admin = true</code> for your account.
         </p>
         <Link
           href="/rooms"
@@ -58,14 +43,20 @@ export default async function AdminReportsPage() {
     );
   }
 
-  const { data, error } = await supabase.rpc("admin_list_reports", { p_limit: 200 });
-  const reports = (data ?? []) as Report[];
+  const [eventsResp, blResp] = await Promise.all([
+    supabase
+      .from("abuse_events")
+      .select("id, user_id, ip, user_agent, category, snippet, room_id, created_at")
+      .order("created_at", { ascending: false })
+      .limit(500),
+    supabase
+      .from("ip_blacklist")
+      .select("ip, reason, created_at")
+      .order("created_at", { ascending: false })
+  ]);
 
-  // Per-category counters for the dashboard header.
-  const byCategory = reports.reduce<Record<string, number>>((acc, r) => {
-    acc[r.category] = (acc[r.category] ?? 0) + 1;
-    return acc;
-  }, {});
+  const events = (eventsResp.data ?? []) as AbuseEvent[];
+  const blacklist = (blResp.data ?? []) as { ip: string; reason: string | null; created_at: string }[];
 
   return (
     <main className="mx-auto flex min-h-[100dvh] max-w-5xl flex-col px-5 py-8">
@@ -76,10 +67,10 @@ export default async function AdminReportsPage() {
         </Link>
         <div className="flex items-center gap-2">
           <Link
-            href="/admin/abuse"
-            className="rounded-lg border border-neon-red/30 bg-neon-red/10 px-3 py-1.5 text-xs text-neon-red hover:bg-neon-red/20"
+            href="/admin/reports"
+            className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/80 hover:bg-white/10"
           >
-            Abuse / IP
+            Reports
           </Link>
           <Link
             href="/rooms"
@@ -92,42 +83,23 @@ export default async function AdminReportsPage() {
 
       <section className="surface-glass tint-red mt-8 p-7 sm:p-9">
         <p className="text-[10px] uppercase tracking-widest text-neon-red/70">
-          🚩 Admin · Reports
+          🚫 Admin · Abuse &amp; IP blacklist
         </p>
         <h1 className="mt-1 font-display text-3xl font-semibold text-white">
-          Safety queue
+          Safety enforcement
         </h1>
         <p className="mt-2 text-sm text-white/70">
-          {reports.length} open ·{" "}
-          {Object.entries(byCategory)
-            .map(([k, v]) => `${v} ${k}`)
-            .join(" · ") || "all clear"}
-        </p>
-        <p className="mt-1 text-[11px] text-white/45">
-          Reports tagged <strong>minor</strong> or <strong>ncii</strong> are
-          auto-prioritized to 100. Other high-harm categories (doxxing,
-          violence) get 50.
+          {events.length} flagged event{events.length === 1 ? "" : "s"} ·{" "}
+          {blacklist.length} blacklisted IP{blacklist.length === 1 ? "" : "s"}. Blacklisted
+          IPs are refused at login. Export the log to hand to authorities.
         </p>
       </section>
 
-      {error && (
-        <div className="surface-glass tint-red mt-5 p-4 text-sm text-neon-red">
-          {error.message}
-        </div>
-      )}
-
-      <section className="mt-5 space-y-3">
-        {reports.length === 0 ? (
-          <div className="surface-glass mt-5 p-7 text-center text-sm text-white/55">
-            🎉 Queue is empty.
-          </div>
-        ) : (
-          reports.map((r) => <ReportRow key={r.id} r={r} />)
-        )}
-      </section>
+      <AbuseConsole events={events} initialBlacklist={blacklist} />
 
       <footer className="mt-8 text-center text-[11px] text-white/30">
-        Triage with care.
+        Handle this data lawfully. Retain only what you need; disclose only to
+        proper authorities.
       </footer>
     </main>
   );
