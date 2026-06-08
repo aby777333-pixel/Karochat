@@ -21,45 +21,46 @@ const SECTIONS: Section[] = [
   {
     title: "Spontaneous",
     tiles: [
-      { href: "/meet/now", label: "Meet now", emoji: "⚡", grad: "from-amber-400 to-orange-500" },
-      { href: "/handshake", label: "Handshake", emoji: "🤝", grad: "from-emerald-400 to-teal-500" },
-      { href: "/shorts", label: "Shorts", emoji: "🎬", grad: "from-pink-500 to-rose-500" },
-      { href: "/rooms?create=1", label: "New room", emoji: "➕", grad: "from-sky-400 to-blue-600" }
+      { href: "/meet/now", label: "Meet now", emoji: "⚡", grad: "from-amber-300 via-orange-400 to-orange-600" },
+      { href: "/handshake", label: "Handshake", emoji: "🤝", grad: "from-emerald-300 via-teal-400 to-cyan-500" },
+      { href: "/shorts", label: "Shorts", emoji: "🎬", grad: "from-pink-400 via-rose-500 to-fuchsia-600" },
+      { href: "/rooms?create=1", label: "New room", emoji: "➕", grad: "from-sky-300 via-blue-500 to-indigo-600" }
     ]
   },
   {
     title: "Library & writing",
     tiles: [
-      { href: "/books", label: "Books", emoji: "📚", grad: "from-blue-400 to-indigo-600" },
-      { href: "/read", label: "Read", emoji: "📖", grad: "from-violet-400 to-purple-600" },
-      { href: "/write", label: "Write", emoji: "✍️", grad: "from-teal-400 to-emerald-600" },
-      { href: "/sexed", label: "Sex ed", emoji: "💞", grad: "from-rose-400 to-pink-600" }
+      { href: "/books", label: "Books", emoji: "📚", grad: "from-blue-400 via-indigo-500 to-violet-600" },
+      { href: "/read", label: "Read", emoji: "📖", grad: "from-violet-400 via-purple-500 to-fuchsia-600" },
+      { href: "/write", label: "Write", emoji: "✍️", grad: "from-teal-300 via-emerald-400 to-green-500" },
+      { href: "/sexed", label: "Sex ed", emoji: "💞", grad: "from-rose-400 via-pink-500 to-fuchsia-600" }
     ]
   },
   {
     title: "Community",
     tiles: [
-      { href: "#browse-rooms", label: "Enter lobby", emoji: "🏠", grad: "from-cyan-400 to-sky-600" },
-      { href: "/stories/new", label: "Add story", emoji: "✨", grad: "from-fuchsia-400 to-purple-600" },
-      { href: "/shorts/new", label: "Post short", emoji: "📹", grad: "from-orange-400 to-red-500" },
-      { href: "/write/new", label: "New post", emoji: "📝", grad: "from-lime-400 to-green-600" }
+      { href: "#browse-rooms", label: "Enter lobby", emoji: "🏠", grad: "from-cyan-300 via-sky-400 to-blue-600" },
+      { href: "/stories/new", label: "Add story", emoji: "✨", grad: "from-fuchsia-400 via-purple-500 to-indigo-600" },
+      { href: "/shorts/new", label: "Post short", emoji: "📹", grad: "from-orange-300 via-red-400 to-rose-600" },
+      { href: "/write/new", label: "New post", emoji: "📝", grad: "from-lime-300 via-green-400 to-emerald-600" }
     ]
   }
 ];
 
 function TileLink({ tile }: { tile: Tile }) {
-  // items-start + a fixed-height label block keeps every icon on the same
-  // line and every label aligned, whether the label is one or two lines.
+  // Steel card base + neon icon chip with layered 3D shadows. items-start +
+  // a fixed-height label block keeps every icon on the same line and every
+  // label aligned, whether the label is one or two lines.
   const cls =
-    "group flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.05] px-2 py-4 text-center shadow-sm shadow-black/20 transition hover:-translate-y-0.5 hover:border-white/25 hover:bg-white/[0.09] active:scale-95";
+    "group flex flex-col items-center gap-2.5 rounded-2xl border border-white/15 bg-gradient-to-b from-slate-500/30 via-slate-700/30 to-slate-900/50 px-2 py-4 text-center shadow-[0_6px_16px_rgba(0,0,0,0.5)] ring-1 ring-inset ring-white/10 transition hover:-translate-y-0.5 hover:border-white/30 hover:from-slate-400/40 hover:to-slate-900/60 hover:shadow-[0_10px_24px_rgba(0,0,0,0.6)] active:scale-95";
   const inner = (
     <>
       <span
-        className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${tile.grad} text-[26px] shadow-lg shadow-black/40 ring-1 ring-white/15 transition group-hover:scale-110`}
+        className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${tile.grad} text-[26px] shadow-[0_8px_18px_rgba(0,0,0,0.55),inset_0_1px_2px_rgba(255,255,255,0.5)] ring-1 ring-white/30 transition group-hover:-translate-y-0.5 group-hover:scale-110 group-hover:brightness-110`}
       >
         {tile.emoji}
       </span>
-      <span className="flex min-h-[2.4em] items-start justify-center text-xs font-semibold leading-tight text-white">
+      <span className="flex min-h-[2.4em] items-start justify-center text-xs font-bold leading-tight text-white drop-shadow">
         {tile.label}
       </span>
     </>
