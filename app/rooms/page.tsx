@@ -20,6 +20,7 @@ import { LobbyLeaveButton } from "./LobbyLeaveButton";
 import { MoodMatchedRooms } from "./MoodMatchedRooms";
 import { ModuleDashboard } from "./ModuleDashboard";
 import { WelcomeHero } from "./WelcomeHero";
+import { DMListClient } from "./DMListClient";
 // import { DailyPrompt } from "./DailyPrompt"; // hidden by request — keep file for re-enable
 
 export const dynamic = "force-dynamic";
@@ -329,7 +330,7 @@ export default async function RoomsPage({
                     <h2 className="font-display text-lg font-semibold">Direct messages</h2>
                     <span className="text-xs text-white/40">{dms.length}</span>
                   </div>
-                  <DMList dms={dms} />
+                  <DMListClient dms={dms} currentUserId={user.id} />
                 </section>
               </DismissibleSection>
             )}
@@ -493,36 +494,3 @@ function RoomList({
   );
 }
 
-function DMList({ dms }: { dms: DMRow[] }) {
-  return (
-    <ul className="divide-y divide-white/5">
-      {dms.map((d) => {
-        const name = d.partner_display_name ?? d.partner_username ?? "Unknown";
-        const handle = d.partner_username ?? "anon";
-        const presenceColor =
-          d.partner_presence === "online"
-            ? "bg-neon-mint"
-            : d.partner_presence === "busy"
-            ? "bg-neon-red"
-            : d.partner_presence === "away"
-            ? "bg-neon-amber"
-            : "bg-white/30";
-        return (
-          <li key={d.id} className="flex items-center justify-between gap-3 py-2.5">
-            <div className="flex min-w-0 items-center gap-2">
-              <span className={`h-2 w-2 rounded-full ${presenceColor}`} aria-hidden />
-              <p className="truncate font-medium text-white">{name}</p>
-              <span className="truncate text-xs text-white/40">@{handle}</span>
-            </div>
-            <Link
-              href={`/rooms/${d.id}`}
-              className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/80 transition hover:bg-white/10 hover:text-white"
-            >
-              Open →
-            </Link>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
