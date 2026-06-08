@@ -48,16 +48,18 @@ const SECTIONS: Section[] = [
 ];
 
 function TileLink({ tile }: { tile: Tile }) {
+  // items-start + a fixed-height label block keeps every icon on the same
+  // line and every label aligned, whether the label is one or two lines.
   const cls =
-    "group flex flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.05] px-2 py-4 text-center shadow-sm shadow-black/20 transition hover:-translate-y-0.5 hover:border-white/25 hover:bg-white/[0.09] active:scale-95";
+    "group flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.05] px-2 py-4 text-center shadow-sm shadow-black/20 transition hover:-translate-y-0.5 hover:border-white/25 hover:bg-white/[0.09] active:scale-95";
   const inner = (
     <>
       <span
-        className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${tile.grad} text-[26px] shadow-lg shadow-black/40 ring-1 ring-white/15 transition group-hover:scale-110`}
+        className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${tile.grad} text-[26px] shadow-lg shadow-black/40 ring-1 ring-white/15 transition group-hover:scale-110`}
       >
         {tile.emoji}
       </span>
-      <span className="text-xs font-semibold leading-tight text-white">
+      <span className="flex min-h-[2.4em] items-start justify-center text-xs font-semibold leading-tight text-white">
         {tile.label}
       </span>
     </>
