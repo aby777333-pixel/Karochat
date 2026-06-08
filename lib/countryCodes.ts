@@ -83,3 +83,13 @@ export function localPhone(raw: string, dial: string): string {
 export function stripLeadingCode(raw: string): string {
   return (raw || "").replace(/^\s*\+\d{1,4}[\s-]*/, "").trim();
 }
+
+/** A valid email (basic, permissive — any real address passes). */
+export function isValidEmail(email: string): boolean {
+  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test((email || "").trim());
+}
+
+/** A valid phone: 6–15 local digits (E.164 allows up to 15 incl. country code). */
+export function isValidPhone(local: string): boolean {
+  return /^\d{6,15}$/.test(local || "");
+}

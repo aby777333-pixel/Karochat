@@ -8,7 +8,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { COUNTRY_CODES, DEFAULT_COUNTRY_VALUE, dialOf, localPhone, valueForIso } from "@/lib/countryCodes";
+import { COUNTRY_CODES, DEFAULT_COUNTRY_VALUE, dialOf, isValidEmail, isValidPhone, localPhone, valueForIso } from "@/lib/countryCodes";
 
 export function GuestAccessCard() {
   const router = useRouter();
@@ -72,11 +72,11 @@ export function GuestAccessCard() {
     const dial = dialOf(country);
     const local = localPhone(phone, dial);
     const fullPhone = `${dial} ${local}`.trim();
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(addr)) {
-      setError("Please enter a valid email.");
+    if (!isValidEmail(addr)) {
+      setError("Please enter a valid email address.");
       return;
     }
-    if (local.length < 6) {
+    if (!isValidPhone(local)) {
       setError("Please enter a valid phone number.");
       return;
     }

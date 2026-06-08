@@ -8,6 +8,8 @@ import {
   COUNTRY_CODES,
   DEFAULT_COUNTRY_VALUE,
   dialOf,
+  isValidEmail,
+  isValidPhone,
   localPhone,
   stripLeadingCode,
   valueForIso
@@ -113,11 +115,11 @@ export function LoginForm() {
     const dial = dialOf(country);
     const local = localPhone(phone, dial); // local digits only — no dup of the code
     const fullPhone = `${dial} ${local}`.trim();
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(addr)) {
-      setErrorMsg("Please enter a valid email.");
+    if (!isValidEmail(addr)) {
+      setErrorMsg("Please enter a valid email address.");
       return;
     }
-    if (local.length < 6) {
+    if (!isValidPhone(local)) {
       setErrorMsg("Please enter a valid phone number.");
       return;
     }
