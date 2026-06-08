@@ -49,8 +49,9 @@ export function MemberActionPopover({
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const ref = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState<
-    null | "dm" | "vault" | "invite-here" | "load-rooms" | "invite-to" | "vibe" | "friend" | "remove" | "ban" | "call-audio" | "call-video"
+    null | "dm" | "vault" | "invite-here" | "load-rooms" | "invite-to" | "vibe" | "friend" | "remove" | "ban" | "call-audio" | "call-video" | "block"
   >(null);
+  const [iBlocked, setIBlocked] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [showRoomPicker, setShowRoomPicker] = useState(false);
@@ -273,6 +274,45 @@ export function MemberActionPopover({
     }
   }
 
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      const { data } = await supabase.rpc("block_status", { p_target: target.user_id });
+      if (alive && data && typeof data === "object") setIBlocked(!!(data as any).i_blocked);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [supabase, target.user_id]);
+
+  async function toggleBlock() {
+    setBusy("block");
+    setError(null);
+    if (iBlocked) {
+      const { error: e } = await supabase.rpc("unblock_user", { p_target: target.user_id });
+      setBusy(null);
+      if (e) {
+        setError(e.message);
+        return;
+      }
+      setIBlocked(false);
+      setNotice("Unblocked.");
+      return;
+    }
+    if (!confirm(`Block @${target.username ?? "this user"}? They won't be able to message you.`)) {
+      setBusy(null);
+      return;
+    }
+    const { error: e } = await supabase.rpc("block_user", { p_target: target.user_id });
+    setBusy(null);
+    if (e) {
+      setError(e.message);
+      return;
+    }
+    setIBlocked(true);
+    setNotice("Blocked. They can no longer message you.");
+  }
+
   async function sendDM() {
     setBusy("dm");
     setError(null);
@@ -422,6 +462,19 @@ export function MemberActionPopover({
       >
         <span aria-hidden>🔐</span>
         <span>{busy === "vault" ? "Opening…" : "Open vault (E2EE)"}</span>
+      </button>
+
+      <button
+        type="button"
+        onClick={() => void toggleBlock()}
+        disabled={busy !== null}
+        className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-neon-red hover:bg-neon-red/10 disabled:opacity-50"
+        title={iBlocked ? "Unblock this person" : "Block this person from messaging you"}
+      >
+        <span aria-hidden>🚫</span>
+        <span>
+          {busy === "block" ? "…" : iBlocked ? "Unblock" : "Block"}
+        </span>
       </button>
 
       <div className="my-1 grid grid-cols-2 gap-1">

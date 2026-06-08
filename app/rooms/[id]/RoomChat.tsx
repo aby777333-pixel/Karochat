@@ -1627,6 +1627,18 @@ export function RoomChat({
               router.push(`/rooms/${roomDestId}`);
               router.refresh();
             }}
+            onOpenDm={async (targetId) => {
+              if (!targetId || targetId === currentUserId) return;
+              const { data, error: dmErr } = await supabase.rpc("get_or_create_dm", {
+                p_target_user_id: targetId
+              });
+              if (dmErr || !data) {
+                setError(dmErr?.message ?? "Couldn't open chat.");
+                return;
+              }
+              router.push(`/rooms/${data as string}`);
+              router.refresh();
+            }}
             isEditing={editing?.id === m.id}
             editingDraft={editing?.id === m.id ? editing.content : null}
             onEditDraft={(content) => setEditing((s) => (s ? { ...s, content } : s))}
@@ -2191,6 +2203,7 @@ function MessageBubble({
   now,
   isOwner,
   onAuthorNavigate,
+  onOpenDm,
   isEditing,
   editingDraft,
   onEditDraft,
@@ -2224,6 +2237,7 @@ function MessageBubble({
   now: number;
   isOwner: boolean;
   onAuthorNavigate: (roomId: string) => void;
+  onOpenDm: (targetId: string) => void;
   isEditing: boolean;
   editingDraft: string | null;
   onEditDraft: (content: string) => void;
@@ -2452,25 +2466,35 @@ function MessageBubble({
     >
       {showAuthor && !mine && (
         <div className="relative mb-1 ml-2">
-          <button
-            type="button"
-            onClick={() => setShowAuthorMenu((s) => !s)}
-            aria-haspopup="menu"
-            aria-expanded={showAuthorMenu}
-            title={`Open actions for @${m.sender_username ?? "anon"}`}
-            className="flex items-center gap-1.5 rounded-md px-1 py-0.5 text-[11px] text-white/40 hover:bg-white/5 hover:text-white/70"
-          >
-            <PresenceDot state={m.sender_presence_state ?? "offline"} pulse />
-            <span className="text-white/70">
-              {m.sender_display_name ?? m.sender_username ?? "Someone"}
-            </span>
-            <span className="text-white/25">@{m.sender_username ?? "anon"}</span>
-            {m.sender_is_guest && (
-              <span className="rounded-sm bg-white/10 px-1 text-[9px] uppercase tracking-widest text-white/50">
-                guest
+          <span className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => onOpenDm(m.sender_id)}
+              title={`Message ${m.sender_display_name ?? m.sender_username ?? "this person"}`}
+              className="flex items-center gap-1.5 rounded-md px-1 py-0.5 text-[11px] text-white/40 hover:bg-white/5 hover:text-white/70"
+            >
+              <PresenceDot state={m.sender_presence_state ?? "offline"} pulse />
+              <span className="text-white/70">
+                {m.sender_display_name ?? m.sender_username ?? "Someone"}
               </span>
-            )}
-          </button>
+              <span className="text-white/25">@{m.sender_username ?? "anon"}</span>
+              {m.sender_is_guest && (
+                <span className="rounded-sm bg-white/10 px-1 text-[9px] uppercase tracking-widest text-white/50">
+                  guest
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAuthorMenu((s) => !s)}
+              aria-haspopup="menu"
+              aria-expanded={showAuthorMenu}
+              title={`More actions for @${m.sender_username ?? "anon"}`}
+              className="rounded-md px-1 py-0.5 text-[11px] text-white/30 hover:bg-white/5 hover:text-white/70"
+            >
+              ⋯
+            </button>
+          </span>
           {showAuthorMenu && (
             <MemberActionPopover
               target={{
