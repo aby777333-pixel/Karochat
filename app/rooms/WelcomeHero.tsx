@@ -23,13 +23,10 @@ export function WelcomeHero() {
         <h2 className="mt-0.5 font-display text-2xl font-semibold leading-tight text-white sm:text-3xl">
           Everyone&apos;s welcome here.
         </h2>
-        <p className="mt-2 max-w-none text-[13px] leading-relaxed text-white/80 sm:text-sm">
-          <span className="font-semibold text-white">KaroChat is for everyone</span> — a place
-          built on kindness, respect, and friendship, where we choose love over hate, share and
-          care, and stand together against cruelty and fear. Build bridges, not walls. Because
-          life is short and the future uncertain, all we truly have is now — so live fully,
-          forgive freely, connect deeply, and make the world a little better, one conversation
-          at a time.
+        <p className="mt-2 max-w-none text-justify text-[13px] leading-relaxed text-white/80 sm:text-sm">
+          <span className="font-semibold text-white">KaroChat is for everyone</span> — the past
+          is gone, the future is uncertain, so live the present, also known as a gift. Make
+          love, not war. Why? Because life is short!
         </p>
       </div>
     </section>
