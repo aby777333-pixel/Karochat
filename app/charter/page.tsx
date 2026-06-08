@@ -96,7 +96,7 @@ export default function CharterPage() {
 
         <div className="mt-8 flex flex-wrap gap-2">
           <Link
-            href="/rooms"
+            href="/rooms/00000000-0000-0000-0000-00000000aaaa"
             className="rounded-xl bg-neon-blue px-5 py-2.5 text-sm font-medium text-ink-900 shadow-glow-blue hover:bg-neon-blue/90"
           >
             Enter the lobby →

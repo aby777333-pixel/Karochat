@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Logo, Wordmark } from "@/components/Brand";
 import { AcceptTermsForm } from "./AcceptTermsForm";
 import { TermsContent } from "./TermsContent";
+import { ChildSafetyCard } from "../sexed/_components/ChildSafetyCard";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +43,8 @@ export default async function TermsGatePage() {
           Please take a minute to read what we ask of you and what we promise
           in return.
         </p>
+
+        <ChildSafetyCard />
 
         <ul className="mt-5 space-y-3 text-sm">
           <li className="rounded-xl border border-white/10 bg-white/5 p-4">
