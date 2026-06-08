@@ -49,6 +49,7 @@ export function LoginForm() {
   // back on a new device). Instant email+phone access is the primary path.
   const [otp, setOtp] = useState("");
   const [otpStatus, setOtpStatus] = useState<"idle" | "verifying">("idle");
+  const [adminOtp, setAdminOtp] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -137,6 +138,13 @@ export function LoginForm() {
       body: { email: loginEmail, phone: fullPhone, password: pw }
     });
     const res: any = fn.data;
+    // Admin accounts must verify with an email code (no instant access).
+    if (res?.code === "admin_otp") {
+      setAdminOtp(true);
+      await sendLink(); // emails a 6-digit code + shows the OTP screen
+      setBusy(false);
+      return;
+    }
     if (fn.error || !res || !res.ok) {
       setBusy(false);
       if (res?.code === "bad_email") setErrorMsg("Please enter a valid email address.");
@@ -232,7 +240,14 @@ export function LoginForm() {
     return (
       <div className="space-y-4">
         <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm">
-          <p className="font-medium text-white">Check your email.</p>
+          <p className="font-medium text-white">
+            {adminOtp ? "🛠 Admin verification required" : "Check your email."}
+          </p>
+          {adminOtp && (
+            <p className="mb-1 mt-0.5 text-[11px] text-neon-purple">
+              Admin accounts can&apos;t use instant access — enter the code we emailed.
+            </p>
+          )}
           <p className="mt-1 text-white/60">
             We sent a magic link <em>and</em> a 6-digit code to{" "}
             <span className="text-white">{email}</span>. Click the link on this

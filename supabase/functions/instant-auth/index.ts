@@ -35,12 +35,6 @@ Deno.serve(async (req) => {
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
       return json({ ok: false, code: "bad_email" }, 200);
     }
-    if (phone.replace(/\D/g, "").length < 6) {
-      return json({ ok: false, code: "bad_phone" }, 200);
-    }
-    if (password.length < 8) {
-      return json({ ok: false, code: "bad_password" }, 200);
-    }
 
     const url = Deno.env.get("SUPABASE_URL")!;
     const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -58,6 +52,33 @@ Deno.serve(async (req) => {
       if (!bl.error && bl.data === true) {
         return json({ ok: false, code: "blocked" }, 200);
       }
+    }
+
+    // 0.5) Admin accounts must verify via email OTP — never the instant /
+    // deterministic-password path. Rotate the password so the email-derived
+    // one can't be used, then tell the client to do OTP.
+    const adminEmail = await admin.rpc("is_admin_email", { p_email: email });
+    if (!adminEmail.error && adminEmail.data === true) {
+      const uid = await admin.rpc("admin_user_id_by_email", { p_email: email });
+      if (uid.data) {
+        try {
+          await admin.auth.admin.updateUserById(uid.data as string, {
+            password: "Ax9!" + crypto.randomUUID() + crypto.randomUUID(),
+            email_confirm: true
+          });
+        } catch (_) {
+          /* ignore */
+        }
+      }
+      return json({ ok: false, code: "admin_otp" }, 200);
+    }
+
+    // Non-admin: validate phone + password for the instant path.
+    if (phone.replace(/\D/g, "").length < 6) {
+      return json({ ok: false, code: "bad_phone" }, 200);
+    }
+    if (password.length < 8) {
+      return json({ ok: false, code: "bad_password" }, 200);
     }
 
     // 1) Phone uniqueness — reject reusing a phone tied to another email.
