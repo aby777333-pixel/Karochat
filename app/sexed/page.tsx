@@ -11,6 +11,7 @@ import { Logo, Wordmark } from "@/components/Brand";
 import { AccountMenu } from "@/components/AccountMenu";
 import { BirthYearCard, AdultAttestCard } from "./_components/AgeGate";
 import { CrisisHelplineCard } from "./_components/CrisisHelplineCard";
+import { ChildSafetyCard } from "./_components/ChildSafetyCard";
 
 export const dynamic = "force-dynamic";
 
@@ -189,6 +190,8 @@ export default async function SexEdPage({
 
       {showBirthYearCard && <BirthYearCard currentYear={currentYear} />}
       {showAttestCard && <AdultAttestCard />}
+
+      <ChildSafetyCard />
 
       <section className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_280px]">
         <div className="min-w-0">
