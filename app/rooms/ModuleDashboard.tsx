@@ -51,8 +51,10 @@ function TileLink({ tile }: { tile: Tile }) {
   // Steel card base + neon icon chip with layered 3D shadows. items-start +
   // a fixed-height label block keeps every icon on the same line and every
   // label aligned, whether the label is one or two lines.
+  // Matte carbon-grade card: dark graphite gradient + top sheen + deep drop
+  // shadow for a raised 3D feel, with a crisp edge so tiles read clearly.
   const cls =
-    "group flex flex-col items-center gap-2.5 rounded-2xl border border-white/15 bg-gradient-to-b from-slate-500/30 via-slate-700/30 to-slate-900/50 px-2 py-4 text-center shadow-[0_6px_16px_rgba(0,0,0,0.5)] ring-1 ring-inset ring-white/10 transition hover:-translate-y-0.5 hover:border-white/30 hover:from-slate-400/40 hover:to-slate-900/60 hover:shadow-[0_10px_24px_rgba(0,0,0,0.6)] active:scale-95";
+    "group flex flex-col items-center gap-2.5 rounded-2xl border border-white/12 bg-gradient-to-b from-zinc-700/70 via-zinc-900/85 to-black px-2 py-4 text-center shadow-[0_10px_22px_-4px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(255,255,255,0.10)] ring-1 ring-inset ring-white/[0.06] transition hover:-translate-y-0.5 hover:border-white/25 hover:shadow-[0_16px_30px_-6px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.16)] active:translate-y-0 active:scale-[0.97]";
   const inner = (
     <>
       <span
