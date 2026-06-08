@@ -87,6 +87,7 @@ export function AccountMenu({
   const [privacyMode, setPrivacyMode] = useState<PrivacyMode>(initialPrivacyMode);
   const [balance, setBalance] = useState<number | null>(null);
   const [isGuest, setIsGuest] = useState<boolean | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [signOutConfirming, setSignOutConfirming] = useState(false);
@@ -115,11 +116,12 @@ export function AccountMenu({
       if (user) {
         const { data: prof } = await supabase
           .from("profiles")
-          .select("is_guest, privacy_mode")
+          .select("is_guest, privacy_mode, is_admin")
           .eq("id", user.id)
           .maybeSingle();
         if (!cancelled && prof) {
           setIsGuest(!!prof.is_guest);
+          setIsAdmin(!!(prof as any).is_admin);
           if (prof.privacy_mode) setPrivacyMode(prof.privacy_mode as PrivacyMode);
         }
       }
@@ -360,6 +362,16 @@ export function AccountMenu({
                     <p className="mt-2 rounded-md bg-neon-red/15 px-2 py-1 text-[11px] text-neon-red">
                       {err}
                     </p>
+                  )}
+
+                  {isAdmin && (
+                    <a
+                      href="/admin"
+                      className="mt-2 flex w-full items-center gap-1.5 rounded-lg border border-neon-purple/40 bg-neon-purple/10 px-3 py-2 text-xs font-medium text-neon-purple hover:bg-neon-purple/20"
+                    >
+                      <span aria-hidden>🛠</span>
+                      <span>Owner portal</span>
+                    </a>
                   )}
 
                   <div className="mt-3 border-t border-white/10 pt-3">
