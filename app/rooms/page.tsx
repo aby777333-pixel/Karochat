@@ -335,7 +335,7 @@ export default async function RoomsPage({
             )}
 
             <DismissibleSection id="your-rooms">
-              <section className="surface-glass tint-blue p-5">
+              <section id="browse-rooms" className="surface-glass tint-blue scroll-mt-24 p-5">
                 <div className="mb-3 flex items-baseline justify-between">
                   <h2 className="font-display text-lg font-semibold">Your rooms</h2>
                   <span className="text-xs text-white/40">{yourRoomsWithCounts.length}</span>

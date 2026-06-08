@@ -39,7 +39,7 @@ const SECTIONS: Section[] = [
   {
     title: "Community",
     tiles: [
-      { href: "/rooms", label: "Enter lobby", emoji: "🏠", grad: "from-cyan-400 to-sky-600" },
+      { href: "#browse-rooms", label: "Enter lobby", emoji: "🏠", grad: "from-cyan-400 to-sky-600" },
       { href: "/stories/new", label: "Add story", emoji: "✨", grad: "from-fuchsia-400 to-purple-600" },
       { href: "/shorts/new", label: "Post short", emoji: "📹", grad: "from-orange-400 to-red-500" },
       { href: "/write/new", label: "New post", emoji: "📝", grad: "from-lime-400 to-green-600" }
@@ -48,11 +48,10 @@ const SECTIONS: Section[] = [
 ];
 
 function TileLink({ tile }: { tile: Tile }) {
-  return (
-    <Link
-      href={tile.href}
-      className="group flex flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.05] px-2 py-4 text-center shadow-sm shadow-black/20 transition hover:-translate-y-0.5 hover:border-white/25 hover:bg-white/[0.09] active:scale-95"
-    >
+  const cls =
+    "group flex flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.05] px-2 py-4 text-center shadow-sm shadow-black/20 transition hover:-translate-y-0.5 hover:border-white/25 hover:bg-white/[0.09] active:scale-95";
+  const inner = (
+    <>
       <span
         className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${tile.grad} text-[26px] shadow-lg shadow-black/40 ring-1 ring-white/15 transition group-hover:scale-110`}
       >
@@ -61,6 +60,20 @@ function TileLink({ tile }: { tile: Tile }) {
       <span className="text-xs font-semibold leading-tight text-white">
         {tile.label}
       </span>
+    </>
+  );
+  // In-page anchors (e.g. "#browse-rooms") just smooth-scroll on the lobby —
+  // a Next <Link> to the current route would be a no-op.
+  if (tile.href.startsWith("#")) {
+    return (
+      <a href={tile.href} className={cls}>
+        {inner}
+      </a>
+    );
+  }
+  return (
+    <Link href={tile.href} className={cls}>
+      {inner}
     </Link>
   );
 }

@@ -9,7 +9,7 @@ type NotifyMessage = {
   sender_username: string | null;
   content: string | null;
   image_url: string | null;
-  type: "text" | "image" | "nudge" | "system" | "poll" | "voice";
+  type: "text" | "image" | "nudge" | "system" | "poll" | "voice" | "file";
   created_at: string;
 };
 
@@ -61,6 +61,10 @@ export function useNotifyOnNewMessage(
     const body =
       message.type === "nudge"
         ? ""
+        : message.type === "voice"
+        ? "🎙 Voice message"
+        : message.type === "file" && !message.content
+        ? "📎 Sent a file"
         : message.image_url && !message.content
         ? "📷 Sent an image"
         : (message.content ?? "").slice(0, 140);

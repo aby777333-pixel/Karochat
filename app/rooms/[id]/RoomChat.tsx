@@ -50,8 +50,172 @@ import {
 } from "@/lib/vaultCrypto";
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+const MAX_IMAGE_SOURCE_BYTES = 25 * 1024 * 1024; // pre-compression cap
+const MAX_FILE_BYTES = 50 * 1024 * 1024;
 const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 const REACTION_PALETTE = ["👍", "❤️", "😂", "😮", "😢", "🔥", "🎉", "🙌"];
+
+// File types that gzip meaningfully (everything else is already compressed —
+// jpg/png/mp4/zip/pdf/office — so we upload those as-is).
+const GZIP_RE = /^(text\/|application\/(json|xml|javascript|sql|x-sh|x-yaml|rtf)|image\/svg)/;
+
+// ---------------------------------------------------------------------------
+// File-sharing helpers (Wave 22). All browser-native; degrade gracefully.
+// ---------------------------------------------------------------------------
+function humanSize(bytes?: number | null): string {
+  if (!bytes && bytes !== 0) return "";
+  const u = ["B", "KB", "MB", "GB"];
+  let n = bytes;
+  let i = 0;
+  while (n >= 1024 && i < u.length - 1) {
+    n /= 1024;
+    i++;
+  }
+  return `${n.toFixed(n < 10 && i > 0 ? 1 : 0)} ${u[i]}`;
+}
+
+function fileGlyph(mime?: string | null, name?: string | null): string {
+  const m = (mime ?? "").toLowerCase();
+  const ext = (name ?? "").split(".").pop()?.toLowerCase() ?? "";
+  if (m.startsWith("video/")) return "🎬";
+  if (m.startsWith("audio/")) return "🎵";
+  if (m === "application/pdf" || ext === "pdf") return "📕";
+  if (m.includes("zip") || ["zip", "rar", "7z", "tar", "gz"].includes(ext)) return "🗜️";
+  if (m.includes("sheet") || ["xls", "xlsx", "csv"].includes(ext)) return "📊";
+  if (m.includes("word") || ["doc", "docx"].includes(ext)) return "📝";
+  if (m.includes("presentation") || ["ppt", "pptx"].includes(ext)) return "📽️";
+  if (m.startsWith("text/") || ["txt", "md", "json", "xml"].includes(ext)) return "📄";
+  return "📎";
+}
+
+function loadImageEl(file: File): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = (e) => {
+      URL.revokeObjectURL(url);
+      reject(e);
+    };
+    img.src = url;
+  });
+}
+
+// Downscale + re-encode large photos to webp before upload. Returns the
+// original file untouched on any failure or when it wouldn't help.
+async function compressImageFile(file: File): Promise<File> {
+  if (file.type === "image/gif") return file; // keep animation
+  if (!/image\/(jpeg|png|webp)/.test(file.type)) return file;
+  try {
+    const img = await loadImageEl(file);
+    const maxDim = 1600;
+    const big = Math.max(img.width, img.height);
+    if (big <= maxDim && file.size < 600 * 1024) return file;
+    const scale = Math.min(1, maxDim / big);
+    const w = Math.max(1, Math.round(img.width * scale));
+    const h = Math.max(1, Math.round(img.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(img, 0, 0, w, h);
+    const blob: Blob | null = await new Promise((res) =>
+      canvas.toBlob((b) => res(b), "image/webp", 0.82)
+    );
+    if (!blob || blob.size >= file.size) return file;
+    const base = file.name.replace(/\.\w+$/, "") || "image";
+    return new File([blob], `${base}.webp`, { type: "image/webp" });
+  } catch {
+    return file;
+  }
+}
+
+async function gzipBlob(blob: Blob): Promise<Blob | null> {
+  try {
+    const CS = (window as any).CompressionStream;
+    if (!CS) return null;
+    const stream = blob.stream().pipeThrough(new CS("gzip"));
+    return await new Response(stream).blob();
+  } catch {
+    return null;
+  }
+}
+
+async function downloadMaybeCompressed(
+  url: string,
+  name: string,
+  mime: string | null | undefined,
+  compressed: boolean
+) {
+  try {
+    const resp = await fetch(url);
+    let blob: Blob;
+    if (compressed && (window as any).DecompressionStream && resp.body) {
+      const stream = resp.body.pipeThrough(
+        new (window as any).DecompressionStream("gzip")
+      );
+      const buf = await new Response(stream).arrayBuffer();
+      blob = new Blob([buf], { type: mime || "application/octet-stream" });
+    } else {
+      blob = await resp.blob();
+    }
+    const objUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objUrl;
+    a.download = name || "download";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(objUrl), 4000);
+  } catch {
+    // Fallback: just open the raw object in a new tab.
+    window.open(url, "_blank", "noopener");
+  }
+}
+
+function FileCard({
+  message,
+  mine
+}: {
+  message: MessageRow;
+  mine: boolean;
+}) {
+  const name = message.file_name ?? "file";
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        void downloadMaybeCompressed(
+          message.file_url!,
+          name,
+          message.file_mime,
+          !!message.file_compressed
+        )
+      }
+      className={clsx(
+        "mb-1 flex max-w-[80vw] items-center gap-3 rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-left transition hover:bg-white/10 md:max-w-sm",
+        mine ? "rounded-br-sm" : "rounded-bl-sm"
+      )}
+      title={`Download ${name}`}
+    >
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-neon-blue/15 text-xl">
+        {fileGlyph(message.file_mime, name)}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-medium text-white">{name}</span>
+        <span className="block text-[11px] text-white/50">
+          {humanSize(message.file_size)}
+          {message.file_compressed ? " · compressed" : ""} · tap to download
+        </span>
+      </span>
+      <span aria-hidden className="shrink-0 text-white/50">⬇</span>
+    </button>
+  );
+}
 const EDIT_WINDOW_MS = 15 * 60 * 1000;
 
 const INTENT_OPTIONS: { value: string; label: string; emoji: string }[] = [
@@ -107,11 +271,16 @@ type MessageRow = {
   id: string;
   room_id: string;
   sender_id: string;
-  type: "text" | "image" | "nudge" | "system" | "poll" | "voice";
+  type: "text" | "image" | "nudge" | "system" | "poll" | "voice" | "file";
   content: string | null;
   image_url: string | null;
   audio_url?: string | null;
   duration_ms?: number | null;
+  file_url?: string | null;
+  file_name?: string | null;
+  file_size?: number | null;
+  file_mime?: string | null;
+  file_compressed?: boolean | null;
   reply_to_id: string | null;
   edited_at: string | null;
   deleted_at: string | null;
@@ -224,6 +393,7 @@ export function RoomChat({
   const [showEmoji, setShowEmoji] = useState(false);
   const [showGif, setShowGif] = useState(false);
   const [showVoice, setShowVoice] = useState(false);
+  const [dictating, setDictating] = useState(false);
   const [mentionState, setMentionState] = useState<{
     query: string;
     open: boolean;
@@ -283,6 +453,17 @@ export function RoomChat({
   const scrollerRef = useRef<HTMLDivElement>(null);
   const sectionRef = useRef<HTMLElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileAnyInputRef = useRef<HTMLInputElement>(null);
+  const dictateRef = useRef<any>(null);
+  useEffect(() => {
+    return () => {
+      try {
+        dictateRef.current?.stop?.();
+      } catch {
+        /* ignore */
+      }
+    };
+  }, []);
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   const profileCache = useRef<Map<string, { username: string; display_name: string }>>(new Map());
@@ -924,17 +1105,26 @@ export function RoomChat({
       setError("Only PNG, JPEG, WEBP, or GIF images.");
       return;
     }
-    if (file.size > MAX_IMAGE_BYTES) {
-      setError("Image is larger than 8 MB.");
+    if (file.size > MAX_IMAGE_SOURCE_BYTES) {
+      setError("Image is larger than 25 MB.");
       return;
     }
     setUploading(true);
     setError(null);
-    const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+    // Compress big photos client-side (downscale + webp) before upload.
+    const upload = await compressImageFile(file);
+    if (upload.size > MAX_IMAGE_BYTES) {
+      setError("Image is still over 8 MB after compression — try a smaller one.");
+      setUploading(false);
+      return;
+    }
+    const ext = upload.type === "image/webp"
+      ? "webp"
+      : (upload.name.split(".").pop()?.toLowerCase() ?? "jpg");
     const path = `${currentUserId}/${crypto.randomUUID()}.${ext}`;
     const { error: upErr } = await supabase.storage
       .from("chat-images")
-      .upload(path, file, { contentType: file.type, upsert: false });
+      .upload(path, upload, { contentType: upload.type, upsert: false });
     if (upErr) {
       setError(`Upload failed: ${upErr.message}`);
       setUploading(false);
@@ -984,6 +1174,121 @@ export function RoomChat({
     setDraft("");
     setReplyTo(null);
     setIntentChoice(null);
+  }
+
+  async function sendFile(file: File) {
+    // Images go through the image path (compression + scan + inline render).
+    if (ACCEPTED_TYPES.includes(file.type)) {
+      void sendImage(file);
+      return;
+    }
+    if (file.size > MAX_FILE_BYTES) {
+      setError("File is larger than 50 MB.");
+      return;
+    }
+    setUploading(true);
+    setError(null);
+    // Compress big, compressible files (text / json / svg / etc.) with gzip.
+    let blob: Blob = file;
+    let compressed = false;
+    if (file.size > 256 * 1024 && GZIP_RE.test(file.type)) {
+      const gz = await gzipBlob(file);
+      if (gz && gz.size < file.size * 0.92) {
+        blob = gz;
+        compressed = true;
+      }
+    }
+    const safeName = file.name || "file";
+    const path = `${currentUserId}/${crypto.randomUUID()}${compressed ? ".gz" : ""}`;
+    const { error: upErr } = await supabase.storage
+      .from("chat-files")
+      .upload(path, blob, {
+        contentType: compressed
+          ? "application/gzip"
+          : file.type || "application/octet-stream",
+        upsert: false
+      });
+    if (upErr) {
+      setError(`Upload failed: ${upErr.message}`);
+      setUploading(false);
+      return;
+    }
+    const { data: pub } = supabase.storage.from("chat-files").getPublicUrl(path);
+    const caption = draft.trim();
+    const expiresAt = disappearTtlSec
+      ? new Date(Date.now() + disappearTtlSec * 1000).toISOString()
+      : null;
+    const { error: insertErr } = await supabase.from("messages").insert({
+      sender_id: currentUserId,
+      room_id: roomId,
+      content: caption || null,
+      file_url: pub.publicUrl,
+      file_name: safeName,
+      file_size: file.size,
+      file_mime: file.type || null,
+      file_compressed: compressed,
+      reply_to_id: replyTo?.id ?? null,
+      intent: intentChoice,
+      expires_at: expiresAt,
+      type: "file"
+    });
+    setUploading(false);
+    if (insertErr) {
+      setError(insertErr.message);
+      return;
+    }
+    setDraft("");
+    setReplyTo(null);
+    setIntentChoice(null);
+  }
+
+  // Voice typing — dictate straight into the composer with the Web Speech API.
+  function toggleDictation() {
+    if (dictating) {
+      try {
+        dictateRef.current?.stop?.();
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
+    const W = window as any;
+    const Rec = W.SpeechRecognition || W.webkitSpeechRecognition;
+    if (!Rec) {
+      setError("Voice typing isn't supported in this browser.");
+      return;
+    }
+    try {
+      const rec = new Rec();
+      rec.continuous = true;
+      rec.interimResults = false;
+      rec.lang = (typeof navigator !== "undefined" && navigator.language) || "en-US";
+      rec.onresult = (e: any) => {
+        let final = "";
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          if (e.results[i].isFinal) final += e.results[i][0].transcript;
+        }
+        const text = final.trim();
+        if (text) insertAtCursor(text + " ");
+      };
+      rec.onerror = () => setDictating(false);
+      rec.onend = () => {
+        setDictating(false);
+        dictateRef.current = null;
+      };
+      dictateRef.current = rec;
+      rec.start();
+      setDictating(true);
+    } catch {
+      setDictating(false);
+      setError("Couldn't start voice typing.");
+    }
+  }
+
+  function onFileAny(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) void sendFile(file);
+    e.target.value = "";
   }
 
   async function sendNudge() {
@@ -1492,6 +1797,24 @@ export function RoomChat({
           </button>
           <button
             type="button"
+            onClick={() => fileAnyInputRef.current?.click()}
+            disabled={uploading}
+            aria-label="Attach a file"
+            title="Attach any file (big files are compressed)"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/5 text-white/70 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M21.44 11.05 12.25 20.24a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+            </svg>
+          </button>
+          <input
+            ref={fileAnyInputRef}
+            type="file"
+            className="hidden"
+            onChange={onFileAny}
+          />
+          <button
+            type="button"
             onClick={() => void sendNudge()}
             aria-label="Send a nudge"
             title="Send a nudge (Ctrl+Shift+N)"
@@ -1589,6 +1912,21 @@ export function RoomChat({
               />
             )}
           </div>
+          <button
+            type="button"
+            onClick={toggleDictation}
+            aria-pressed={dictating}
+            aria-label="Voice typing"
+            title="Voice typing — dictate your message"
+            className={clsx(
+              "grid h-11 w-11 shrink-0 place-items-center rounded-xl border transition",
+              dictating
+                ? "border-neon-red/60 bg-neon-red/15 text-neon-red animate-pulseDot"
+                : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
+            )}
+          >
+            🎤
+          </button>
           <div className="relative">
             <button
               type="button"
@@ -1680,7 +2018,7 @@ export function RoomChat({
           </Button>
         </div>
         <p className="mt-1.5 px-1 text-[10px] text-white/30">
-          Enter to send · Shift+Enter for newline · 📎 share · ⚡ nudge · 🎙 voice · 😊 emoji · GIF · ⏳ disappear ·{" "}
+          Enter to send · Shift+Enter for newline · 📎 image · 📁 file · 🎤 voice-type · 🎙 voice note · 😊 emoji · GIF · ⏳ disappear ·{" "}
           <code className="rounded bg-white/5 px-1 text-white/40">
             /poll q | a | b
           </code>{" "}
@@ -2390,6 +2728,7 @@ function MessageBubble({
                 />
               </a>
             )}
+            {m.file_url && <FileCard message={m} mine={mine} />}
             {m.content && (
               <>
                 <div
