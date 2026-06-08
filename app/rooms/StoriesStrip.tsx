@@ -69,11 +69,13 @@ export function StoriesStrip({
         <Link
           href="/stories/new"
           className="flex shrink-0 items-center gap-2 rounded-xl border border-dashed border-neon-blue/40 bg-neon-blue/5 px-3 py-2 text-xs text-neon-blue hover:bg-neon-blue/10"
+          title="Share a 24-hour moment — text or a picture"
         >
           <span aria-hidden className="text-base">＋</span>
-          <span>Post a moment</span>
+          <span>Post a moment or add a picture</span>
+          <span aria-hidden className="text-sm">🖼️</span>
         </Link>
-        <span className="text-[11px] text-white/40">No live moments right now.</span>
+        <span className="hidden text-[11px] text-white/40 sm:inline">No live moments right now.</span>
       </section>
     );
   }

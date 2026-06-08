@@ -39,7 +39,7 @@ const SECTIONS: Section[] = [
   {
     title: "Community",
     tiles: [
-      { href: "/charter", label: "Charter", emoji: "🌍", grad: "from-cyan-400 to-sky-600" },
+      { href: "/rooms", label: "Enter lobby", emoji: "🏠", grad: "from-cyan-400 to-sky-600" },
       { href: "/stories/new", label: "Add story", emoji: "✨", grad: "from-fuchsia-400 to-purple-600" },
       { href: "/shorts/new", label: "Post short", emoji: "📹", grad: "from-orange-400 to-red-500" },
       { href: "/write/new", label: "New post", emoji: "📝", grad: "from-lime-400 to-green-600" }

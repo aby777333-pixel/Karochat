@@ -114,13 +114,13 @@ export function MobileNav() {
   }) => {
     const active = href ? isActive(href) : false;
     const inner = (
-      <span className="flex flex-col items-center justify-center gap-0.5">
+      <>
         <span className="text-[20px] leading-none">{emoji}</span>
         <span className="text-[10px] font-medium leading-none">{label}</span>
-      </span>
+      </>
     );
     const cls = clsx(
-      "flex flex-1 flex-col items-center justify-center py-1 transition active:scale-90",
+      "flex flex-1 basis-0 flex-col items-center justify-end gap-1 py-1 transition active:scale-90",
       active ? "text-white" : "text-white/55"
     );
     if (href) {
@@ -143,12 +143,13 @@ export function MobileNav() {
         aria-label="Primary"
         className="mobile-nav fixed inset-x-0 bottom-0 z-40 md:hidden"
       >
-        <div className="relative mx-auto flex max-w-md items-stretch justify-between border-t border-white/10 bg-ink-900/85 px-2 pt-1.5 backdrop-blur-xl">
+        <div className="relative mx-auto flex max-w-md items-end justify-between gap-0.5 border-t border-white/10 bg-ink-900/90 px-1.5 pb-1 pt-2 backdrop-blur-xl">
           <Item href="/rooms" label="Home" emoji="🏠" />
           <Item href="/shorts" label="Shorts" emoji="🎬" />
 
-          {/* Center voice FAB */}
-          <div className="flex w-16 shrink-0 flex-col items-center">
+          {/* Center voice FAB — same flex-1 column as the others so widths
+              stay equal; the button just floats above the bar. */}
+          <div className="flex flex-1 basis-0 flex-col items-center justify-end gap-1 py-1">
             <button
               type="button"
               aria-label="Voice command"
@@ -156,11 +157,11 @@ export function MobileNav() {
                 haptic(16);
                 window.dispatchEvent(new Event("karo:voice"));
               }}
-              className="-mt-6 flex h-14 w-14 items-center justify-center rounded-full border-4 border-ink-900 bg-gradient-to-br from-neon-purple via-neon-red to-neon-blue text-2xl text-white shadow-glow-blue transition active:scale-90"
+              className="-mt-7 flex h-12 w-12 items-center justify-center rounded-full border-4 border-ink-900 bg-gradient-to-br from-neon-purple via-neon-red to-neon-blue text-xl text-white shadow-glow-blue transition active:scale-90"
             >
               🎤
             </button>
-            <span className="mt-0.5 text-[10px] font-medium text-white/55">Voice</span>
+            <span className="text-[10px] font-medium text-white/55">Voice</span>
           </div>
 
           <Item href="/meet/now" label="Meet" emoji="⚡" />

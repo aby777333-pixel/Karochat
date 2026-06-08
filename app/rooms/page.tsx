@@ -19,6 +19,7 @@ import { OwnedRoomDeleteButton } from "./OwnedRoomDeleteButton";
 import { LobbyLeaveButton } from "./LobbyLeaveButton";
 import { MoodMatchedRooms } from "./MoodMatchedRooms";
 import { ModuleDashboard } from "./ModuleDashboard";
+import { WelcomeHero } from "./WelcomeHero";
 // import { DailyPrompt } from "./DailyPrompt"; // hidden by request — keep file for re-enable
 
 export const dynamic = "force-dynamic";
@@ -294,6 +295,10 @@ export default async function RoomsPage({
           </div>
         </DismissibleSection>
         */}
+
+        <DismissibleSection id="welcome" className="mt-3">
+          <WelcomeHero />
+        </DismissibleSection>
 
         <DismissibleSection id="stories" className="mt-3">
           <StoriesStrip
