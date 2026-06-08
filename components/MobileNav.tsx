@@ -207,7 +207,19 @@ export function MobileNav() {
               ))}
             </div>
 
-            <div className="mt-5 flex items-center justify-between gap-2 border-t border-white/10 pt-4">
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpen(false);
+                haptic(12);
+                window.dispatchEvent(new Event("karo:install"));
+              }}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-neon-blue/40 bg-neon-blue/10 px-3 py-2.5 text-sm font-medium text-neon-blue transition hover:bg-neon-blue/20"
+            >
+              <span aria-hidden>⬇</span> Install app
+            </button>
+
+            <div className="mt-4 flex items-center justify-between gap-2 border-t border-white/10 pt-4">
               <Link
                 href={profileHref}
                 onClick={() => haptic()}

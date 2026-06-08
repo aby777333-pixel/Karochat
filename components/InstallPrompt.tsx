@@ -5,17 +5,19 @@
 // Offers an "Install" option on web (desktop + Android via the native
 // beforeinstallprompt flow) and a Share → Add to Home Screen hint on iOS
 // Safari. Hidden when already installed or running inside the native shell.
+// The ☰ menu can re-trigger it any time via the "karo:install" event.
 // Registers a minimal service worker so the app is installable.
 // Purely additive — renders null in most states, never throws.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Logo } from "@/components/Brand";
 import { isNative } from "@/lib/native/capacitor";
 
 const DISMISS_KEY = "karochat:install-dismissed";
 
 export function InstallPrompt() {
-  const [deferred, setDeferred] = useState<any>(null);
+  const deferredRef = useRef<any>(null);
+  const [hasPrompt, setHasPrompt] = useState(false);
   const [visible, setVisible] = useState(false);
   const [iosHint, setIosHint] = useState(false);
 
@@ -23,7 +25,6 @@ export function InstallPrompt() {
     if (typeof window === "undefined") return;
     if (isNative()) return; // already a real installed app
 
-    // Already running as an installed PWA?
     const standalone =
       window.matchMedia?.("(display-mode: standalone)")?.matches ||
       (navigator as any).standalone === true;
@@ -35,37 +36,49 @@ export function InstallPrompt() {
     } catch {
       /* ignore */
     }
-    if (dismissed) return;
 
-    // Register the minimal service worker (enables installability).
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
     }
 
+    const ua = navigator.userAgent || "";
+    const isIOS =
+      /iphone|ipad|ipod/i.test(ua) ||
+      (navigator.platform === "MacIntel" && (navigator as any).maxTouchPoints > 1);
+    const isSafari = /safari/i.test(ua) && !/crios|fxios|edgios|android/i.test(ua);
+
     const onBIP = (e: any) => {
       e.preventDefault();
-      setDeferred(e);
-      setVisible(true);
+      deferredRef.current = e;
+      setHasPrompt(true);
+      if (!dismissed) setVisible(true);
     };
     const onInstalled = () => {
       setVisible(false);
-      setDeferred(null);
+      deferredRef.current = null;
+      setHasPrompt(false);
       try {
         window.localStorage.setItem(DISMISS_KEY, "1");
       } catch {
         /* ignore */
       }
     };
+    // ☰ menu "Install app" → fire native dialog now, or show banner/hint.
+    const onMenuInstall = () => {
+      if (deferredRef.current) {
+        void doInstall();
+        return;
+      }
+      if (isIOS && isSafari) setIosHint(true);
+      setVisible(true);
+    };
+
     window.addEventListener("beforeinstallprompt", onBIP);
     window.addEventListener("appinstalled", onInstalled);
+    window.addEventListener("karo:install", onMenuInstall);
 
-    // iOS Safari never fires beforeinstallprompt → show a manual hint.
-    const ua = navigator.userAgent || "";
-    const isIOS = /iphone|ipad|ipod/i.test(ua) ||
-      (navigator.platform === "MacIntel" && (navigator as any).maxTouchPoints > 1);
-    const isSafari = /safari/i.test(ua) && !/crios|fxios|edgios|android/i.test(ua);
     let t: any;
-    if (isIOS && isSafari) {
+    if (isIOS && isSafari && !dismissed) {
       t = setTimeout(() => {
         setIosHint(true);
         setVisible(true);
@@ -76,7 +89,9 @@ export function InstallPrompt() {
       if (t) clearTimeout(t);
       window.removeEventListener("beforeinstallprompt", onBIP);
       window.removeEventListener("appinstalled", onInstalled);
+      window.removeEventListener("karo:install", onMenuInstall);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function dismiss() {
@@ -88,15 +103,17 @@ export function InstallPrompt() {
     }
   }
 
-  async function install() {
-    if (!deferred) return;
+  async function doInstall() {
+    const d = deferredRef.current;
+    if (!d) return;
     try {
-      deferred.prompt();
-      await deferred.userChoice;
+      d.prompt();
+      await d.userChoice;
     } catch {
       /* ignore */
     }
-    setDeferred(null);
+    deferredRef.current = null;
+    setHasPrompt(false);
     setVisible(false);
   }
 
@@ -113,13 +130,15 @@ export function InstallPrompt() {
           <p className="text-[11px] leading-snug text-white/60">
             {iosHint
               ? "Tap the Share button, then “Add to Home Screen”."
-              : "Add it to your phone or desktop for one-tap access."}
+              : hasPrompt
+              ? "Add it to your phone or desktop for one-tap access."
+              : "Use your browser menu → “Install app” / “Add to Home Screen”."}
           </p>
         </div>
-        {!iosHint && (
+        {hasPrompt && !iosHint && (
           <button
             type="button"
-            onClick={() => void install()}
+            onClick={() => void doInstall()}
             className="shrink-0 rounded-lg bg-gradient-to-br from-neon-purple to-neon-blue px-3 py-2 text-xs font-semibold text-white shadow-glow-blue transition active:scale-95"
           >
             Install

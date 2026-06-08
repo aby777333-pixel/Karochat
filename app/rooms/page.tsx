@@ -21,6 +21,7 @@ import { MoodMatchedRooms } from "./MoodMatchedRooms";
 import { ModuleDashboard } from "./ModuleDashboard";
 import { WelcomeHero } from "./WelcomeHero";
 import { DMListClient } from "./DMListClient";
+import { GuestAccessCard } from "./GuestAccessCard";
 // import { DailyPrompt } from "./DailyPrompt"; // hidden by request — keep file for re-enable
 
 export const dynamic = "force-dynamic";
@@ -311,6 +312,8 @@ export default async function RoomsPage({
 
         <div className="mt-5 grid flex-1 grid-cols-1 gap-5 lg:grid-cols-[1fr_340px]">
           <div className="space-y-5">
+            <GuestAccessCard />
+
             <DismissibleSection id="explore">
               <ModuleDashboard />
             </DismissibleSection>

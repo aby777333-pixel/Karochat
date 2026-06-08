@@ -44,7 +44,7 @@ export default async function RoomPage({
     const wide = await supabase
       .from("profiles")
       .select(
-        "id, username, display_name, terms_accepted_at, presence_state, status_text, status_emoji, mood, mood_expires_at, traveling_in_city, traveling_until, bio_drop, auto_translate_to"
+        "id, username, display_name, terms_accepted_at, is_guest, presence_state, status_text, status_emoji, mood, mood_expires_at, traveling_in_city, traveling_until, bio_drop, auto_translate_to"
       )
       .eq("id", user.id)
       .maybeSingle();
@@ -52,7 +52,7 @@ export default async function RoomPage({
       migrationNeeded = true;
       const narrow = await supabase
         .from("profiles")
-        .select("id, username, display_name, terms_accepted_at")
+        .select("id, username, display_name, terms_accepted_at, is_guest")
         .eq("id", user.id)
         .maybeSingle();
       profile = narrow.data ?? null;
@@ -63,6 +63,12 @@ export default async function RoomPage({
 
   if (!profile?.username) redirect("/onboarding");
   if (!profile.terms_accepted_at) redirect("/terms");
+
+  // Guests get the Lobby only. Full access (any room/DM) needs email + phone.
+  const LOBBY_ID = "00000000-0000-0000-0000-00000000aaaa";
+  if (profile.is_guest && params.id !== LOBBY_ID) {
+    redirect("/rooms?upgrade=1");
+  }
 
   const roomResp = await supabase
     .from("rooms")
