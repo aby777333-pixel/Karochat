@@ -24,7 +24,7 @@ export default async function NewShortPage() {
 
   return (
     <AdRails>
-      <main className="mx-auto flex min-h-[100dvh] max-w-xl flex-col px-1 py-5 pb-28 md:py-7 md:pb-7">
+      <main className="mx-auto flex min-h-[100dvh] max-w-xl flex-col px-1 py-5 md:py-7">
         <header className="surface-glass flex items-center justify-between gap-3 px-4 py-3">
           <Link href="/rooms" className="flex items-center gap-2">
             <Logo className="h-6 w-6" />

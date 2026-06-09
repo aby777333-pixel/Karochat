@@ -35,8 +35,6 @@ export function Soundscape() {
     stop: () => void;
   } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
-  const popRef = useRef<HTMLDivElement>(null);
-  const [shift, setShift] = useState(0);
 
   // Load persisted choice on mount.
   useEffect(() => {
@@ -51,30 +49,6 @@ export function Soundscape() {
       // ignore
     }
   }, []);
-
-  // Keep the popover fully on-screen. The trigger sits mid-toolbar, so a
-  // right-anchored panel can run off the LEFT edge on narrow screens (made
-  // worse when the chat column overflows horizontally). After it opens, we
-  // measure it and nudge it horizontally so neither edge spills past the
-  // viewport — robust no matter where the trigger ends up.
-  useEffect(() => {
-    if (!open) {
-      setShift(0);
-      return;
-    }
-    const el = popRef.current;
-    if (!el || typeof window === "undefined") return;
-    const prev = el.style.transform;
-    el.style.transform = "none";
-    const rect = el.getBoundingClientRect();
-    el.style.transform = prev;
-    const margin = 8;
-    let dx = 0;
-    if (rect.left < margin) dx = Math.ceil(margin - rect.left);
-    else if (rect.right > window.innerWidth - margin)
-      dx = Math.floor(window.innerWidth - margin - rect.right);
-    setShift(dx);
-  }, [open]);
 
   // Outside-click closes the popover.
   useEffect(() => {
@@ -166,11 +140,7 @@ export function Soundscape() {
       </button>
 
       {open && (
-        <div
-          ref={popRef}
-          style={shift ? { transform: `translateX(${shift}px)` } : undefined}
-          className="surface-glass absolute right-0 top-full z-30 mt-2 w-56 max-w-[calc(100vw-1rem)] p-2 shadow-xl"
-        >
+        <div className="surface-glass absolute right-0 top-full z-30 mt-2 w-56 p-2 shadow-xl">
           <div className="flex items-center justify-between px-1.5 pb-1">
             <p className="text-[10px] uppercase tracking-widest text-white/40">
               Soundscape

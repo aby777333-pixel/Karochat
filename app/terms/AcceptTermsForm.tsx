@@ -2,7 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/Button";
+
+const TERMS_VERSION = 1;
 
 export function AcceptTermsForm() {
   const router = useRouter();
@@ -14,30 +17,25 @@ export function AcceptTermsForm() {
     if (!checked || pending) return;
     setError(null);
     startTransition(async () => {
-      try {
-        // Same-origin POST → no CORS preflight; the server reads the session
-        // cookie and updates the profile. Works on networks that block the
-        // browser's cross-origin calls to supabase.co.
-        const r = await fetch("/api/terms/accept", {
-          method: "POST",
-          credentials: "same-origin"
-        });
-        const j = await r.json().catch(() => null);
-        if (!j?.ok) {
-          setError(
-            j?.code === "no_session"
-              ? "Session expired. Please sign in again."
-              : j?.detail ?? "Couldn't save right now. Please try again."
-          );
-          return;
-        }
-        router.replace(typeof j.redirect === "string" ? j.redirect : "/rooms");
-        router.refresh();
-      } catch {
-        setError(
-          "Couldn't reach the server. Check your connection and try again."
-        );
+      const supabase = createSupabaseBrowserClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setError("Session expired. Please sign in again.");
+        return;
       }
+      const { error: upd } = await supabase
+        .from("profiles")
+        .update({
+          terms_accepted_at: new Date().toISOString(),
+          terms_version: TERMS_VERSION
+        })
+        .eq("id", user.id);
+      if (upd) {
+        setError(upd.message);
+        return;
+      }
+      router.replace("/rooms");
+      router.refresh();
     });
   }
 

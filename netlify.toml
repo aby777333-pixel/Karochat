@@ -4,14 +4,3 @@
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
-
-# Same-origin proxy to Supabase. The browser Supabase client falls back to
-# `/sb-proxy/...` when a direct cross-origin call to supabase.co fails (some
-# restrictive networks silently drop the CORS preflight). Netlify forwards the
-# request server-to-server, so REST/auth/functions/storage keep working.
-# Declared before the Next.js catch-all so it takes precedence.
-[[redirects]]
-  from = "/sb-proxy/*"
-  to = "https://dxgduusbdvslusbushxi.supabase.co/:splat"
-  status = 200
-  force = true

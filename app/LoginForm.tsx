@@ -19,20 +19,20 @@ const EMAIL_KEY = "karochat:last-email";
 const PHONE_KEY = "karochat:last-phone";
 const COUNTRY_KEY = "karochat:last-country";
 
-// Instant sign-in now runs through the same-origin /api/auth/instant route
-// (no CORS preflight → works on networks that drop the browser's OPTIONS to
-// supabase.co). The server derives the deterministic email-keyed password,
-// preps the account, signs in, and sets the auth cookies on the response.
-
-// Reject if a promise doesn't settle within `ms` — fetch has no built-in
-// timeout, so without this a stalled mobile request could spin forever.
-function withTimeout<T>(p: PromiseLike<T>, ms: number): Promise<T> {
-  return Promise.race([
-    Promise.resolve(p),
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error("Request timed out")), ms)
-    )
-  ]);
+// Deterministic password derived from the email so a returning user with the
+// same email logs back into the SAME account (data intact) without a code or
+// link. Note: this is email-keyed access by design (the operator's choice for
+// frictionless onboarding) — add real verification before a wide launch.
+async function derivePassword(email: string): Promise<string> {
+  const data = new TextEncoder().encode("karochat:v1:" + email);
+  const buf = await crypto.subtle.digest("SHA-256", data);
+  const bytes = new Uint8Array(buf);
+  let bin = "";
+  bytes.forEach((x) => {
+    bin += String.fromCharCode(x);
+  });
+  const b64 = btoa(bin).replace(/[^a-zA-Z0-9]/g, "");
+  return "Kc1!" + b64.slice(0, 36);
 }
 
 export function LoginForm() {
@@ -126,55 +126,45 @@ export function LoginForm() {
     }
     setBusy(true);
     setErrorMsg(null);
-    try {
-      // Same-origin POST → no CORS preflight. The server preps the account,
-      // signs in, and writes the auth cookies onto this response, so the
-      // browser is authenticated without any cross-origin call to supabase.co.
-      const resp = await withTimeout(
-        fetch("/api/auth/instant", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "same-origin",
-          body: JSON.stringify({ email: addr.toLowerCase(), phone: fullPhone })
-        }).then((r) => r.json()),
-        25000
-      );
+    const supabase = createSupabaseBrowserClient();
+    const loginEmail = addr.toLowerCase();
+    const pw = await derivePassword(loginEmail);
 
-      // Admin accounts must verify with an email code (no instant access).
-      if (resp?.code === "admin_otp") {
-        setAdminOtp(true);
-        await sendLink(); // emails a 6-digit code + shows the OTP screen
-        return;
-      }
-      if (!resp?.ok) {
-        if (resp?.code === "bad_email") setErrorMsg("Please enter a valid email address.");
-        else if (resp?.code === "bad_phone") setErrorMsg("Please enter a valid phone number.");
-        else if (resp?.code === "blocked") setErrorMsg("Access from your network has been blocked.");
-        else if (resp?.code === "phone_conflict")
-          setErrorMsg(
-            "That phone number is already linked to another email. Use that email, or a different number."
-          );
-        else setErrorMsg("Couldn't sign you in right now. Please try again.");
-        return;
-      }
-
-      // Cookies are already set on the response → we're authenticated.
-      remember(addr, local);
-      router.replace(typeof resp.redirect === "string" ? resp.redirect : "/rooms");
-      router.refresh();
-    } catch (err: any) {
-      // Network stall / timeout / unexpected throw — never leave the button
-      // spinning. Surface a friendly retry and reset below in `finally`.
-      setErrorMsg(
-        /timed out|timeout|failed to fetch|networkerror|load failed/i.test(
-          String(err?.message ?? "")
-        )
-          ? "Couldn't reach the server. Check your connection — turn off Airplane mode and use stable Wi-Fi or mobile data — then tap the button again. Or use “Email me a sign-in link” below."
-          : err?.message ?? "Couldn't sign you in right now. Please try again."
-      );
-    } finally {
+    // 1) Create / repair + CONFIRM the account SERVER-SIDE first (service role,
+    //    no email is ever sent → no email rate limits). This must run before
+    //    any signInWithPassword, otherwise an unconfirmed account would make
+    //    Supabase try to (re)send a confirmation email and hit the limit.
+    const fn = await supabase.functions.invoke("instant-auth", {
+      body: { email: loginEmail, phone: fullPhone, password: pw }
+    });
+    const res: any = fn.data;
+    // Admin accounts must verify with an email code (no instant access).
+    if (res?.code === "admin_otp") {
+      setAdminOtp(true);
+      await sendLink(); // emails a 6-digit code + shows the OTP screen
       setBusy(false);
+      return;
     }
+    if (fn.error || !res || !res.ok) {
+      setBusy(false);
+      if (res?.code === "bad_email") setErrorMsg("Please enter a valid email address.");
+      else if (res?.code === "bad_phone") setErrorMsg("Please enter a valid phone number.");
+      else if (res?.code === "blocked") setErrorMsg("Access from your network has been blocked.");
+      else setErrorMsg("Couldn't sign you in right now. Please try again.");
+      return;
+    }
+
+    // 2) Account is ready (confirmed, no email) → sign in. Same email next
+    //    time signs back into the same account with all data intact.
+    const si = await supabase.auth.signInWithPassword({ email: loginEmail, password: pw });
+    setBusy(false);
+    if (!si.error && si.data?.session) {
+      remember(addr, local);
+      router.replace("/rooms");
+      router.refresh();
+      return;
+    }
+    setErrorMsg(si.error?.message ?? "Couldn't sign you in. Please try again.");
   }
 
   // SECONDARY — email a magic link + 6-digit code (returning users).
@@ -341,15 +331,7 @@ export function LoginForm() {
             inputMode="tel"
             placeholder="98765 43210"
             value={phone}
-            onChange={(e) => {
-              const v = e.target.value;
-              // A pasted / autofilled international number (leading "+…") is
-              // reduced to local digits so the selected dial code in the
-              // dropdown isn't shown a second time inside the field.
-              setPhone(
-                v.trimStart().startsWith("+") ? localPhone(v, dialOf(country)) : v
-              );
-            }}
+            onChange={(e) => setPhone(e.target.value)}
             className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder-white/30 outline-none transition focus:border-neon-blue/60 focus:bg-black/40"
           />
         </div>
