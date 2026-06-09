@@ -35,6 +35,29 @@ function withTimeout<T>(p: PromiseLike<T>, ms: number): Promise<T> {
   ]);
 }
 
+// One automatic retry for the account-prep call. Mobile connections drop
+// transiently; the call is idempotent server-side (upsert / admin password
+// rotation), so re-issuing it is safe. Two shorter attempts beat one long
+// stall on flaky signal.
+async function invokeInstantAuth(
+  supabase: ReturnType<typeof createSupabaseBrowserClient>,
+  body: { email: string; phone: string; password: string }
+) {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      return await withTimeout(
+        supabase.functions.invoke("instant-auth", { body }),
+        12000
+      );
+    } catch (e) {
+      lastErr = e;
+      if (attempt === 0) await new Promise((r) => setTimeout(r, 600));
+    }
+  }
+  throw lastErr;
+}
+
 async function derivePassword(email: string): Promise<string> {
   const data = new TextEncoder().encode("karochat:v1:" + email);
   const buf = await crypto.subtle.digest("SHA-256", data);
@@ -147,13 +170,13 @@ export function LoginForm() {
       //    no email is ever sent → no email rate limits). This must run before
       //    any signInWithPassword, otherwise an unconfirmed account would make
       //    Supabase try to (re)send a confirmation email and hit the limit.
-      //    Timeout-guarded so a stalled request can't freeze the button.
-      const fn = await withTimeout(
-        supabase.functions.invoke("instant-auth", {
-          body: { email: loginEmail, phone: fullPhone, password: pw }
-        }),
-        20000
-      );
+      //    Timeout-guarded + one retry so a transient stall can't freeze or
+      //    fail the button on flaky mobile signal.
+      const fn = await invokeInstantAuth(supabase, {
+        email: loginEmail,
+        phone: fullPhone,
+        password: pw
+      });
       const res: any = fn.data;
       // Admin accounts must verify with an email code (no instant access).
       if (res?.code === "admin_otp") {
@@ -190,8 +213,10 @@ export function LoginForm() {
       // Network stall / timeout / unexpected throw — never leave the button
       // spinning. Surface a friendly retry and reset below in `finally`.
       setErrorMsg(
-        /timed out/i.test(String(err?.message ?? ""))
-          ? "That took too long on this connection. Check your signal and tap the button again — or use “Email me a sign-in link” below."
+        /timed out|timeout|failed to fetch|networkerror|load failed/i.test(
+          String(err?.message ?? "")
+        )
+          ? "Couldn't reach the server. Check your connection — turn off Airplane mode and use stable Wi-Fi or mobile data — then tap the button again. Or use “Email me a sign-in link” below."
           : err?.message ?? "Couldn't sign you in right now. Please try again."
       );
     } finally {
