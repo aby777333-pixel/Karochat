@@ -915,7 +915,7 @@ export function RoomChat({
   // Post a recorded video clip into the chat. Carried as a "file" message
   // (video mime) so it reuses the whole existing attachment pipeline; the
   // FileCard renders video mimes inline with a <video> player.
-  async function sendVideoToChat(blob: Blob, durationMs: number) {
+  async function sendVideoToChat(blob: Blob, durationMs: number, caption: string) {
     if (!blob) return;
     if (blob.size > MAX_FILE_BYTES) {
       setError("That clip is over 50 MB — record a shorter one.");
@@ -938,7 +938,6 @@ export function RoomChat({
       return;
     }
     const { data: pub } = supabase.storage.from("chat-files").getPublicUrl(path);
-    const caption = draft.trim();
     const expiresAt = disappearTtlSec
       ? new Date(Date.now() + disappearTtlSec * 1000).toISOString()
       : null;
@@ -961,7 +960,6 @@ export function RoomChat({
       setError(insertErr.message);
       return;
     }
-    setDraft("");
     setReplyTo(null);
     setIntentChoice(null);
     setShowVideo(false);
@@ -969,7 +967,7 @@ export function RoomChat({
 
   // Post a recorded video clip to Shorts (public or private) — same storage +
   // table the /shorts/new uploader uses.
-  async function postVideoToShort(blob: Blob, isPublic: boolean) {
+  async function postVideoToShort(blob: Blob, isPublic: boolean, caption: string) {
     if (!blob) return;
     if (blob.size > 50 * 1024 * 1024) {
       setError("That clip is over 50 MB — record a shorter one.");
@@ -993,7 +991,7 @@ export function RoomChat({
     const { error: insertErr } = await supabase.from("shorts").insert({
       author_id: currentUserId,
       video_url: pub.publicUrl,
-      caption: draft.trim() || null,
+      caption: caption || null,
       is_public: isPublic
     });
     setUploading(false);
@@ -1010,7 +1008,12 @@ export function RoomChat({
   }
 
   // Post a recorded clip to BOTH the chat and Shorts in one go.
-  async function postVideoToBoth(blob: Blob, durationMs: number, isPublic: boolean) {
+  async function postVideoToBoth(
+    blob: Blob,
+    durationMs: number,
+    isPublic: boolean,
+    caption: string
+  ) {
     if (!blob) return;
     if (blob.size > MAX_FILE_BYTES) {
       setError("That clip is over 50 MB — record a shorter one.");
@@ -1021,7 +1024,6 @@ export function RoomChat({
     setError(null);
     const baseMime = (blob.type || "video/webm").split(";")[0] || "video/webm";
     const ext = baseMime.includes("mp4") ? "mp4" : "webm";
-    const caption = draft.trim();
     const expiresAt = disappearTtlSec
       ? new Date(Date.now() + disappearTtlSec * 1000).toISOString()
       : null;
@@ -1081,7 +1083,6 @@ export function RoomChat({
       setShowVideo(false);
       return;
     }
-    setDraft("");
     setReplyTo(null);
     setIntentChoice(null);
     setShowVideo(false);
@@ -2163,9 +2164,13 @@ export function RoomChat({
             </button>
             {showVideo && (
               <VideoRecorder
-                onPostToChat={(blob, ms) => void sendVideoToChat(blob, ms)}
-                onPostToShort={(blob, isPublic) => void postVideoToShort(blob, isPublic)}
-                onPostToBoth={(blob, ms, isPublic) => void postVideoToBoth(blob, ms, isPublic)}
+                onPostToChat={(blob, ms, cap) => void sendVideoToChat(blob, ms, cap)}
+                onPostToShort={(blob, isPublic, cap) =>
+                  void postVideoToShort(blob, isPublic, cap)
+                }
+                onPostToBoth={(blob, ms, isPublic, cap) =>
+                  void postVideoToBoth(blob, ms, isPublic, cap)
+                }
                 onClose={() => setShowVideo(false)}
                 busy={uploading}
               />

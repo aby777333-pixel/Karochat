@@ -5,18 +5,15 @@ import { useEffect, useRef, useState } from "react";
 /**
  * VideoRecorder — record a short video clip in the chat composer.
  *
- * Uses MediaRecorder + getUserMedia (camera + mic). Captures up to 60 s, shows
- * a live preview while recording and a playback preview after. From the preview
- * the user can:
- *   • Post it straight into the chat, or
- *   • Post it to Shorts (choosing Public or Private).
- *
- * Mirrors VoiceRecorder's lifecycle so it's familiar + safe (always cleans up
- * the camera stream, never throws).
+ * Flow: open camera (live preview) → optionally flip front/back → record
+ * (≤60 s) → preview + caption → post to chat, to Shorts (Public/Private), or
+ * to both. Uses MediaRecorder + getUserMedia; always cleans up the camera.
  */
 const MAX_MS = 60_000;
+const MAX_CAPTION = 300;
 
-type Status = "idle" | "permission" | "recording" | "preview" | "error";
+type Status = "idle" | "permission" | "ready" | "recording" | "preview" | "error";
+type Facing = "user" | "environment";
 
 export function VideoRecorder({
   onPostToChat,
@@ -25,9 +22,14 @@ export function VideoRecorder({
   onClose,
   busy = false
 }: {
-  onPostToChat: (blob: Blob, durationMs: number) => void;
-  onPostToShort: (blob: Blob, isPublic: boolean) => void;
-  onPostToBoth: (blob: Blob, durationMs: number, isPublic: boolean) => void;
+  onPostToChat: (blob: Blob, durationMs: number, caption: string) => void;
+  onPostToShort: (blob: Blob, isPublic: boolean, caption: string) => void;
+  onPostToBoth: (
+    blob: Blob,
+    durationMs: number,
+    isPublic: boolean,
+    caption: string
+  ) => void;
   onClose: () => void;
   busy?: boolean;
 }) {
@@ -35,6 +37,8 @@ export function VideoRecorder({
   const [error, setError] = useState<string | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [facing, setFacing] = useState<Facing>("user");
+  const [caption, setCaption] = useState("");
   const [shortPublic, setShortPublic] = useState(true);
   const [posted, setPosted] = useState(false);
 
@@ -70,19 +74,21 @@ export function VideoRecorder({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
 
-  async function startRecording() {
+  // Open the camera into a live preview (not yet recording).
+  async function openCamera(mode: Facing) {
     setError(null);
     setStatus("permission");
+    cleanupStream();
     try {
       if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error("This browser can't access the camera.");
       }
-      // Prefer the front camera, but fall back to ANY camera if a phone
+      // Honour the requested camera, but fall back to ANY camera if the phone
       // rejects the facingMode constraint — so the camera reliably opens.
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "user" },
+          video: { facingMode: mode },
           audio: true
         });
       } catch {
@@ -92,44 +98,54 @@ export function VideoRecorder({
         });
       }
       streamRef.current = stream;
-      // Show the live camera feed (must be set before we leave this tick).
-      setStatus("recording");
+      setStatus("ready");
       if (liveVideoRef.current) {
         liveVideoRef.current.srcObject = stream;
         liveVideoRef.current.play().catch(() => {});
       }
-      const mime =
-        MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus") ? "video/webm;codecs=vp9,opus"
-        : MediaRecorder.isTypeSupported("video/webm;codecs=vp8,opus") ? "video/webm;codecs=vp8,opus"
-        : MediaRecorder.isTypeSupported("video/webm") ? "video/webm"
-        : MediaRecorder.isTypeSupported("video/mp4") ? "video/mp4"
-        : "";
-      const mr = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
-      chunksRef.current = [];
-      mr.ondataavailable = (ev) => {
-        if (ev.data && ev.data.size > 0) chunksRef.current.push(ev.data);
-      };
-      mr.onstop = () => {
-        const blob = new Blob(chunksRef.current, {
-          type: mr.mimeType || "video/webm"
-        });
-        chunksRef.current = [];
-        blobRef.current = blob;
-        const url = URL.createObjectURL(blob);
-        setPreviewUrl(url);
-        setStatus("preview");
-        cleanupStream();
-      };
-      mr.start();
-      recorderRef.current = mr;
-      startRef.current = Date.now();
-      setElapsedMs(0);
-      setStatus("recording");
     } catch (e: any) {
       cleanupStream();
       setError(e?.message ?? "camera/microphone unavailable");
       setStatus("error");
     }
+  }
+
+  function flipCamera() {
+    const next: Facing = facing === "user" ? "environment" : "user";
+    setFacing(next);
+    void openCamera(next);
+  }
+
+  function beginRecording() {
+    const stream = streamRef.current;
+    if (!stream) return;
+    const mime =
+      MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus") ? "video/webm;codecs=vp9,opus"
+      : MediaRecorder.isTypeSupported("video/webm;codecs=vp8,opus") ? "video/webm;codecs=vp8,opus"
+      : MediaRecorder.isTypeSupported("video/webm") ? "video/webm"
+      : MediaRecorder.isTypeSupported("video/mp4") ? "video/mp4"
+      : "";
+    const mr = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+    chunksRef.current = [];
+    mr.ondataavailable = (ev) => {
+      if (ev.data && ev.data.size > 0) chunksRef.current.push(ev.data);
+    };
+    mr.onstop = () => {
+      const blob = new Blob(chunksRef.current, {
+        type: mr.mimeType || "video/webm"
+      });
+      chunksRef.current = [];
+      blobRef.current = blob;
+      const url = URL.createObjectURL(blob);
+      setPreviewUrl(url);
+      setStatus("preview");
+      cleanupStream();
+    };
+    mr.start();
+    recorderRef.current = mr;
+    startRef.current = Date.now();
+    setElapsedMs(0);
+    setStatus("recording");
   }
 
   function stopRecording() {
@@ -143,26 +159,27 @@ export function VideoRecorder({
     setPreviewUrl(null);
     blobRef.current = null;
     setElapsedMs(0);
-    setStatus("idle");
+    // Re-open the camera so the user can immediately re-record.
+    void openCamera(facing);
   }
 
   function postChat() {
     if (!blobRef.current || posted || busy) return;
     setPosted(true);
-    onPostToChat(blobRef.current, elapsedMs);
+    onPostToChat(blobRef.current, elapsedMs, caption.trim());
   }
-
   function postShort() {
     if (!blobRef.current || posted || busy) return;
     setPosted(true);
-    onPostToShort(blobRef.current, shortPublic);
+    onPostToShort(blobRef.current, shortPublic, caption.trim());
   }
-
   function postBoth() {
     if (!blobRef.current || posted || busy) return;
     setPosted(true);
-    onPostToBoth(blobRef.current, elapsedMs, shortPublic);
+    onPostToBoth(blobRef.current, elapsedMs, shortPublic, caption.trim());
   }
+
+  const liveActive = status === "ready" || status === "recording";
 
   return (
     <div
@@ -190,13 +207,13 @@ export function VideoRecorder({
         </p>
       )}
 
-      {status === "idle" && (
+      {(status === "idle" || status === "error") && (
         <button
           type="button"
-          onClick={() => void startRecording()}
+          onClick={() => void openCamera(facing)}
           className="block w-full rounded-lg border border-neon-blue/50 bg-neon-blue/15 px-3 py-2 text-sm font-medium text-neon-blue hover:bg-neon-blue/25"
         >
-          📹 Tap to record
+          📹 Open camera
         </button>
       )}
 
@@ -204,30 +221,52 @@ export function VideoRecorder({
         <p className="text-[11px] text-white/55">Waiting for camera permission…</p>
       )}
 
-      {/* Live preview is always mounted while recording so the ref is set. */}
-      <div className={status === "recording" ? "block" : "hidden"}>
+      {/* Live preview is mounted whenever the camera is on (ready/recording). */}
+      <div className={liveActive ? "block" : "hidden"}>
         <video
           ref={liveVideoRef}
           autoPlay
           muted
           playsInline
           className="mb-2 max-h-[40vh] w-full rounded-lg bg-black"
+          style={facing === "user" ? { transform: "scaleX(-1)" } : undefined}
         />
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={stopRecording}
-            className="grid h-9 w-9 place-items-center rounded-full bg-neon-red text-white animate-pulseDot"
-            aria-label="Stop recording"
-            title="Stop"
-          >
-            ■
-          </button>
-          <p className="font-mono text-sm tabular-nums text-white">
-            {(elapsedMs / 1000).toFixed(1)}s
-          </p>
-          <p className="ml-auto text-[10px] text-white/40">max 60s</p>
-        </div>
+        {status === "ready" && (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={flipCamera}
+              className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/80 hover:bg-white/10"
+              title="Switch front / back camera"
+            >
+              🔄 Flip
+            </button>
+            <button
+              type="button"
+              onClick={beginRecording}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-neon-red px-3 py-1.5 text-xs font-semibold text-white hover:bg-neon-red/90"
+            >
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-white" /> Record
+            </button>
+          </div>
+        )}
+        {status === "recording" && (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={stopRecording}
+              className="grid h-9 w-9 place-items-center rounded-full bg-neon-red text-white animate-pulseDot"
+              aria-label="Stop recording"
+              title="Stop"
+            >
+              ■
+            </button>
+            <p className="font-mono text-sm tabular-nums text-white">
+              {(elapsedMs / 1000).toFixed(1)}s
+            </p>
+            <p className="ml-auto text-[10px] text-white/40">max 60s</p>
+          </div>
+        )}
       </div>
 
       {status === "preview" && previewUrl && (
@@ -242,6 +281,15 @@ export function VideoRecorder({
           <p className="mb-2 text-[10px] text-white/50">
             {(elapsedMs / 1000).toFixed(1)}s
           </p>
+
+          <input
+            type="text"
+            value={caption}
+            onChange={(e) => setCaption(e.target.value.slice(0, MAX_CAPTION))}
+            placeholder="Add a caption (optional)"
+            maxLength={MAX_CAPTION}
+            className="mb-2 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-xs text-white outline-none placeholder:text-white/30 focus:border-neon-blue/60"
+          />
 
           <button
             type="button"
