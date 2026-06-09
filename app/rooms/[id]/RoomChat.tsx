@@ -35,6 +35,7 @@ import { EmojiPicker } from "@/components/EmojiPicker";
 import { GifPicker } from "@/components/GifPicker";
 import { MentionMenu } from "@/components/MentionMenu";
 import { VoiceRecorder } from "@/components/VoiceRecorder";
+import { VideoRecorder } from "@/components/VideoRecorder";
 import { flagCategory, flagWarning, reportFlag, type FlagCategory } from "@/lib/flaggedTerms";
 import { PinnedStrip } from "@/components/PinnedStrip";
 import { MessageSearchBar } from "@/components/MessageSearchBar";
@@ -186,6 +187,29 @@ function FileCard({
   mine: boolean;
 }) {
   const name = message.file_name ?? "file";
+
+  // Video clips recorded in the composer are carried as file messages; show
+  // them inline with a player instead of a download row.
+  if (message.file_mime?.startsWith("video/")) {
+    return (
+      <div
+        className={clsx(
+          "mb-1 overflow-hidden rounded-2xl border border-white/10 bg-black",
+          mine ? "rounded-br-sm" : "rounded-bl-sm"
+        )}
+      >
+        <video
+          controls
+          playsInline
+          preload="metadata"
+          src={message.file_url!}
+          className="block max-h-80 w-auto max-w-[78vw] bg-black md:max-w-sm"
+          aria-label="Video clip"
+        />
+      </div>
+    );
+  }
+
   return (
     <button
       type="button"
@@ -394,6 +418,7 @@ export function RoomChat({
   const [showEmoji, setShowEmoji] = useState(false);
   const [showGif, setShowGif] = useState(false);
   const [showVoice, setShowVoice] = useState(false);
+  const [showVideo, setShowVideo] = useState(false);
   const [dictating, setDictating] = useState(false);
   const [mentionState, setMentionState] = useState<{
     query: string;
@@ -449,6 +474,7 @@ export function RoomChat({
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [shaking, setShaking] = useState(false);
   const [pulse, setPulse] = useState(false);
   const [lastIncoming, setLastIncoming] = useState<MessageRow | null>(null);
@@ -884,6 +910,103 @@ export function RoomChat({
     setReplyTo(null);
     setIntentChoice(null);
     setShowVoice(false);
+  }
+
+  // Post a recorded video clip into the chat. Carried as a "file" message
+  // (video mime) so it reuses the whole existing attachment pipeline; the
+  // FileCard renders video mimes inline with a <video> player.
+  async function sendVideoToChat(blob: Blob, durationMs: number) {
+    if (!blob) return;
+    if (blob.size > MAX_FILE_BYTES) {
+      setError("That clip is over 50 MB — record a shorter one.");
+      setShowVideo(false);
+      return;
+    }
+    setUploading(true);
+    setError(null);
+    // Strip any ";codecs=…" suffix MediaRecorder adds so the content-type is a
+    // clean base mime the storage bucket accepts.
+    const baseMime = (blob.type || "video/webm").split(";")[0] || "video/webm";
+    const ext = baseMime.includes("mp4") ? "mp4" : "webm";
+    const path = `${currentUserId}/${crypto.randomUUID()}.${ext}`;
+    const { error: upErr } = await supabase.storage
+      .from("chat-files")
+      .upload(path, blob, { contentType: baseMime, upsert: false });
+    if (upErr) {
+      setError(`Video upload failed: ${upErr.message}`);
+      setUploading(false);
+      return;
+    }
+    const { data: pub } = supabase.storage.from("chat-files").getPublicUrl(path);
+    const caption = draft.trim();
+    const expiresAt = disappearTtlSec
+      ? new Date(Date.now() + disappearTtlSec * 1000).toISOString()
+      : null;
+    const { error: insertErr } = await supabase.from("messages").insert({
+      sender_id: currentUserId,
+      room_id: roomId,
+      content: caption || null,
+      file_url: pub.publicUrl,
+      file_name: `video-clip.${ext}`,
+      file_size: blob.size,
+      file_mime: baseMime,
+      duration_ms: Math.round(durationMs),
+      reply_to_id: replyTo?.id ?? null,
+      intent: intentChoice,
+      expires_at: expiresAt,
+      type: "file"
+    });
+    setUploading(false);
+    if (insertErr) {
+      setError(insertErr.message);
+      return;
+    }
+    setDraft("");
+    setReplyTo(null);
+    setIntentChoice(null);
+    setShowVideo(false);
+  }
+
+  // Post a recorded video clip to Shorts (public or private) — same storage +
+  // table the /shorts/new uploader uses.
+  async function postVideoToShort(blob: Blob, isPublic: boolean) {
+    if (!blob) return;
+    if (blob.size > 50 * 1024 * 1024) {
+      setError("That clip is over 50 MB — record a shorter one.");
+      setShowVideo(false);
+      return;
+    }
+    setUploading(true);
+    setError(null);
+    const baseMime = (blob.type || "video/webm").split(";")[0] || "video/webm";
+    const ext = baseMime.includes("mp4") ? "mp4" : "webm";
+    const path = `${currentUserId}/${crypto.randomUUID()}.${ext}`;
+    const { error: upErr } = await supabase.storage
+      .from("shorts")
+      .upload(path, blob, { contentType: baseMime, upsert: false });
+    if (upErr) {
+      setError(`Short upload failed: ${upErr.message}`);
+      setUploading(false);
+      return;
+    }
+    const { data: pub } = supabase.storage.from("shorts").getPublicUrl(path);
+    const { error: insertErr } = await supabase.from("shorts").insert({
+      author_id: currentUserId,
+      video_url: pub.publicUrl,
+      caption: draft.trim() || null,
+      is_public: isPublic
+    });
+    setUploading(false);
+    if (insertErr) {
+      setError(insertErr.message);
+      return;
+    }
+    setShowVideo(false);
+    setNotice(
+      isPublic
+        ? "✓ Posted to Shorts (public) — find it in the Shorts feed."
+        : "✓ Posted to Shorts (private) — only you can see it."
+    );
   }
 
   function insertAtCursor(text: string) {
@@ -1702,6 +1825,7 @@ export function RoomChat({
           onPick={(text) => setDraft(text)}
         />
         {error && <p className="mb-2 text-xs text-neon-red">{error}</p>}
+        {notice && <p className="mb-2 text-xs text-neon-mint">{notice}</p>}
         {uploading && (
           <p className="mb-2 text-xs text-white/50">
             <span className="mr-2 inline-block animate-pulseDot">●</span>Uploading image…
@@ -1934,6 +2058,32 @@ export function RoomChat({
               <VoiceRecorder
                 onSend={(blob, ms) => void sendVoice(blob, ms)}
                 onClose={() => setShowVoice(false)}
+              />
+            )}
+          </div>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setShowVideo((s) => !s);
+                setShowVoice(false);
+                setShowEmoji(false);
+                setShowGif(false);
+                setTtlMenuOpen(false);
+                setNotice(null);
+              }}
+              aria-label="Record a video clip"
+              title="Record a video clip — post to chat or Shorts"
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-neon-blue/40 bg-neon-blue/10 text-neon-blue transition hover:bg-neon-blue/20"
+            >
+              🎥
+            </button>
+            {showVideo && (
+              <VideoRecorder
+                onPostToChat={(blob, ms) => void sendVideoToChat(blob, ms)}
+                onPostToShort={(blob, isPublic) => void postVideoToShort(blob, isPublic)}
+                onClose={() => setShowVideo(false)}
+                busy={uploading}
               />
             )}
           </div>

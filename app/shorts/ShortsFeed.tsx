@@ -91,6 +91,29 @@ export function ShortsFeed({
     setShorts((prev) => prev.filter((s) => s.id !== short.id));
   }
 
+  // Move a short between Public and Private. RLS lets authors update their own.
+  async function toggleVisibility(short: ShortRow) {
+    if (short.author_id !== currentUserId) return;
+    const next = !short.is_public;
+    // Optimistic flip.
+    setShorts((prev) =>
+      prev.map((s) => (s.id === short.id ? { ...s, is_public: next } : s))
+    );
+    const { error: updErr } = await supabase
+      .from("shorts")
+      .update({ is_public: next })
+      .eq("id", short.id);
+    if (updErr) {
+      setError(updErr.message);
+      // Revert on failure.
+      setShorts((prev) =>
+        prev.map((s) =>
+          s.id === short.id ? { ...s, is_public: short.is_public } : s
+        )
+      );
+    }
+  }
+
   if (shorts.length === 0) {
     return (
       <section className="surface-glass mt-5 p-8 text-center">
@@ -123,6 +146,7 @@ export function ShortsFeed({
           isLiked={liked.has(s.id)}
           onLike={() => void toggleLike(s)}
           onDelete={() => void deleteShort(s)}
+          onToggleVisibility={() => void toggleVisibility(s)}
         />
       ))}
     </div>
@@ -134,13 +158,15 @@ function ShortCard({
   isMine,
   isLiked,
   onLike,
-  onDelete
+  onDelete,
+  onToggleVisibility
 }: {
   short: ShortRow;
   isMine: boolean;
   isLiked: boolean;
   onLike: () => void;
   onDelete: () => void;
+  onToggleVisibility: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -187,10 +213,21 @@ function ShortCard({
           </div>
         </div>
         <div className="flex items-center gap-2 text-[10px] text-white/40">
-          {!short.is_public && (
+          {!short.is_public && !isMine && (
             <span className="rounded-sm border border-white/10 bg-white/5 px-1.5 py-0.5 uppercase tracking-widest">
               🔒 private
             </span>
+          )}
+          {isMine && (
+            <button
+              type="button"
+              onClick={onToggleVisibility}
+              aria-label={short.is_public ? "Make this short private" : "Make this short public"}
+              title={short.is_public ? "Currently public — tap to make private" : "Currently private — tap to make public"}
+              className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-white/70 hover:bg-white/10 hover:text-white"
+            >
+              {short.is_public ? "🌍 Public" : "🔒 Private"}
+            </button>
           )}
           {isMine && (
             <button
