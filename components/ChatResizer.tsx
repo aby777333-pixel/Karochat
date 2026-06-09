@@ -201,6 +201,81 @@ export function ChatResizer({
 }
 
 /**
+ * TopResizeHandle — a visible grip at the TOP of the chat window, mirroring
+ * the bottom bar so users can grab the top and drag to resize too (drag down
+ * to shrink, up to grow). Double-click resets. No preset chips here — those
+ * live on the bottom bar.
+ */
+export function TopResizeHandle({
+  targetRef,
+  px,
+  wPx,
+  onBeginDrag,
+  onReset
+}: {
+  targetRef: React.RefObject<HTMLElement>;
+  px: number | null;
+  wPx: number | null;
+  onBeginDrag: (
+    edge: ResizeEdge,
+    clientX: number,
+    clientY: number,
+    currentHeight: number,
+    currentWidth: number
+  ) => void;
+  onReset: () => void;
+}) {
+  function pickRect(): { h: number; w: number } {
+    const el = targetRef.current;
+    if (!el) return { h: px ?? 480, w: wPx ?? 640 };
+    const r = el.getBoundingClientRect();
+    return { h: px ?? r.height, w: wPx ?? r.width };
+  }
+  function onMouseDown(e: React.MouseEvent<HTMLDivElement>) {
+    e.preventDefault();
+    const { h, w } = pickRect();
+    onBeginDrag("top", e.clientX, e.clientY, h, w);
+  }
+  function onTouchStart(e: React.TouchEvent<HTMLDivElement>) {
+    const t = e.touches[0];
+    if (!t) return;
+    const { h, w } = pickRect();
+    onBeginDrag("top", t.clientX, t.clientY, h, w);
+  }
+  return (
+    <div className="relative flex shrink-0 items-center gap-2 border-b border-neon-blue/20 bg-gradient-to-b from-black/30 via-neon-blue/[0.04] to-black/30 px-2 py-1">
+      <span
+        aria-hidden
+        className="hidden select-none text-[9px] font-semibold uppercase tracking-widest text-neon-blue/70 sm:inline"
+        title="Drag the grip to resize · double-click to reset"
+      >
+        ⇕ resize chat
+      </span>
+      <div
+        role="separator"
+        aria-orientation="horizontal"
+        aria-label="Resize chat window from the top — drag down to shrink, up to grow"
+        onMouseDown={onMouseDown}
+        onTouchStart={onTouchStart}
+        onDoubleClick={onReset}
+        title="Drag to resize · double-click to reset"
+        className="group/handle relative mx-auto flex h-5 flex-1 cursor-row-resize touch-none items-center justify-center rounded-md border border-white/15 bg-white/5 transition hover:border-neon-blue/60 hover:bg-neon-blue/10 active:bg-neon-blue/20"
+      >
+        <span aria-hidden className="flex items-center gap-0.5">
+          <span className="h-1 w-1 rounded-full bg-white/45 group-hover/handle:bg-neon-blue" />
+          <span className="h-1 w-1 rounded-full bg-white/45 group-hover/handle:bg-neon-blue" />
+          <span className="h-1 w-1 rounded-full bg-white/45 group-hover/handle:bg-neon-blue" />
+          <span className="mx-0.5 h-[2px] w-6 rounded-full bg-white/45 group-hover/handle:bg-neon-blue" />
+          <span className="h-1 w-1 rounded-full bg-white/45 group-hover/handle:bg-neon-blue" />
+          <span className="h-1 w-1 rounded-full bg-white/45 group-hover/handle:bg-neon-blue" />
+          <span className="h-1 w-1 rounded-full bg-white/45 group-hover/handle:bg-neon-blue" />
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/**
  * EdgeHandles — Wave 19.
  *
  * Four very thin, hover-revealed strips on each edge of the chat section

@@ -30,7 +30,7 @@ import { MemberActionPopover } from "./MemberActionPopover";
 import { QuoteCard } from "./QuoteCard";
 import { Soundscape } from "./Soundscape";
 import { ConferenceTools } from "./ConferenceTools";
-import { ChatResizer, EdgeHandles } from "@/components/ChatResizer";
+import { ChatResizer, EdgeHandles, TopResizeHandle } from "@/components/ChatResizer";
 import { EmojiPicker } from "@/components/EmojiPicker";
 import { GifPicker } from "@/components/GifPicker";
 import { MentionMenu } from "@/components/MentionMenu";
@@ -1677,6 +1677,17 @@ export function RoomChat({
           />
         );
       })()}
+
+      {/* Visible resize grip at the TOP of the window (mirrors the bottom bar)
+         so users can grab the top and drag to resize too. */}
+      <TopResizeHandle
+        targetRef={sectionRef}
+        px={chatPx}
+        wPx={chatWPx}
+        onBeginDrag={beginDrag}
+        onReset={resetSize}
+      />
+
       <div className="flex items-center justify-between border-b border-white/5 px-4 py-2 text-xs text-white/50">
         <div className="flex items-center gap-2">
           <PresenceDot state="online" pulse />
