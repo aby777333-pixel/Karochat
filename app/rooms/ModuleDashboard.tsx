@@ -62,23 +62,20 @@ function TileLink({ tile }: { tile: Tile }) {
   // keeps every icon on the same line and every label's first line aligned,
   // whether the label is one or two lines.
   const cls =
-    "group relative flex flex-col items-center gap-2.5 rounded-2xl border border-white/15 bg-white/[0.07] px-2 py-4 text-center shadow-[0_10px_26px_-8px_rgba(0,0,0,0.65)] ring-1 ring-inset ring-white/10 backdrop-blur-md transition hover:-translate-y-0.5 hover:border-white/30 hover:bg-white/[0.11] hover:shadow-[0_16px_32px_-10px_rgba(0,0,0,0.78)] active:translate-y-0 active:scale-[0.97]";
+    "group relative flex flex-col items-center gap-2.5 rounded-2xl border border-white/15 bg-gradient-to-b from-white/[0.12] to-white/[0.03] px-2 py-4 text-center shadow-[0_12px_30px_-10px_rgba(0,0,0,0.7),inset_0_1px_0_0_rgba(255,255,255,0.18)] backdrop-blur-xl transition hover:-translate-y-0.5 hover:border-white/30 hover:from-white/[0.16] hover:to-white/[0.05] hover:shadow-[0_18px_38px_-12px_rgba(0,0,0,0.82),inset_0_1px_0_0_rgba(255,255,255,0.25)] active:translate-y-0 active:scale-[0.97]";
   const inner = (
     <>
-      {/* glossy top sheen across the card */}
       <span
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-1/2 rounded-t-2xl bg-gradient-to-b from-white/12 to-transparent"
-      />
-      <span
-        className={`relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br ${tile.grad} text-[26px] shadow-[0_8px_18px_rgba(0,0,0,0.5)] ring-1 ring-white/40 transition group-hover:-translate-y-0.5 group-hover:scale-110 group-hover:brightness-110`}
+        className={`relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[1.15rem] bg-gradient-to-br ${tile.grad} text-[26px] shadow-[0_8px_18px_-2px_rgba(0,0,0,0.55),inset_0_1px_1px_rgba(255,255,255,0.65),inset_0_-7px_14px_-4px_rgba(0,0,0,0.35)] ring-1 ring-inset ring-white/25 transition group-hover:-translate-y-0.5 group-hover:scale-105 group-hover:brightness-110`}
       >
-        {/* glossy highlight on the chip */}
+        {/* glossy specular highlight across the top of the chip */}
         <span
           aria-hidden
-          className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/45 via-white/5 to-black/20"
+          className="pointer-events-none absolute inset-x-1.5 top-1 h-[45%] rounded-[0.8rem] bg-gradient-to-b from-white/60 to-transparent"
         />
-        <span className="relative drop-shadow-sm">{tile.emoji}</span>
+        <span className="relative drop-shadow-[0_1px_1.5px_rgba(0,0,0,0.4)]">
+          {tile.emoji}
+        </span>
       </span>
       <span className="relative flex min-h-[2.4em] items-start justify-center text-xs font-semibold leading-tight text-white/95 drop-shadow-sm">
         {tile.label}
