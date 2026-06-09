@@ -9,10 +9,18 @@ import { useEffect, useRef, useState } from "react";
  * (≤60 s) → preview + caption → post to chat, to Shorts (Public/Private), or
  * to both. Uses MediaRecorder + getUserMedia; always cleans up the camera.
  */
-const MAX_MS = 60_000;
 const MAX_CAPTION = 300;
+const LENGTHS = [15, 30, 60] as const;
+type MaxSec = (typeof LENGTHS)[number];
 
-type Status = "idle" | "permission" | "ready" | "recording" | "preview" | "error";
+type Status =
+  | "idle"
+  | "permission"
+  | "ready"
+  | "countdown"
+  | "recording"
+  | "preview"
+  | "error";
 type Facing = "user" | "environment";
 
 export function VideoRecorder({
@@ -41,6 +49,9 @@ export function VideoRecorder({
   const [caption, setCaption] = useState("");
   const [shortPublic, setShortPublic] = useState(true);
   const [posted, setPosted] = useState(false);
+  const [maxSec, setMaxSec] = useState<MaxSec>(60);
+  const [audioOn, setAudioOn] = useState(true);
+  const [countdown, setCountdown] = useState(0);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -62,17 +73,30 @@ export function VideoRecorder({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Tick the elapsed counter while recording; auto-stop at the cap.
+  // Tick the elapsed counter while recording; auto-stop at the chosen cap.
   useEffect(() => {
     if (status !== "recording") return;
+    const capMs = maxSec * 1000;
     const id = setInterval(() => {
       const t = Date.now() - startRef.current;
       setElapsedMs(t);
-      if (t >= MAX_MS) stopRecording();
+      if (t >= capMs) stopRecording();
     }, 100);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status]);
+  }, [status, maxSec]);
+
+  // 3-2-1 countdown before recording actually starts.
+  useEffect(() => {
+    if (status !== "countdown") return;
+    if (countdown <= 0) {
+      beginRecording();
+      return;
+    }
+    const id = setTimeout(() => setCountdown((c) => c - 1), 1000);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, countdown]);
 
   // Open the camera into a live preview (not yet recording).
   async function openCamera(mode: Facing) {
@@ -98,6 +122,8 @@ export function VideoRecorder({
         });
       }
       streamRef.current = stream;
+      // Honour the current mute choice on the freshly-opened stream.
+      stream.getAudioTracks().forEach((t) => (t.enabled = audioOn));
       setStatus("ready");
       if (liveVideoRef.current) {
         liveVideoRef.current.srcObject = stream;
@@ -114,6 +140,19 @@ export function VideoRecorder({
     const next: Facing = facing === "user" ? "environment" : "user";
     setFacing(next);
     void openCamera(next);
+  }
+
+  function toggleAudio() {
+    const next = !audioOn;
+    setAudioOn(next);
+    streamRef.current?.getAudioTracks().forEach((t) => (t.enabled = next));
+  }
+
+  // Tapping Record kicks off a 3-2-1 countdown, then begins recording.
+  function startCountdown() {
+    if (!streamRef.current) return;
+    setCountdown(3);
+    setStatus("countdown");
   }
 
   function beginRecording() {
@@ -179,7 +218,9 @@ export function VideoRecorder({
     onPostToBoth(blobRef.current, elapsedMs, shortPublic, caption.trim());
   }
 
-  const liveActive = status === "ready" || status === "recording";
+  const liveActive =
+    status === "ready" || status === "countdown" || status === "recording";
+  const remainingS = Math.max(0, maxSec - elapsedMs / 1000);
 
   return (
     <div
@@ -221,35 +262,89 @@ export function VideoRecorder({
         <p className="text-[11px] text-white/55">Waiting for camera permission…</p>
       )}
 
-      {/* Live preview is mounted whenever the camera is on (ready/recording). */}
+      {/* Live preview is mounted whenever the camera is on. */}
       <div className={liveActive ? "block" : "hidden"}>
-        <video
-          ref={liveVideoRef}
-          autoPlay
-          muted
-          playsInline
-          className="mb-2 max-h-[40vh] w-full rounded-lg bg-black"
-          style={facing === "user" ? { transform: "scaleX(-1)" } : undefined}
-        />
+        <div className="relative mb-2">
+          <video
+            ref={liveVideoRef}
+            autoPlay
+            muted
+            playsInline
+            className="max-h-[40vh] w-full rounded-lg bg-black"
+            style={facing === "user" ? { transform: "scaleX(-1)" } : undefined}
+          />
+          {status === "countdown" && countdown > 0 && (
+            <div className="pointer-events-none absolute inset-0 grid place-items-center rounded-lg bg-black/40">
+              <span className="font-display text-6xl font-bold text-white drop-shadow-lg">
+                {countdown}
+              </span>
+            </div>
+          )}
+          {status === "recording" && (
+            <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[11px] font-medium text-white">
+              <span className="inline-block h-2 w-2 rounded-full bg-neon-red animate-pulseDot" />
+              {remainingS.toFixed(0)}s left
+            </span>
+          )}
+        </div>
+
         {status === "ready" && (
-          <div className="flex items-center gap-2">
+          <>
+            <div className="mb-2 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={flipCamera}
+                className="flex-1 rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs text-white/80 hover:bg-white/10"
+                title="Switch front / back camera"
+              >
+                🔄 Flip
+              </button>
+              <button
+                type="button"
+                onClick={toggleAudio}
+                aria-pressed={!audioOn}
+                title={audioOn ? "Mute the microphone" : "Un-mute the microphone"}
+                className={
+                  "flex-1 rounded-lg border px-2 py-1.5 text-xs transition " +
+                  (audioOn
+                    ? "border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
+                    : "border-neon-red/50 bg-neon-red/10 text-neon-red")
+                }
+              >
+                {audioOn ? "🔊 Mic on" : "🔇 Muted"}
+              </button>
+            </div>
+            <div className="mb-2 flex items-center gap-1.5">
+              <span className="text-[10px] uppercase tracking-widest text-white/40">
+                Max
+              </span>
+              {LENGTHS.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setMaxSec(s)}
+                  aria-pressed={maxSec === s}
+                  className={
+                    "flex-1 rounded-md border px-2 py-1 text-[11px] transition " +
+                    (maxSec === s
+                      ? "border-neon-blue/60 bg-neon-blue/15 text-neon-blue"
+                      : "border-white/10 bg-white/5 text-white/60 hover:bg-white/10")
+                  }
+                >
+                  {s}s
+                </button>
+              ))}
+            </div>
             <button
               type="button"
-              onClick={flipCamera}
-              className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/80 hover:bg-white/10"
-              title="Switch front / back camera"
-            >
-              🔄 Flip
-            </button>
-            <button
-              type="button"
-              onClick={beginRecording}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-neon-red px-3 py-1.5 text-xs font-semibold text-white hover:bg-neon-red/90"
+              onClick={startCountdown}
+              className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-neon-red px-3 py-1.5 text-xs font-semibold text-white hover:bg-neon-red/90"
             >
               <span className="inline-block h-2.5 w-2.5 rounded-full bg-white" /> Record
             </button>
-          </div>
+          </>
         )}
+
         {status === "recording" && (
           <div className="flex items-center gap-2">
             <button
@@ -264,7 +359,7 @@ export function VideoRecorder({
             <p className="font-mono text-sm tabular-nums text-white">
               {(elapsedMs / 1000).toFixed(1)}s
             </p>
-            <p className="ml-auto text-[10px] text-white/40">max 60s</p>
+            <p className="ml-auto text-[10px] text-white/40">max {maxSec}s</p>
           </div>
         )}
       </div>
