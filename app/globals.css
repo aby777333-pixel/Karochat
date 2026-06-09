@@ -97,7 +97,9 @@ body::before {
 }
 @media (max-width: 767px) {
   body.has-mobile-nav {
-    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
+    /* Bar is ~55px tall; reserve generous clearance so page-bottom actions
+       (e.g. the Shorts "Post" button) never sit flush behind the bar. */
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
   }
 }
 

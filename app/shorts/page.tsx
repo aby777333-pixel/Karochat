@@ -23,11 +23,17 @@ export default async function ShortsPage() {
   if (!profile?.username) redirect("/onboarding");
   if (!profile.terms_accepted_at) redirect("/terms");
 
+  // The Shorts feed is the single place every public video shows up. We fetch
+  // every public short (from anyone) plus the viewer's own posts so private
+  // drafts still appear to their author — and nobody else's do. The explicit
+  // filter is required because shorts_with_author is a plain (non
+  // security_invoker) view and therefore bypasses the table's RLS.
   const { data: rawShorts } = await supabase
     .from("shorts_with_author")
     .select("*")
+    .or(`is_public.eq.true,author_id.eq.${user.id}`)
     .order("created_at", { ascending: false })
-    .limit(50);
+    .limit(100);
 
   const shorts = (rawShorts ?? []) as ShortRow[];
 
@@ -44,7 +50,7 @@ export default async function ShortsPage() {
 
   return (
     <AdRails>
-      <main className="mx-auto flex min-h-[100dvh] max-w-3xl flex-col px-1 py-5 md:py-7">
+      <main className="mx-auto flex min-h-[100dvh] max-w-3xl flex-col px-1 py-5 pb-28 md:py-7 md:pb-7">
         <header className="surface-glass flex items-center justify-between gap-3 px-4 py-3">
           <Link href="/rooms" className="flex items-center gap-2">
             <Logo className="h-6 w-6" />
