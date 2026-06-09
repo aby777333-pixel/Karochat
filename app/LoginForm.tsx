@@ -23,6 +23,18 @@ const COUNTRY_KEY = "karochat:last-country";
 // same email logs back into the SAME account (data intact) without a code or
 // link. Note: this is email-keyed access by design (the operator's choice for
 // frictionless onboarding) — add real verification before a wide launch.
+// Reject if a promise doesn't settle within `ms`. supabase-js has no built-in
+// network timeout, so without this a stalled mobile request leaves the button
+// stuck on "Getting you in…" forever (the freeze users hit on flaky signal).
+function withTimeout<T>(p: PromiseLike<T>, ms: number): Promise<T> {
+  return Promise.race([
+    Promise.resolve(p),
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error("Request timed out")), ms)
+    )
+  ]);
+}
+
 async function derivePassword(email: string): Promise<string> {
   const data = new TextEncoder().encode("karochat:v1:" + email);
   const buf = await crypto.subtle.digest("SHA-256", data);
@@ -126,45 +138,65 @@ export function LoginForm() {
     }
     setBusy(true);
     setErrorMsg(null);
-    const supabase = createSupabaseBrowserClient();
-    const loginEmail = addr.toLowerCase();
-    const pw = await derivePassword(loginEmail);
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const loginEmail = addr.toLowerCase();
+      const pw = await derivePassword(loginEmail);
 
-    // 1) Create / repair + CONFIRM the account SERVER-SIDE first (service role,
-    //    no email is ever sent → no email rate limits). This must run before
-    //    any signInWithPassword, otherwise an unconfirmed account would make
-    //    Supabase try to (re)send a confirmation email and hit the limit.
-    const fn = await supabase.functions.invoke("instant-auth", {
-      body: { email: loginEmail, phone: fullPhone, password: pw }
-    });
-    const res: any = fn.data;
-    // Admin accounts must verify with an email code (no instant access).
-    if (res?.code === "admin_otp") {
-      setAdminOtp(true);
-      await sendLink(); // emails a 6-digit code + shows the OTP screen
-      setBusy(false);
-      return;
-    }
-    if (fn.error || !res || !res.ok) {
-      setBusy(false);
-      if (res?.code === "bad_email") setErrorMsg("Please enter a valid email address.");
-      else if (res?.code === "bad_phone") setErrorMsg("Please enter a valid phone number.");
-      else if (res?.code === "blocked") setErrorMsg("Access from your network has been blocked.");
-      else setErrorMsg("Couldn't sign you in right now. Please try again.");
-      return;
-    }
+      // 1) Create / repair + CONFIRM the account SERVER-SIDE first (service role,
+      //    no email is ever sent → no email rate limits). This must run before
+      //    any signInWithPassword, otherwise an unconfirmed account would make
+      //    Supabase try to (re)send a confirmation email and hit the limit.
+      //    Timeout-guarded so a stalled request can't freeze the button.
+      const fn = await withTimeout(
+        supabase.functions.invoke("instant-auth", {
+          body: { email: loginEmail, phone: fullPhone, password: pw }
+        }),
+        20000
+      );
+      const res: any = fn.data;
+      // Admin accounts must verify with an email code (no instant access).
+      if (res?.code === "admin_otp") {
+        setAdminOtp(true);
+        await sendLink(); // emails a 6-digit code + shows the OTP screen
+        return;
+      }
+      if (fn.error || !res || !res.ok) {
+        if (res?.code === "bad_email") setErrorMsg("Please enter a valid email address.");
+        else if (res?.code === "bad_phone") setErrorMsg("Please enter a valid phone number.");
+        else if (res?.code === "blocked") setErrorMsg("Access from your network has been blocked.");
+        else if (res?.code === "phone_conflict")
+          setErrorMsg(
+            "That phone number is already linked to another email. Use that email, or a different number."
+          );
+        else setErrorMsg("Couldn't sign you in right now. Please try again.");
+        return;
+      }
 
-    // 2) Account is ready (confirmed, no email) → sign in. Same email next
-    //    time signs back into the same account with all data intact.
-    const si = await supabase.auth.signInWithPassword({ email: loginEmail, password: pw });
-    setBusy(false);
-    if (!si.error && si.data?.session) {
-      remember(addr, local);
-      router.replace("/rooms");
-      router.refresh();
-      return;
+      // 2) Account is ready (confirmed, no email) → sign in. Same email next
+      //    time signs back into the same account with all data intact.
+      const si = await withTimeout(
+        supabase.auth.signInWithPassword({ email: loginEmail, password: pw }),
+        20000
+      );
+      if (!si.error && si.data?.session) {
+        remember(addr, local);
+        router.replace("/rooms");
+        router.refresh();
+        return;
+      }
+      setErrorMsg(si.error?.message ?? "Couldn't sign you in. Please try again.");
+    } catch (err: any) {
+      // Network stall / timeout / unexpected throw — never leave the button
+      // spinning. Surface a friendly retry and reset below in `finally`.
+      setErrorMsg(
+        /timed out/i.test(String(err?.message ?? ""))
+          ? "That took too long on this connection. Check your signal and tap the button again — or use “Email me a sign-in link” below."
+          : err?.message ?? "Couldn't sign you in right now. Please try again."
+      );
+    } finally {
+      setBusy(false);
     }
-    setErrorMsg(si.error?.message ?? "Couldn't sign you in. Please try again.");
   }
 
   // SECONDARY — email a magic link + 6-digit code (returning users).
@@ -331,7 +363,15 @@ export function LoginForm() {
             inputMode="tel"
             placeholder="98765 43210"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            onChange={(e) => {
+              const v = e.target.value;
+              // A pasted / autofilled international number (leading "+…") is
+              // reduced to local digits so the selected dial code in the
+              // dropdown isn't shown a second time inside the field.
+              setPhone(
+                v.trimStart().startsWith("+") ? localPhone(v, dialOf(country)) : v
+              );
+            }}
             className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder-white/30 outline-none transition focus:border-neon-blue/60 focus:bg-black/40"
           />
         </div>

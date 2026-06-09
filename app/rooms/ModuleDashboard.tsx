@@ -57,21 +57,30 @@ const SECTIONS: Section[] = [
 ];
 
 function TileLink({ tile }: { tile: Tile }) {
-  // Steel card base + neon icon chip with layered 3D shadows. items-start +
-  // a fixed-height label block keeps every icon on the same line and every
-  // label aligned, whether the label is one or two lines.
-  // Matte carbon-grade card: dark graphite gradient + top sheen + deep drop
-  // shadow for a raised 3D feel, with a crisp edge so tiles read clearly.
+  // Frosted-glass card with a glossy top sheen + a glossy gradient icon chip,
+  // for a polished, premium feel. `items-start` + a fixed-height label block
+  // keeps every icon on the same line and every label's first line aligned,
+  // whether the label is one or two lines.
   const cls =
-    "group flex flex-col items-center gap-2.5 rounded-2xl border border-white/12 bg-gradient-to-b from-zinc-700/70 via-zinc-900/85 to-black px-2 py-4 text-center shadow-[0_10px_22px_-4px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(255,255,255,0.10)] ring-1 ring-inset ring-white/[0.06] transition hover:-translate-y-0.5 hover:border-white/25 hover:shadow-[0_16px_30px_-6px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.16)] active:translate-y-0 active:scale-[0.97]";
+    "group relative flex flex-col items-center gap-2.5 rounded-2xl border border-white/15 bg-white/[0.07] px-2 py-4 text-center shadow-[0_10px_26px_-8px_rgba(0,0,0,0.65)] ring-1 ring-inset ring-white/10 backdrop-blur-md transition hover:-translate-y-0.5 hover:border-white/30 hover:bg-white/[0.11] hover:shadow-[0_16px_32px_-10px_rgba(0,0,0,0.78)] active:translate-y-0 active:scale-[0.97]";
   const inner = (
     <>
+      {/* glossy top sheen across the card */}
       <span
-        className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${tile.grad} text-[26px] shadow-[0_8px_18px_rgba(0,0,0,0.55),inset_0_1px_2px_rgba(255,255,255,0.5)] ring-1 ring-white/30 transition group-hover:-translate-y-0.5 group-hover:scale-110 group-hover:brightness-110`}
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-1/2 rounded-t-2xl bg-gradient-to-b from-white/12 to-transparent"
+      />
+      <span
+        className={`relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br ${tile.grad} text-[26px] shadow-[0_8px_18px_rgba(0,0,0,0.5)] ring-1 ring-white/40 transition group-hover:-translate-y-0.5 group-hover:scale-110 group-hover:brightness-110`}
       >
-        {tile.emoji}
+        {/* glossy highlight on the chip */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/45 via-white/5 to-black/20"
+        />
+        <span className="relative drop-shadow-sm">{tile.emoji}</span>
       </span>
-      <span className="flex min-h-[2.4em] items-start justify-center text-xs font-bold leading-tight text-white drop-shadow">
+      <span className="relative flex min-h-[2.4em] items-start justify-center text-xs font-semibold leading-tight text-white/95 drop-shadow-sm">
         {tile.label}
       </span>
     </>
