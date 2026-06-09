@@ -21,11 +21,13 @@ type Status = "idle" | "permission" | "recording" | "preview" | "error";
 export function VideoRecorder({
   onPostToChat,
   onPostToShort,
+  onPostToBoth,
   onClose,
   busy = false
 }: {
   onPostToChat: (blob: Blob, durationMs: number) => void;
   onPostToShort: (blob: Blob, isPublic: boolean) => void;
+  onPostToBoth: (blob: Blob, durationMs: number, isPublic: boolean) => void;
   onClose: () => void;
   busy?: boolean;
 }) {
@@ -72,12 +74,26 @@ export function VideoRecorder({
     setError(null);
     setStatus("permission");
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: { ideal: 720 }, height: { ideal: 1280 } },
-        audio: true
-      });
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error("This browser can't access the camera.");
+      }
+      // Prefer the front camera, but fall back to ANY camera if a phone
+      // rejects the facingMode constraint — so the camera reliably opens.
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user" },
+          audio: true
+        });
+      } catch {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true
+        });
+      }
       streamRef.current = stream;
-      // Show the live camera feed.
+      // Show the live camera feed (must be set before we leave this tick).
+      setStatus("recording");
       if (liveVideoRef.current) {
         liveVideoRef.current.srcObject = stream;
         liveVideoRef.current.play().catch(() => {});
@@ -142,6 +158,12 @@ export function VideoRecorder({
     onPostToShort(blobRef.current, shortPublic);
   }
 
+  function postBoth() {
+    if (!blobRef.current || posted || busy) return;
+    setPosted(true);
+    onPostToBoth(blobRef.current, elapsedMs, shortPublic);
+  }
+
   return (
     <div
       role="dialog"
@@ -186,6 +208,7 @@ export function VideoRecorder({
       <div className={status === "recording" ? "block" : "hidden"}>
         <video
           ref={liveVideoRef}
+          autoPlay
           muted
           playsInline
           className="mb-2 max-h-[40vh] w-full rounded-lg bg-black"
@@ -270,14 +293,24 @@ export function VideoRecorder({
                 🔒 Private
               </button>
             </div>
-            <button
-              type="button"
-              onClick={postShort}
-              disabled={busy || posted}
-              className="w-full rounded-lg bg-neon-purple px-3 py-2 text-xs font-semibold text-white hover:bg-neon-purple/90 disabled:opacity-50"
-            >
-              {busy || posted ? "Posting…" : "🎬 Post to Shorts"}
-            </button>
+            <div className="grid grid-cols-1 gap-1.5">
+              <button
+                type="button"
+                onClick={postShort}
+                disabled={busy || posted}
+                className="w-full rounded-lg bg-neon-purple px-3 py-2 text-xs font-semibold text-white hover:bg-neon-purple/90 disabled:opacity-50"
+              >
+                {busy || posted ? "Posting…" : "🎬 Post to Shorts"}
+              </button>
+              <button
+                type="button"
+                onClick={postBoth}
+                disabled={busy || posted}
+                className="w-full rounded-lg bg-gradient-to-r from-neon-blue to-neon-purple px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50"
+              >
+                {busy || posted ? "Posting…" : "💬🎬 Post to both"}
+              </button>
+            </div>
           </div>
         </>
       )}

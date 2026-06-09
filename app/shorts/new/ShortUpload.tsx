@@ -12,6 +12,7 @@ export function ShortUpload({ currentUserId }: { currentUserId: string }) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [caption, setCaption] = useState("");
@@ -74,17 +75,26 @@ export function ShortUpload({ currentUserId }: { currentUserId: string }) {
   return (
     <div className="space-y-4">
       {!file ? (
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/15 bg-black/20 px-4 py-10 text-center text-white/60 transition hover:border-neon-blue/40 hover:bg-white/5"
-        >
-          <span aria-hidden className="text-3xl">🎬</span>
-          <span className="text-sm font-medium text-white/85">Pick a video</span>
-          <span className="text-[11px] text-white/40">
-            up to 50 MB · mp4 / webm / mov
-          </span>
-        </button>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/15 bg-black/20 px-4 py-10 text-center text-white/60 transition hover:border-neon-blue/40 hover:bg-white/5"
+          >
+            <span aria-hidden className="text-3xl">🎬</span>
+            <span className="text-sm font-medium text-white/85">Pick a video</span>
+            <span className="text-[11px] text-white/40">mp4 / webm / mov</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => cameraRef.current?.click()}
+            className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-neon-blue/30 bg-neon-blue/5 px-4 py-10 text-center text-white/60 transition hover:border-neon-blue/50 hover:bg-neon-blue/10"
+          >
+            <span aria-hidden className="text-3xl">📹</span>
+            <span className="text-sm font-medium text-white/85">Record</span>
+            <span className="text-[11px] text-white/40">use your camera</span>
+          </button>
+        </div>
       ) : (
         <div className="rounded-xl border border-white/10 bg-black/30 p-3">
           {previewUrl && (
@@ -119,6 +129,15 @@ export function ShortUpload({ currentUserId }: { currentUserId: string }) {
         ref={fileRef}
         type="file"
         accept={ACCEPT}
+        className="hidden"
+        onChange={onFile}
+      />
+      {/* Camera capture — on phones this opens the native camera to record. */}
+      <input
+        ref={cameraRef}
+        type="file"
+        accept="video/*"
+        capture="environment"
         className="hidden"
         onChange={onFile}
       />

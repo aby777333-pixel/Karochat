@@ -1009,6 +1009,89 @@ export function RoomChat({
     );
   }
 
+  // Post a recorded clip to BOTH the chat and Shorts in one go.
+  async function postVideoToBoth(blob: Blob, durationMs: number, isPublic: boolean) {
+    if (!blob) return;
+    if (blob.size > MAX_FILE_BYTES) {
+      setError("That clip is over 50 MB — record a shorter one.");
+      setShowVideo(false);
+      return;
+    }
+    setUploading(true);
+    setError(null);
+    const baseMime = (blob.type || "video/webm").split(";")[0] || "video/webm";
+    const ext = baseMime.includes("mp4") ? "mp4" : "webm";
+    const caption = draft.trim();
+    const expiresAt = disappearTtlSec
+      ? new Date(Date.now() + disappearTtlSec * 1000).toISOString()
+      : null;
+
+    // 1) Chat — upload to chat-files + post a file (video) message.
+    const chatPath = `${currentUserId}/${crypto.randomUUID()}.${ext}`;
+    const up1 = await supabase.storage
+      .from("chat-files")
+      .upload(chatPath, blob, { contentType: baseMime, upsert: false });
+    if (up1.error) {
+      setError(`Video upload failed: ${up1.error.message}`);
+      setUploading(false);
+      return;
+    }
+    const pub1 = supabase.storage.from("chat-files").getPublicUrl(chatPath).data;
+    const ins1 = await supabase.from("messages").insert({
+      sender_id: currentUserId,
+      room_id: roomId,
+      content: caption || null,
+      file_url: pub1.publicUrl,
+      file_name: `video-clip.${ext}`,
+      file_size: blob.size,
+      file_mime: baseMime,
+      duration_ms: Math.round(durationMs),
+      reply_to_id: replyTo?.id ?? null,
+      intent: intentChoice,
+      expires_at: expiresAt,
+      type: "file"
+    });
+    if (ins1.error) {
+      setError(ins1.error.message);
+      setUploading(false);
+      return;
+    }
+
+    // 2) Shorts — upload to shorts bucket + insert.
+    const shortPath = `${currentUserId}/${crypto.randomUUID()}.${ext}`;
+    const up2 = await supabase.storage
+      .from("shorts")
+      .upload(shortPath, blob, { contentType: baseMime, upsert: false });
+    if (up2.error) {
+      setError(`Posted to chat, but Short upload failed: ${up2.error.message}`);
+      setUploading(false);
+      setShowVideo(false);
+      return;
+    }
+    const pub2 = supabase.storage.from("shorts").getPublicUrl(shortPath).data;
+    const ins2 = await supabase.from("shorts").insert({
+      author_id: currentUserId,
+      video_url: pub2.publicUrl,
+      caption: caption || null,
+      is_public: isPublic
+    });
+    setUploading(false);
+    if (ins2.error) {
+      setError(`Posted to chat, but Short save failed: ${ins2.error.message}`);
+      setShowVideo(false);
+      return;
+    }
+    setDraft("");
+    setReplyTo(null);
+    setIntentChoice(null);
+    setShowVideo(false);
+    setNotice(
+      isPublic
+        ? "✓ Posted to chat and Shorts (public)."
+        : "✓ Posted to chat and Shorts (private — only you see the Short)."
+    );
+  }
+
   function insertAtCursor(text: string) {
     const ta = textareaRef.current;
     if (!ta) {
@@ -2082,6 +2165,7 @@ export function RoomChat({
               <VideoRecorder
                 onPostToChat={(blob, ms) => void sendVideoToChat(blob, ms)}
                 onPostToShort={(blob, isPublic) => void postVideoToShort(blob, isPublic)}
+                onPostToBoth={(blob, ms, isPublic) => void postVideoToBoth(blob, ms, isPublic)}
                 onClose={() => setShowVideo(false)}
                 busy={uploading}
               />
