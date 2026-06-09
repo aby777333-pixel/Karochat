@@ -16,7 +16,7 @@ const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 // it's left untouched.
 
 let directBlocked = false;
-const DIRECT_TIMEOUT_MS = 7000;
+const DIRECT_TIMEOUT_MS = 2500;
 
 function urlOf(input: RequestInfo | URL): string {
   if (typeof input === "string") return input;
