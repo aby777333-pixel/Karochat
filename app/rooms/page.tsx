@@ -22,6 +22,7 @@ import { ModuleDashboard } from "./ModuleDashboard";
 import { WelcomeHero } from "./WelcomeHero";
 import { DMListClient } from "./DMListClient";
 import { GuestAccessCard } from "./GuestAccessCard";
+import { PushAutoSubscribe } from "@/components/PushAutoSubscribe";
 // import { DailyPrompt } from "./DailyPrompt"; // hidden by request — keep file for re-enable
 
 export const dynamic = "force-dynamic";
@@ -197,6 +198,7 @@ export default async function RoomsPage({
 
   return (
     <AdRails>
+      <PushAutoSubscribe />
       <main className="mx-auto flex min-h-[100dvh] max-w-6xl flex-col px-1 py-5 md:py-7">
         <header className="surface-glass flex flex-row items-center justify-between gap-2 px-3 py-2 md:px-4 md:py-3">
           <Link href="/rooms" className="flex shrink-0 items-center gap-2">

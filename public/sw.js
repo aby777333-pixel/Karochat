@@ -18,3 +18,51 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", () => {
   /* no-op: let the network handle it */
 });
+
+// ---------------------------------------------------------------------------
+// Web Push — show a notification when the server pushes one (e.g. a radar
+// wave / call / scan ping), even when the tab is closed or backgrounded.
+// ---------------------------------------------------------------------------
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (e) {
+    data = { title: "Karochat", body: event.data ? event.data.text() : "" };
+  }
+  const title = data.title || "Karochat";
+  const options = {
+    body: data.body || "",
+    icon: "/icon.svg",
+    badge: "/icon.svg",
+    tag: data.tag || "karochat",
+    renotify: true,
+    data: { url: data.url || "/" }
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Focus an existing tab (navigating it to the target) or open a new one.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = (event.notification.data && event.notification.data.url) || "/";
+  event.waitUntil(
+    (async () => {
+      const all = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true
+      });
+      for (const client of all) {
+        if ("focus" in client) {
+          try {
+            if ("navigate" in client) await client.navigate(target);
+          } catch (e) {
+            /* cross-origin or detached — ignore */
+          }
+          return client.focus();
+        }
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(target);
+    })()
+  );
+});

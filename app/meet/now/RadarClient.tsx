@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useBrowserNotificationsPermission } from "@/lib/useBrowserNotifications";
+import { usePushSubscribe } from "@/lib/usePushSubscribe";
 
 /**
  * Meet-now Radar / Scanner.
@@ -117,6 +118,7 @@ export function RadarClient({ currentUserId }: { currentUserId: string }) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const router = useRouter();
   const { perm, request, supported } = useBrowserNotificationsPermission();
+  const { subscribe } = usePushSubscribe();
 
   const [live, setLive] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -137,6 +139,17 @@ export function RadarClient({ currentUserId }: { currentUserId: string }) {
     setToast(msg);
     setTimeout(() => setToast((t) => (t === msg ? null : t)), 2600);
   }, []);
+
+  // Register a Web Push subscription so wave/call pings reach this person even
+  // when the tab is closed. Runs once if permission is already granted.
+  useEffect(() => {
+    if (perm === "granted") void subscribe();
+  }, [perm, subscribe]);
+
+  const enableNotifications = useCallback(async () => {
+    const p = await request();
+    if (p === "granted") await subscribe();
+  }, [request, subscribe]);
 
   // ---- Pings (incoming) -----------------------------------------------------
   const fireNotification = useCallback(
@@ -541,10 +554,11 @@ export function RadarClient({ currentUserId }: { currentUserId: string }) {
         {supported && perm === "default" && (
           <button
             type="button"
-            onClick={() => void request()}
+            onClick={() => void enableNotifications()}
             className="mt-3 block w-full rounded-lg border border-neon-amber/30 bg-neon-amber/5 px-3 py-2 text-left text-xs text-neon-amber hover:bg-neon-amber/10"
           >
-            🔔 Turn on notifications so you hear when someone pings you nearby.
+            🔔 Turn on notifications so you hear when someone pings you nearby —
+            even with the app closed.
           </button>
         )}
 
