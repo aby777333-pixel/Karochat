@@ -1956,7 +1956,7 @@ export function RoomChat({
         )}
         <div className="relative flex flex-col gap-2">
           {/* Row 1 — action buttons ("left tags"). */}
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1 sm:gap-1.5">
           <div className="relative">
             <button
               type="button"
@@ -1968,7 +1968,7 @@ export function RoomChat({
                   : "Tag this message with an intent"
               }
               className={clsx(
-                "grid h-11 w-11 shrink-0 place-items-center rounded-xl border text-sm transition",
+                "grid h-9 w-9 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-xl border text-sm transition",
                 intentChoice
                   ? "border-neon-blue/60 bg-neon-blue/10 text-neon-blue"
                   : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
@@ -2031,7 +2031,7 @@ export function RoomChat({
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
             aria-label="Attach image"
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/5 text-white/70 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
+            className="grid h-9 w-9 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/5 text-white/70 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
           >
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <rect x="3" y="3" width="18" height="18" rx="3" />
@@ -2045,7 +2045,7 @@ export function RoomChat({
             disabled={uploading}
             aria-label="Attach a file"
             title="Attach any file (big files are compressed)"
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/5 text-white/70 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
+            className="grid h-9 w-9 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/5 text-white/70 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
           >
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="M21.44 11.05 12.25 20.24a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
@@ -2062,7 +2062,7 @@ export function RoomChat({
             onClick={() => void sendNudge()}
             aria-label="Send a nudge"
             title="Send a nudge (Ctrl+Shift+N)"
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-neon-red/40 bg-neon-red/10 text-neon-red transition hover:bg-neon-red/20"
+            className="grid h-9 w-9 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-xl border border-neon-red/40 bg-neon-red/10 text-neon-red transition hover:bg-neon-red/20"
           >
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z" />
@@ -2079,7 +2079,7 @@ export function RoomChat({
               }}
               aria-label="Insert emoji"
               title="Insert emoji"
-              className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/5 text-white/70 transition hover:bg-white/10 hover:text-white"
+              className="grid h-9 w-9 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/5 text-white/70 transition hover:bg-white/10 hover:text-white"
             >
               😊
             </button>
@@ -2104,7 +2104,7 @@ export function RoomChat({
               }}
               aria-label="Insert GIF"
               title="Send a GIF"
-              className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/5 text-white/70 text-[10px] font-bold transition hover:bg-white/10 hover:text-white"
+              className="grid h-9 w-9 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/5 text-white/70 text-[10px] font-bold transition hover:bg-white/10 hover:text-white"
             >
               GIF
             </button>
@@ -2145,7 +2145,7 @@ export function RoomChat({
               }}
               aria-label="Record voice message"
               title="Record a voice message"
-              className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-neon-purple/40 bg-neon-purple/10 text-neon-purple transition hover:bg-neon-purple/20"
+              className="grid h-9 w-9 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-xl border border-neon-purple/40 bg-neon-purple/10 text-neon-purple transition hover:bg-neon-purple/20"
             >
               🎙
             </button>
@@ -2169,7 +2169,7 @@ export function RoomChat({
               }}
               aria-label="Record a video clip"
               title="Record a video clip — post to chat or Shorts"
-              className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-neon-blue/40 bg-neon-blue/10 text-neon-blue transition hover:bg-neon-blue/20"
+              className="grid h-9 w-9 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-xl border border-neon-blue/40 bg-neon-blue/10 text-neon-blue transition hover:bg-neon-blue/20"
             >
               🎥
             </button>
@@ -2194,7 +2194,7 @@ export function RoomChat({
             aria-label="Voice typing"
             title="Voice typing — dictate your message"
             className={clsx(
-              "grid h-11 w-11 shrink-0 place-items-center rounded-xl border transition",
+              "grid h-9 w-9 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-xl border transition",
               dictating
                 ? "border-neon-red/60 bg-neon-red/15 text-neon-red animate-pulseDot"
                 : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
@@ -2219,7 +2219,7 @@ export function RoomChat({
                   : "Set disappearing-message timer"
               }
               className={clsx(
-                "grid h-11 w-11 shrink-0 place-items-center rounded-xl border transition",
+                "grid h-9 w-9 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-xl border transition",
                 disappearTtlSec
                   ? "border-neon-amber/60 bg-neon-amber/15 text-neon-amber"
                   : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
@@ -2296,7 +2296,7 @@ export function RoomChat({
           </Button>
           </div>
         </div>
-        <p className="mt-1.5 px-1 text-[10px] text-white/30">
+        <p className="mt-1.5 hidden px-1 text-[10px] text-white/30 sm:block">
           Enter to send · Shift+Enter for newline · 📎 image · 📁 file · 🎤 voice-type · 🎙 voice note · 😊 emoji · GIF · ⏳ disappear ·{" "}
           <code className="rounded bg-white/5 px-1 text-white/40">
             /poll q | a | b
