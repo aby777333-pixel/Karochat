@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Logo, Wordmark } from "@/components/Brand";
 import { MeetNowClient } from "./MeetNowClient";
+import { RadarClient } from "./RadarClient";
 
 export const dynamic = "force-dynamic";
 
@@ -46,14 +47,35 @@ export default async function MeetNowPage() {
           ⚡ Meet someone now
         </p>
         <h1 className="mt-1 font-display text-3xl font-semibold text-white">
-          5 minutes. One stranger.
+          Scan for people around you.
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-white/70">
-          Tap below and we&apos;ll match you with one other person who&apos;s
-          also looking right now. The chat self-destructs after 5 minutes
-          unless you both decide to keep going.
+          Travelling, new in town, or just curious who&apos;s nearby? Press the
+          scanner — anyone else on the radar within range gets a ping, and you
+          can wave, message, or jump on a voice/video call. Or take the
+          5-minute random match below.
         </p>
       </section>
+
+      {/* Location radar / scanner — the headline Meet-now feature. */}
+      <RadarClient currentUserId={user.id} />
+
+      <div className="my-8 flex items-center gap-3 text-[11px] uppercase tracking-widest text-white/30">
+        <span className="h-px flex-1 bg-white/10" />
+        or — 5-minute random
+        <span className="h-px flex-1 bg-white/10" />
+      </div>
+
+      <div className="px-1">
+        <h2 className="font-display text-xl font-semibold text-white">
+          5 minutes. One stranger.
+        </h2>
+        <p className="mt-1 text-sm leading-relaxed text-white/70">
+          We&apos;ll match you with one other person who&apos;s also looking
+          right now. The chat self-destructs after 5 minutes unless you both
+          decide to keep going.
+        </p>
+      </div>
 
       <MeetNowClient />
 
