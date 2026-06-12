@@ -59,7 +59,8 @@ const SECTIONS: Section[] = [
     tiles: [
       { href: "/stories/new", label: "Add story", emoji: "✨", grad: "from-fuchsia-400 via-purple-500 to-indigo-600" },
       { href: "/shorts/new", label: "Post short", emoji: "📹", grad: "from-orange-300 via-red-400 to-rose-600" },
-      { href: "/charter", label: "Charter", emoji: "🌍", grad: "from-cyan-300 via-sky-400 to-blue-600" }
+      { href: "/charter", label: "Charter", emoji: "🌍", grad: "from-cyan-300 via-sky-400 to-blue-600" },
+      { href: "/suggestions", label: "Suggestions", emoji: "💡", grad: "from-amber-300 via-yellow-400 to-orange-500" }
     ]
   }
 ];
