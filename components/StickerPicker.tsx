@@ -42,16 +42,16 @@ const PACKS: { name: string; stickers: string[] }[] = [
   {
     name: "Hype",
     stickers: [
-      "٩(◕‿◕｡)۶",
-      "ヽ(°〇°)ﾉ",
-      "(ﾉ◕ヮ◕)ﾉ*:･ﾟ✧",
+      "\\(^o^)/ ✨",
+      "ヽ(^▽^)ノ",
+      "(ﾉ^ヮ^)ﾉ*:･ﾟ✧",
       "🎉🎊🥳🎊🎉",
-      "✧*。٩(ˊᗜˋ*)و✧*。",
+      "✨ヽ(゜▽゜)ノ✨",
       "LET'S GOOO 🚀🚀🚀",
-      "(ง •̀_•́)ง",
+      "(ง •_•)ง",
       "🏆 W 🏆",
       "⚡⚡⚡⚡⚡",
-      "\\(^o^)/"
+      "💪😤💪"
     ]
   },
   {
@@ -74,13 +74,13 @@ const PACKS: { name: string; stickers: string[] }[] = [
   {
     name: "Sad",
     stickers: [
-      "(╥﹏╥)",
-      "( ´•̥̥̥ω•̥̥̥` )",
-      "(◞‸◟)",
+      "(T_T)",
+      "( ;ω; )",
+      "(;_;)",
       "🥺👉👈",
-      "( ; ω ; )",
-      "˚‧º·(˚ ˃̣̣̥⌓˂̣̣̥ )‧º·˚",
-      "(個_個)",
+      "(╥_╥)",
+      "(っ- ‸ - ς)",
+      "(ノ_<。)",
       "🌧😔🌧"
     ]
   },
@@ -90,13 +90,13 @@ const PACKS: { name: string; stickers: string[] }[] = [
       "ʕ•ᴥ•ʔ",
       "(=^･ω･^=)",
       "🐶💨",
-      "(・⊝・)",
+      "(・Θ・)",
       "∪･ω･∪",
-      "ฅ^•ﻌ•^ฅ",
+      "ฅ^•ω•^ฅ",
       "🦋✨🦋",
-      "(°)#))<<",
+      "><(((º>",
       "🐢💤",
-      "ʕ ꈍᴥꈍʔ"
+      "ʕ -ᴥ- ʔ💤"
     ]
   },
   {
@@ -118,7 +118,7 @@ const PACKS: { name: string; stickers: string[] }[] = [
       "🧘 breathe 🧘",
       "✨(￣▽￣)ノ✨",
       "🌙💤🌙",
-      "( ु⁎ᴗ_ᴗ⁎)ु.｡oO",
+      "(－.－)...zzz",
       "🌊 calm 🌊",
       "☁️☁️☁️",
       "🕯 present 🕯",
@@ -168,7 +168,7 @@ export function StickerPicker({
           ✕
         </button>
       </div>
-      <div className="mb-1 flex gap-0.5 overflow-x-auto">
+      <div className="mb-1 flex gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {PACKS.map((p) => (
           <button
             key={p.name}

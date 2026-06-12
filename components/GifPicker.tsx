@@ -113,7 +113,7 @@ export function GifPicker({
         </button>
       </div>
       {/* Quick mood chips — one tap fills the search. */}
-      <div className="mb-1 flex gap-1 overflow-x-auto px-1 pb-0.5">
+      <div className="mb-1 flex gap-1 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {(
           [
             ["😂", "lol"],

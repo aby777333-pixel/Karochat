@@ -176,7 +176,7 @@ export function EmojiPicker({
         </>
       )}
       {!search && (
-        <div className="mb-1 flex gap-0.5 overflow-x-auto">
+        <div className="mb-1 flex gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {CATEGORIES.map((c) => (
             <button
               key={c.name}

@@ -108,19 +108,19 @@ export function LinesPicker({
         </button>
       </div>
 
-      <div className="mb-1 flex gap-0.5 overflow-x-auto">
+      <div className="mb-1 flex gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {packs.map((p) => (
           <button
             key={p.key}
             type="button"
             onClick={() => setTab(p.key)}
             className={clsx(
-              "shrink-0 rounded-md px-1.5 py-0.5 text-[9px] uppercase tracking-widest transition",
+              "shrink-0 rounded-md px-1.5 py-1 text-[10px] uppercase tracking-wider transition",
               tab === p.key
                 ? p.adult
-                  ? "bg-neon-red/15 text-neon-red"
-                  : "bg-neon-purple/15 text-neon-purple"
-                : "text-white/45 hover:bg-white/5 hover:text-white/80"
+                  ? "bg-neon-red/20 text-neon-red"
+                  : "bg-neon-purple/20 text-neon-purple"
+                : "text-white/50 hover:bg-white/5 hover:text-white/85"
             )}
           >
             {p.emoji} {p.label}
@@ -131,10 +131,10 @@ export function LinesPicker({
           type="button"
           onClick={() => setTab("ai")}
           className={clsx(
-            "shrink-0 rounded-md px-1.5 py-0.5 text-[9px] uppercase tracking-widest transition",
+            "shrink-0 rounded-md px-1.5 py-1 text-[10px] uppercase tracking-wider transition",
             tab === "ai"
-              ? "bg-neon-mint/15 text-neon-mint"
-              : "text-white/45 hover:bg-white/5 hover:text-white/80"
+              ? "bg-neon-mint/20 text-neon-mint"
+              : "text-white/50 hover:bg-white/5 hover:text-white/85"
           )}
         >
           ✨ Ask Karo

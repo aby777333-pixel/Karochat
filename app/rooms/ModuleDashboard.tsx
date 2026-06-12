@@ -76,7 +76,7 @@ function TileLink({ tile }: { tile: Tile }) {
   const inner = (
     <>
       <span
-        className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${tile.grad} text-[26px] shadow-[0_8px_18px_rgba(0,0,0,0.55),inset_0_1px_2px_rgba(255,255,255,0.5)] ring-1 ring-white/30 transition group-hover:-translate-y-0.5 group-hover:scale-110 group-hover:brightness-110`}
+        className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${tile.grad} text-[26px] shadow-[0_8px_18px_rgba(0,0,0,0.55),inset_0_1px_2px_rgba(255,255,255,0.35)] ring-1 ring-white/15 saturate-[.68] brightness-[.92] transition group-hover:-translate-y-0.5 group-hover:scale-110 group-hover:saturate-100 group-hover:brightness-105`}
       >
         {tile.emoji}
       </span>
