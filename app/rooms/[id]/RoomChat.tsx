@@ -605,6 +605,54 @@ export function RoomChat({
     [supabase]
   );
 
+  // Catch-up refetch — heals any gap left by a dropped realtime socket
+  // (phone slept, laptop lid closed, network blip). Without this, a
+  // device that missed INSERTs shows only its own optimistic messages
+  // ("one side of the conversation") until a manual reload. Runs when
+  // the channel (re)subscribes, the tab becomes visible again, or the
+  // browser comes back online — pulls the latest rows and merges any
+  // missing ones (dedup by id, chronological order preserved). Vault
+  // DMs are skipped: their content needs the vault-key decrypt path,
+  // so they keep the original behavior.
+  const catchUp = useCallback(async () => {
+    if (isVault) return;
+    const { data } = await supabase
+      .from("messages_with_sender")
+      .select("*")
+      .eq("room_id", roomId)
+      .order("created_at", { ascending: false })
+      .limit(80);
+    if (!data || data.length === 0) return;
+    const fresh = [...(data as MessageRow[])].reverse();
+    setMessages((prev) => {
+      const known = new Set(prev.map((m) => m.id));
+      const additions = fresh.filter((m) => !known.has(m.id));
+      if (additions.length === 0) return prev;
+      return [...prev, ...additions].sort((a, b) =>
+        String(a.created_at).localeCompare(String(b.created_at))
+      );
+    });
+  }, [supabase, roomId, isVault]);
+  const catchUpRef = useRef(catchUp);
+  useEffect(() => {
+    catchUpRef.current = catchUp;
+  }, [catchUp]);
+
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === "visible") void catchUpRef.current();
+    }
+    function onOnline() {
+      void catchUpRef.current();
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("online", onOnline);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("online", onOnline);
+    };
+  }, []);
+
   // Realtime: INSERT + UPDATE on messages in this room.
   useEffect(() => {
     const channel = supabase
@@ -676,7 +724,11 @@ export function RoomChat({
           );
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        // Fires on the initial join AND on every automatic rejoin after a
+        // disconnect — both are exactly when we may have missed rows.
+        if (status === "SUBSCRIBED") void catchUpRef.current();
+      });
 
     return () => {
       void supabase.removeChannel(channel);
