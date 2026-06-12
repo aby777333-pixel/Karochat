@@ -32,6 +32,8 @@ import { Soundscape } from "./Soundscape";
 import { ConferenceTools } from "./ConferenceTools";
 import { ChatResizer, EdgeHandles } from "@/components/ChatResizer";
 import { playBuzz } from "@/lib/sounds";
+import { StickerPicker } from "@/components/StickerPicker";
+import { LinesPicker } from "@/components/LinesPicker";
 import { EmojiPicker } from "@/components/EmojiPicker";
 import { GifPicker } from "@/components/GifPicker";
 import { MentionMenu } from "@/components/MentionMenu";
@@ -420,6 +422,8 @@ export function RoomChat({
   const [showGif, setShowGif] = useState(false);
   const [showVoice, setShowVoice] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
+  const [showStickers, setShowStickers] = useState(false);
+  const [showLines, setShowLines] = useState(false);
   const [dictating, setDictating] = useState(false);
   const [mentionState, setMentionState] = useState<{
     query: string;
@@ -2126,6 +2130,8 @@ export function RoomChat({
                 setShowEmoji((s) => !s);
                 setShowGif(false);
                 setShowVoice(false);
+                setShowStickers(false);
+                setShowLines(false);
                 setTtlMenuOpen(false);
               }}
               aria-label="Insert emoji"
@@ -2151,6 +2157,8 @@ export function RoomChat({
                 setShowGif((s) => !s);
                 setShowEmoji(false);
                 setShowVoice(false);
+                setShowStickers(false);
+                setShowLines(false);
                 setTtlMenuOpen(false);
               }}
               aria-label="Insert GIF"
@@ -2189,9 +2197,65 @@ export function RoomChat({
             <button
               type="button"
               onClick={() => {
+                setShowStickers((s) => !s);
+                setShowLines(false);
+                setShowEmoji(false);
+                setShowGif(false);
+                setShowVoice(false);
+                setTtlMenuOpen(false);
+              }}
+              aria-label="Insert sticker"
+              title="Stickers — kaomoji & emoji art"
+              className="grid h-9 w-9 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/5 text-white/70 transition hover:bg-white/10 hover:text-white"
+            >
+              🧩
+            </button>
+            {showStickers && (
+              <StickerPicker
+                onPick={(s) => {
+                  insertAtCursor(s);
+                  setShowStickers(false);
+                }}
+                onClose={() => setShowStickers(false)}
+              />
+            )}
+          </div>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setShowLines((s) => !s);
+                setShowStickers(false);
+                setShowEmoji(false);
+                setShowGif(false);
+                setShowVoice(false);
+                setTtlMenuOpen(false);
+              }}
+              aria-label="Lines and sparks"
+              title="Lines & sparks — ice breakers, compliments, pick-up lines"
+              className="grid h-9 w-9 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-xl border border-neon-purple/40 bg-neon-purple/10 text-neon-purple transition hover:bg-neon-purple/20"
+            >
+              💘
+            </button>
+            {showLines && (
+              <LinesPicker
+                onPick={(line) => {
+                  insertAtCursor(line);
+                  setShowLines(false);
+                }}
+                onClose={() => setShowLines(false)}
+              />
+            )}
+          </div>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
                 setShowVoice((s) => !s);
                 setShowEmoji(false);
                 setShowGif(false);
+                setShowStickers(false);
+                setShowLines(false);
                 setTtlMenuOpen(false);
               }}
               aria-label="Record voice message"
@@ -2215,6 +2279,8 @@ export function RoomChat({
                 setShowVoice(false);
                 setShowEmoji(false);
                 setShowGif(false);
+                setShowStickers(false);
+                setShowLines(false);
                 setTtlMenuOpen(false);
                 setNotice(null);
               }}
@@ -2261,6 +2327,8 @@ export function RoomChat({
                 setShowEmoji(false);
                 setShowGif(false);
                 setShowVoice(false);
+                setShowStickers(false);
+                setShowLines(false);
               }}
               aria-pressed={disappearTtlSec !== null}
               aria-label="Disappearing messages"

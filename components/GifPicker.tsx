@@ -112,6 +112,35 @@ export function GifPicker({
           ✕
         </button>
       </div>
+      {/* Quick mood chips — one tap fills the search. */}
+      <div className="mb-1 flex gap-1 overflow-x-auto px-1 pb-0.5">
+        {(
+          [
+            ["😂", "lol"],
+            ["🥰", "love"],
+            ["🤗", "hug"],
+            ["💃", "dance"],
+            ["🎉", "party"],
+            ["😮", "wow"],
+            ["😢", "sad"],
+            ["😏", "flirt"],
+            ["👋", "hello"],
+            ["🙏", "thank you"],
+            ["😴", "good night"],
+            ["🏏", "cricket"]
+          ] as Array<[string, string]>
+        ).map(([emoji, term]) => (
+          <button
+            key={term}
+            type="button"
+            onClick={() => setQuery(term)}
+            className="shrink-0 rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] text-white/60 hover:bg-white/10 hover:text-white"
+            title={`Search ${term} GIFs`}
+          >
+            {emoji} {term}
+          </button>
+        ))}
+      </div>
       {loading && (
         <p className="px-2 py-3 text-center text-[11px] text-white/40">
           Loading GIFs…
