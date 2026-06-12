@@ -140,7 +140,7 @@ export function Soundscape() {
       </button>
 
       {open && (
-        <div className="surface-glass absolute right-0 top-full z-30 mt-2 w-56 p-2 shadow-xl">
+        <div className="surface-glass fixed inset-x-3 top-28 z-30 mx-auto w-auto max-w-[320px] p-2 shadow-xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mx-0 sm:mt-2 sm:w-56 sm:max-w-none">
           <div className="flex items-center justify-between px-1.5 pb-1">
             <p className="text-[10px] uppercase tracking-widest text-white/40">
               Soundscape

@@ -226,7 +226,7 @@ export function VideoRecorder({
     <div
       role="dialog"
       aria-label="Video recorder"
-      className="absolute bottom-12 left-0 z-[60] w-[300px] rounded-xl border border-white/10 bg-ink-800/95 p-3 shadow-xl backdrop-blur"
+      className="fixed inset-x-3 bottom-28 z-[60] mx-auto w-auto max-w-[340px] rounded-xl border border-white/10 bg-ink-800/95 p-3 shadow-xl backdrop-blur sm:absolute sm:inset-x-auto sm:bottom-12 sm:left-0 sm:mx-0 sm:w-[300px] sm:max-w-none"
     >
       <div className="flex items-center justify-between pb-1.5">
         <p className="text-[10px] uppercase tracking-widest text-neon-blue">

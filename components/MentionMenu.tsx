@@ -64,7 +64,7 @@ export function MentionMenu({
     <div
       role="listbox"
       aria-label="Mention member"
-      className="absolute bottom-14 left-0 z-[60] w-64 rounded-xl border border-white/10 bg-ink-800/95 p-1 shadow-xl backdrop-blur"
+      className="absolute bottom-14 left-0 z-[60] w-64 max-w-[calc(100vw-2rem)] rounded-xl border border-white/10 bg-ink-800/95 p-1 shadow-xl backdrop-blur"
     >
       <div className="flex items-center justify-between px-2 pb-1">
         <p className="text-[10px] uppercase tracking-widest text-white/40">

@@ -191,7 +191,7 @@ function Inner({
             🪟 Breakouts
           </button>
           {showBreakouts && (
-            <div className="surface-glass absolute left-0 top-full z-30 mt-1 w-64 p-2">
+            <div className="surface-glass absolute left-0 top-full z-30 mt-1 w-64 max-w-[calc(100vw-1.5rem)] p-2">
               <div className="flex items-center justify-between px-1 pb-1">
                 <p className="text-[9px] uppercase tracking-widest text-white/40">
                   Breakouts
@@ -278,7 +278,7 @@ function Inner({
             ● Recording
           </button>
           {showConsent && (
-            <div className="surface-glass absolute right-0 top-full z-30 mt-1 w-72 p-3">
+            <div className="surface-glass fixed inset-x-3 top-28 z-30 mx-auto w-auto max-w-[340px] p-3 sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mx-0 sm:mt-1 sm:w-72 sm:max-w-none">
               <div className="flex items-center justify-between pb-1">
                 <p className="text-[9px] uppercase tracking-widest text-white/40">
                   Recording-consent

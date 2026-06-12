@@ -187,7 +187,7 @@ export function StatusPicker({
       </button>
 
       {open && (
-        <div className="surface-glass absolute right-0 top-full z-30 mt-2 w-72 p-3 shadow-xl">
+        <div className="surface-glass fixed inset-x-3 top-24 z-30 mx-auto max-h-[70vh] w-auto max-w-[340px] overflow-y-auto p-3 shadow-xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mx-0 sm:mt-2 sm:max-h-none sm:w-72 sm:max-w-none sm:overflow-visible">
           <p className="text-xs uppercase tracking-widest text-white/40">Presence</p>
           <div className="mt-2 grid grid-cols-2 gap-1.5">
             {STATES.map((s) => (
