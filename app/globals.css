@@ -4,7 +4,7 @@
 
 :root {
   --glass-bg: rgba(20, 20, 24, 0.62);
-  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(255, 255, 255, 0.09);
   --glass-blur: 24px;
 }
 
@@ -13,15 +13,42 @@ body {
   height: 100%;
 }
 
+html {
+  color-scheme: dark;
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
   background-color: #0a0a0a;
   color: #f3f3f5;
   font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Living aurora — the brand glows drift very slowly behind everything.
+   Lives on a fixed pseudo-element (z-index:-1 keeps it under all content)
+   instead of background-attachment:fixed, which iOS Safari janks on.
+   prefers-reduced-motion freezes it via the global animation kill-switch. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: -12%;
+  z-index: -1;
+  pointer-events: none;
   background-image:
     radial-gradient(60rem 40rem at 8% -10%, rgba(0, 180, 255, 0.18), transparent 60%),
     radial-gradient(50rem 36rem at 110% 10%, rgba(255, 45, 85, 0.14), transparent 60%),
+    radial-gradient(44rem 32rem at -10% 80%, rgba(25, 229, 193, 0.08), transparent 65%),
     radial-gradient(40rem 30rem at 50% 120%, rgba(163, 113, 255, 0.12), transparent 60%);
-  background-attachment: fixed;
+  animation: auroraDrift 90s ease-in-out infinite alternate;
+}
+
+@keyframes auroraDrift {
+  0%   { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); }
+  50%  { transform: translate3d(2.5%, -1.5%, 0) rotate(1.2deg) scale(1.06); }
+  100% { transform: translate3d(-2%, 1.5%, 0) rotate(-1deg) scale(1.03); }
 }
 
 body::before {
@@ -36,10 +63,17 @@ body::before {
 
 .surface-glass {
   background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
   border: 1px solid var(--glass-border);
   border-radius: 16px;
+  /* Glossy edge: a hair of light along the top + a soft ambient drop.
+     box-shadow (not background) so the tint-* background overrides
+     layer cleanly on top without losing the sheen. */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    inset 0 0 0.5px rgba(255, 255, 255, 0.04),
+    0 10px 32px -12px rgba(0, 0, 0, 0.55);
 }
 
 /* Subtle per-block tints layered on top of .surface-glass. Each adds a soft
@@ -83,6 +117,58 @@ body::before {
 
 .text-balance {
   text-wrap: balance;
+}
+
+/* ---------------------------------------------------------------------------
+   Global polish (aesthetics pass) — selection, focus, scrollbars, touch.
+   Pure presentation: no layout, spacing, or stacking changes.
+--------------------------------------------------------------------------- */
+
+/* Brand-coloured text selection. */
+::selection {
+  background: rgba(0, 180, 255, 0.32);
+  color: #ffffff;
+}
+
+/* Visible-but-elegant keyboard focus. :focus-visible only fires on
+   keyboard navigation, so taps/clicks stay clean. */
+:focus-visible {
+  outline: 2px solid rgba(0, 180, 255, 0.55);
+  outline-offset: 2px;
+}
+
+/* Slim, translucent scrollbars everywhere (Firefox + WebKit). */
+html {
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+}
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.10);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover { background-color: rgba(255, 255, 255, 0.20); }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-corner { background: transparent; }
+
+/* Tactile press: buttons settle 3% under the finger. Only the :active
+   state is styled (no transition override, so Tailwind `transition`
+   classes keep animating exactly as before); transform applies only
+   while pressed, so it can't affect layout or positioned descendants. */
+@media (prefers-reduced-motion: no-preference) {
+  button:not(:disabled):active {
+    transform: scale(0.97);
+  }
+}
+
+/* iOS Safari zooms the whole page when focusing any input under 16px —
+   a classic "layout escapes the screen" trigger on phones. Hold form
+   text at 16px on small screens to keep the viewport still. */
+@media (max-width: 767px) {
+  input, select, textarea {
+    font-size: 16px;
+  }
 }
 
 /* ---------------------------------------------------------------------------
