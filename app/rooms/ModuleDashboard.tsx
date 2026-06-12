@@ -42,13 +42,21 @@ const SECTIONS: Section[] = [
       { href: "/books", label: "Books", emoji: "📚", grad: "from-blue-400 via-indigo-500 to-violet-600" },
       { href: "/read", label: "Read", emoji: "📖", grad: "from-violet-400 via-purple-500 to-fuchsia-600" },
       { href: "/write", label: "Write", emoji: "✍️", grad: "from-teal-300 via-emerald-400 to-green-500" },
-      { href: "/sexed", label: "Sex ed", emoji: "💞", grad: "from-rose-400 via-pink-500 to-fuchsia-600" }
+      { href: "/shorts", label: "Shorts", emoji: "🎬", grad: "from-pink-400 via-rose-500 to-fuchsia-600" }
+    ]
+  },
+  {
+    title: "Health & care",
+    tiles: [
+      { href: "/doctor", label: "Doctor", emoji: "🩺", grad: "from-sky-300 via-cyan-400 to-teal-500" },
+      { href: "/doctor/ask", label: "Ask a doctor", emoji: "🧑‍⚕️", grad: "from-blue-400 via-sky-500 to-cyan-600" },
+      { href: "/sexed", label: "Sex ed", emoji: "💞", grad: "from-rose-400 via-pink-500 to-fuchsia-600" },
+      { href: "/sexed/ask", label: "Ask Karo", emoji: "💬", grad: "from-emerald-300 via-teal-400 to-cyan-500" }
     ]
   },
   {
     title: "Community",
     tiles: [
-      { href: "/shorts", label: "Shorts", emoji: "🎬", grad: "from-pink-400 via-rose-500 to-fuchsia-600" },
       { href: "/stories/new", label: "Add story", emoji: "✨", grad: "from-fuchsia-400 via-purple-500 to-indigo-600" },
       { href: "/shorts/new", label: "Post short", emoji: "📹", grad: "from-orange-300 via-red-400 to-rose-600" },
       { href: "/charter", label: "Charter", emoji: "🌍", grad: "from-cyan-300 via-sky-400 to-blue-600" }

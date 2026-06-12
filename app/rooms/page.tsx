@@ -232,6 +232,13 @@ export default async function RoomsPage({
                 💞 Sex ed
               </Link>
               <Link
+                href="/doctor"
+                className="rounded-lg border border-neon-blue/40 bg-neon-blue/10 px-3 py-1.5 text-neon-blue hover:bg-neon-blue/20"
+                title="Ask a Doctor — verified clinicians, general guidance (Phase 4)"
+              >
+                🩺 Doctor
+              </Link>
+              <Link
                 href="/read"
                 className="rounded-lg border border-neon-purple/40 bg-neon-purple/10 px-3 py-1.5 text-neon-purple hover:bg-neon-purple/20"
                 title="Read community-published stories, essays, journals"

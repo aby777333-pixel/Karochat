@@ -40,3 +40,11 @@ next-env.d.ts
 
 # Local Netlify folder
 .netlify
+
+# Netlify Edge runtime artifact (generated)
+deno.lock
+
+# stray local design assets
+logo.png
+logo1.png
+man.png

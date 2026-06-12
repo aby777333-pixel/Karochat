@@ -71,6 +71,7 @@ export default async function AdminHomePage() {
     { href: "/admin/abuse", emoji: "🚫", title: "Abuse & IP blacklist", desc: "Flagged events, blacklist IPs, export for authorities.", badge: o.abuse_24h },
     { href: "/admin/reports", emoji: "🚩", title: "Reports", desc: "User / room / message safety queue.", badge: o.reports_open },
     { href: "/admin/verifications", emoji: "🪪", title: "Verifications", desc: "Student / identity verification queue." },
+    { href: "/admin/doctors", emoji: "🩺", title: "Doctors", desc: "Medical-council verification queue." },
     { href: "/admin/books", emoji: "📚", title: "Books", desc: "Library moderation & takedowns." },
     { href: "/admin/publications", emoji: "📖", title: "Publications", desc: "Read/Write moderation & reports." }
   ];
