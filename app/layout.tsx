@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { PanicExit } from "@/components/PanicExit";
-import { SleepMode } from "@/components/SleepMode";
 import { GuestBanner } from "@/components/GuestBanner";
 import { NativeBridge } from "@/components/NativeBridge";
 import { MobileNav } from "@/components/MobileNav";
@@ -55,7 +54,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="relative min-h-screen font-sans antialiased">
         <GuestBanner />
         <div className="relative z-10">{children}</div>
-        <SleepMode />
         <PanicExit />
         <NativeBridge />
         <VoiceCommand />

@@ -282,6 +282,19 @@ export function RadarClient({ currentUserId }: { currentUserId: string }) {
     };
   }, [live]);
 
+  // Phones freeze JS timers when the screen locks or the app is
+  // backgrounded — presence then expires after 60 min and the user
+  // silently drops off the radar. Rescan the moment the page becomes
+  // visible again so waking the phone puts you straight back on air.
+  useEffect(() => {
+    if (!live) return;
+    function onVisible() {
+      if (document.visibilityState === "visible") scanRef.current();
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [live]);
+
   const goOffline = useCallback(async () => {
     if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = null;
@@ -589,9 +602,13 @@ export function RadarClient({ currentUserId }: { currentUserId: string }) {
 
           {results.length === 0 ? (
             <p className="text-sm text-white/55">
-              Nobody else is on the radar near you right now. You&apos;re live —
-              when someone scans nearby, you&apos;ll get a ping. Try a wider
-              range, or check back soon.
+              Nobody else is on the radar near you right now. People only
+              show while THEIR radar is on (it switches off ~60 minutes
+              after their last scan or when their screen locks) — so if
+              you&apos;re testing with a friend, both phones need to scan
+              within the same hour. You&apos;re live: the moment someone
+              scans nearby, you&apos;ll get a ping. Try a wider range, or
+              check back soon.
             </p>
           ) : (
             <ul className="divide-y divide-white/5">

@@ -2278,12 +2278,14 @@ export function RoomChat({
               <StickerPicker
                 onPickImage={(url) => {
                   // Real (Tenor) stickers ride the exact GIF pipeline —
-                  // an ordinary image message.
+                  // an ordinary image message. The #sticker fragment is
+                  // inert for fetching but lets the bubble render them
+                  // compact (sticker-sized) instead of photo-sized.
                   void supabase.from("messages").insert({
                     sender_id: currentUserId,
                     room_id: roomId,
                     content: null,
-                    image_url: url,
+                    image_url: url + "#sticker",
                     reply_to_id: replyTo?.id ?? null,
                     intent: intentChoice,
                     type: "image"
@@ -3241,25 +3243,37 @@ function MessageBubble({
                 )}
               </div>
             )}
-            {m.image_url && (
-              <a
-                href={m.image_url}
-                target="_blank"
-                rel="noreferrer"
-                className={clsx(
-                  "mb-1 block overflow-hidden rounded-2xl border border-white/10",
-                  mine ? "rounded-br-sm" : "rounded-bl-sm"
-                )}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={m.image_url}
-                  alt={m.content ?? "shared image"}
-                  className="max-h-80 w-auto max-w-[78vw] md:max-w-sm"
-                  loading="lazy"
-                />
-              </a>
-            )}
+            {m.image_url &&
+              (() => {
+                // Stickers (tagged with an inert #sticker fragment at send
+                // time) render compact and borderless; photos/GIFs keep the
+                // original full-size bubble.
+                const isSticker = m.image_url.includes("#sticker");
+                return (
+                  <a
+                    href={m.image_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={clsx(
+                      "mb-1 block overflow-hidden",
+                      !isSticker && "rounded-2xl border border-white/10",
+                      !isSticker && (mine ? "rounded-br-sm" : "rounded-bl-sm")
+                    )}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={m.image_url}
+                      alt={m.content ?? (isSticker ? "sticker" : "shared image")}
+                      className={
+                        isSticker
+                          ? "h-24 w-auto max-w-[45vw] object-contain sm:h-28"
+                          : "max-h-80 w-auto max-w-[78vw] md:max-w-sm"
+                      }
+                      loading="lazy"
+                    />
+                  </a>
+                );
+              })()}
             {m.file_url && <FileCard message={m} mine={mine} />}
             {m.content && (
               <>
