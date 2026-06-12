@@ -31,6 +31,7 @@ import { QuoteCard } from "./QuoteCard";
 import { Soundscape } from "./Soundscape";
 import { ConferenceTools } from "./ConferenceTools";
 import { ChatResizer, EdgeHandles } from "@/components/ChatResizer";
+import { playBuzz } from "@/lib/sounds";
 import { EmojiPicker } from "@/components/EmojiPicker";
 import { GifPicker } from "@/components/GifPicker";
 import { MentionMenu } from "@/components/MentionMenu";
@@ -712,6 +713,7 @@ export function RoomChat({
   function triggerNudge() {
     setShaking(true);
     setPulse(true);
+    playBuzz();
     if (typeof navigator !== "undefined" && "vibrate" in navigator) {
       navigator.vibrate?.([60, 30, 60, 30, 60]);
     }

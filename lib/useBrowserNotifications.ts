@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { playBuzz, playChime } from "@/lib/sounds";
 
 type NotifyMessage = {
   id: string;
@@ -85,5 +86,8 @@ export function useNotifyOnNewMessage(
       // Some browsers throw if not in a user gesture context; ignore.
       console.warn("[karochat] notification failed:", err);
     }
+    // Audible ping alongside the visual one (user-toggleable, see lib/sounds).
+    if (message.type === "nudge") playBuzz();
+    else playChime();
   }, [message, ctx.roomName, ctx.roomId, ctx.currentUserId]);
 }

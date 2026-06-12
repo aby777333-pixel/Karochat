@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useBrowserNotificationsPermission } from "@/lib/useBrowserNotifications";
 import { usePushSubscribe } from "@/lib/usePushSubscribe";
+import { playChime, playRing } from "@/lib/sounds";
 
 /**
  * Meet-now Radar / Scanner.
@@ -185,6 +186,11 @@ export function RadarClient({ currentUserId }: { currentUserId: string }) {
         setTimeout(() => n.close(), 9000);
       } catch {
         /* some browsers throw outside a gesture; ignore */
+      }
+      if (p.kind === "call") playRing();
+      else playChime();
+      if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+        navigator.vibrate?.(p.kind === "call" ? [120, 60, 120, 60, 120] : [80, 40, 80]);
       }
     },
     [perm, supported]

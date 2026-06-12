@@ -8,6 +8,7 @@ import { MobileNav } from "@/components/MobileNav";
 import { VoiceCommand } from "@/components/VoiceCommand";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { ContactFlush } from "@/components/ContactFlush";
+import { GlobalNotifier } from "@/components/GlobalNotifier";
 
 const SLOGAN =
   "Meet your mate, chat, make friends, accept, adapt, share and care, live and let live, be happy because life is too short, and the future is uncertain.";
@@ -61,6 +62,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <MobileNav />
         <InstallPrompt />
         <ContactFlush />
+        <GlobalNotifier />
       </body>
     </html>
   );

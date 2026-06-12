@@ -49,7 +49,7 @@ export function MemberActionPopover({
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const ref = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState<
-    null | "dm" | "vault" | "invite-here" | "load-rooms" | "invite-to" | "vibe" | "friend" | "remove" | "ban" | "call-audio" | "call-video" | "block"
+    null | "dm" | "vault" | "invite-here" | "load-rooms" | "invite-to" | "vibe" | "friend" | "remove" | "ban" | "call-audio" | "call-video" | "block" | "mute" | "role"
   >(null);
   const [iBlocked, setIBlocked] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +65,101 @@ export function MemberActionPopover({
   const [friendState, setFriendState] = useState<
     "none" | "pending_out" | "pending_in" | "friends" | "self" | null
   >(null);
+  // Moderation extras (v9): the target's role + mute state, and whether the
+  // caller is the room owner (only owners assign moderators).
+  const [targetRole, setTargetRole] = useState<string | null>(null);
+  const [targetMutedUntil, setTargetMutedUntil] = useState<string | null>(null);
+  const [iAmOwner, setIAmOwner] = useState(false);
+
+  useEffect(() => {
+    if (!canModerate) return;
+    let cancelled = false;
+    (async () => {
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
+      const [targetResp, mineResp] = await Promise.all([
+        supabase
+          .from("room_members")
+          .select("role, muted_until")
+          .eq("room_id", roomId)
+          .eq("user_id", target.user_id)
+          .maybeSingle(),
+        user
+          ? supabase
+              .from("room_members")
+              .select("role")
+              .eq("room_id", roomId)
+              .eq("user_id", user.id)
+              .maybeSingle()
+          : Promise.resolve({ data: null })
+      ]);
+      if (cancelled) return;
+      setTargetRole((targetResp.data as any)?.role ?? null);
+      setTargetMutedUntil((targetResp.data as any)?.muted_until ?? null);
+      setIAmOwner(((mineResp.data as any)?.role ?? null) === "owner");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase, canModerate, roomId, target.user_id]);
+
+  const targetIsMuted =
+    !!targetMutedUntil && new Date(targetMutedUntil).getTime() > Date.now();
+
+  async function muteFor(minutes: number) {
+    setBusy("mute");
+    setError(null);
+    setNotice(null);
+    const { error: e } = await supabase.rpc("mute_room_member", {
+      p_room_id: roomId,
+      p_user_id: target.user_id,
+      p_minutes: minutes
+    });
+    setBusy(null);
+    if (e) {
+      setError(e.message);
+      return;
+    }
+    setTargetMutedUntil(new Date(Date.now() + minutes * 60000).toISOString());
+    setNotice(`Muted for ${minutes >= 60 ? `${minutes / 60}h` : `${minutes}m`}.`);
+  }
+
+  async function unmute() {
+    setBusy("mute");
+    setError(null);
+    setNotice(null);
+    const { error: e } = await supabase.rpc("unmute_room_member", {
+      p_room_id: roomId,
+      p_user_id: target.user_id
+    });
+    setBusy(null);
+    if (e) {
+      setError(e.message);
+      return;
+    }
+    setTargetMutedUntil(null);
+    setNotice("Unmuted.");
+  }
+
+  async function toggleModerator() {
+    const makeMod = targetRole !== "moderator";
+    setBusy("role");
+    setError(null);
+    setNotice(null);
+    const { error: e } = await supabase.rpc("set_room_member_role", {
+      p_room_id: roomId,
+      p_user_id: target.user_id,
+      p_role: makeMod ? "moderator" : "member"
+    });
+    setBusy(null);
+    if (e) {
+      setError(e.message);
+      return;
+    }
+    setTargetRole(makeMod ? "moderator" : "member");
+    setNotice(makeMod ? "Now a moderator. 🛡" : "Moderator role removed.");
+  }
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
@@ -327,18 +422,20 @@ export function MemberActionPopover({
     onNavigate(data as string);
   }
 
-  // Wave 19.14 — start a call straight from the popover. Get/create the
-  // DM, then hard-navigate with ?call=audio|video so the room page can
-  // auto-open the call panel on mount.
+  // Wave 19.14 — start a call straight from the popover. radar_request_call
+  // gets/creates the DM exactly like get_or_create_dm did AND inserts the
+  // radar 'call' ping, whose existing 0068 trigger rings the callee with a
+  // "📞 wants to call" push + realtime notification. Then hard-navigate with
+  // ?call=audio|video so the room page can auto-open the call panel on mount.
   async function startCall(mode: "audio" | "video") {
     setBusy(mode === "audio" ? "call-audio" : "call-video");
     setError(null);
-    const { data, error: rpcErr } = await supabase.rpc("get_or_create_dm", {
-      p_target_user_id: target.user_id
+    const { data, error: rpcErr } = await supabase.rpc("radar_request_call", {
+      p_to: target.user_id
     });
     setBusy(null);
     if (rpcErr || !data) {
-      setError(rpcErr?.message ?? "Could not start DM.");
+      setError(rpcErr?.message ?? "Could not start the call.");
       return;
     }
     if (typeof window !== "undefined") {
@@ -686,6 +783,64 @@ export function MemberActionPopover({
             <span aria-hidden>⛔</span>
             <span>{busy === "ban" ? "Banning…" : "Ban from room"}</span>
           </button>
+          {targetIsMuted ? (
+            <button
+              type="button"
+              onClick={() => void unmute()}
+              disabled={busy !== null}
+              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-neon-mint hover:bg-neon-mint/10 disabled:opacity-50"
+              title="Let them speak again"
+            >
+              <span aria-hidden>🔊</span>
+              <span>{busy === "mute" ? "Working…" : "Unmute"}</span>
+            </button>
+          ) : (
+            <div className="flex items-center gap-1 px-2 py-1">
+              <span className="flex items-center gap-1.5 text-sm text-neon-amber">
+                <span aria-hidden>🔇</span> Mute
+              </span>
+              <span className="ml-auto flex gap-1">
+                {[
+                  { label: "10m", mins: 10 },
+                  { label: "1h", mins: 60 },
+                  { label: "24h", mins: 1440 }
+                ].map((o) => (
+                  <button
+                    key={o.label}
+                    type="button"
+                    onClick={() => void muteFor(o.mins)}
+                    disabled={busy !== null}
+                    className="rounded-md border border-neon-amber/30 bg-neon-amber/10 px-2 py-0.5 text-[11px] text-neon-amber hover:bg-neon-amber/20 disabled:opacity-50"
+                    title={`Mute for ${o.label} — they can read but not send`}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </span>
+            </div>
+          )}
+          {iAmOwner && (
+            <button
+              type="button"
+              onClick={() => void toggleModerator()}
+              disabled={busy !== null}
+              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-neon-blue hover:bg-neon-blue/10 disabled:opacity-50"
+              title={
+                targetRole === "moderator"
+                  ? "Take away moderator powers"
+                  : "Moderators can remove, ban, and mute plain members"
+              }
+            >
+              <span aria-hidden>🛡</span>
+              <span>
+                {busy === "role"
+                  ? "Working…"
+                  : targetRole === "moderator"
+                    ? "Remove moderator"
+                    : "Make moderator"}
+              </span>
+            </button>
+          )}
         </div>
       )}
 

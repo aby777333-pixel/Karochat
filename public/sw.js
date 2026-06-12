@@ -37,6 +37,13 @@ self.addEventListener("push", (event) => {
     badge: "/icon.svg",
     tag: data.tag || "karochat",
     renotify: true,
+    // Device vibration on Android Chrome (ignored where unsupported).
+    vibrate: [120, 60, 120],
+    // Action buttons (Chrome/Android/Edge; harmlessly ignored elsewhere).
+    actions: [
+      { action: "open", title: "Open" },
+      { action: "dismiss", title: "Dismiss" }
+    ],
     data: { url: data.url || "/" }
   };
   event.waitUntil(self.registration.showNotification(title, options));
@@ -45,6 +52,7 @@ self.addEventListener("push", (event) => {
 // Focus an existing tab (navigating it to the target) or open a new one.
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
+  if (event.action === "dismiss") return;
   const target = (event.notification.data && event.notification.data.url) || "/";
   event.waitUntil(
     (async () => {
