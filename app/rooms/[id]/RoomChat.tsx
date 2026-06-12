@@ -647,9 +647,17 @@ export function RoomChat({
     }
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("online", onOnline);
+    // Safety-net poll: even with the realtime socket silently dead (no
+    // close event, so no rejoin — seen on phone browsers), the open room
+    // converges within ~12s. No-ops (and skips re-render) when nothing
+    // is missing, so the steady-state cost is one light SELECT.
+    const poll = setInterval(() => {
+      if (document.visibilityState === "visible") void catchUpRef.current();
+    }, 12000);
     return () => {
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("online", onOnline);
+      clearInterval(poll);
     };
   }, []);
 
@@ -1333,6 +1341,10 @@ export function RoomChat({
     setDraft("");
     setReplyTo(null);
     setIntentChoice(null);
+    // Echo the sent message via fetch-and-merge rather than waiting on the
+    // realtime websocket — if the socket is unhealthy (common on phones),
+    // the message previously never appeared in the sender's own window.
+    void catchUpRef.current();
 
     // @karo summons the AI co-pilot. Fire-and-forget: the response is
     // inserted as a type='system' message with intent='karo'.
@@ -2264,6 +2276,27 @@ export function RoomChat({
             </button>
             {showStickers && (
               <StickerPicker
+                onPickImage={(url) => {
+                  // Real (Tenor) stickers ride the exact GIF pipeline —
+                  // an ordinary image message.
+                  void supabase.from("messages").insert({
+                    sender_id: currentUserId,
+                    room_id: roomId,
+                    content: null,
+                    image_url: url,
+                    reply_to_id: replyTo?.id ?? null,
+                    intent: intentChoice,
+                    type: "image"
+                  }).then(({ error: err }) => {
+                    if (err) setError(err.message);
+                    else {
+                      setReplyTo(null);
+                      setIntentChoice(null);
+                      void catchUpRef.current();
+                    }
+                  });
+                  setShowStickers(false);
+                }}
                 onPick={(s) => {
                   insertAtCursor(s);
                   setShowStickers(false);

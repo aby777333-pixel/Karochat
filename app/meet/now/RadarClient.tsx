@@ -79,7 +79,7 @@ function getPosition(): Promise<{ lat: number; lng: number; accuracy: number }> 
         reject(
           new Error(
             err.code === err.PERMISSION_DENIED
-              ? "Location permission denied. Enable location to scan."
+              ? "Location is blocked for this site. Tap the lock/tune icon next to the address bar → Permissions → allow Location, then scan again. (On iPhone also check Settings → Privacy → Location Services → your browser.)"
               : err.code === err.TIMEOUT
               ? "Timed out getting your location. Try again."
               : "Couldn't get your location."
