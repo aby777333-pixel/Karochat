@@ -30,7 +30,7 @@ import { MemberActionPopover } from "./MemberActionPopover";
 import { QuoteCard } from "./QuoteCard";
 import { Soundscape } from "./Soundscape";
 import { ConferenceTools } from "./ConferenceTools";
-import { ChatResizer, EdgeHandles, TopResizeHandle } from "@/components/ChatResizer";
+import { ChatResizer, EdgeHandles } from "@/components/ChatResizer";
 import { EmojiPicker } from "@/components/EmojiPicker";
 import { GifPicker } from "@/components/GifPicker";
 import { MentionMenu } from "@/components/MentionMenu";
@@ -461,6 +461,35 @@ export function RoomChat({
   }, [draft, draftStorageKey]);
   const [intentMenuOpen, setIntentMenuOpen] = useState(false);
   const [lightsOut, setLightsOut] = useState(false);
+  // Call & video tool strips (ConferenceTools + CallWidget) collapse behind
+  // a toggle at the top of the window. They are hidden with CSS, NOT
+  // unmounted, so captions/consent/breakout state survives collapsing.
+  // Defaults: open on desktop, collapsed on phones; last choice remembered.
+  const [callToolsOpen, setCallToolsOpen] = useState(false);
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(
+        `karochat:calltools:${currentUserId}`
+      );
+      if (saved !== null) setCallToolsOpen(saved === "1");
+      else setCallToolsOpen(window.matchMedia("(min-width: 768px)").matches);
+    } catch {
+      // localStorage can be disabled — stay collapsed.
+    }
+  }, [currentUserId]);
+  function toggleCallTools() {
+    setCallToolsOpen((s) => {
+      try {
+        window.localStorage.setItem(
+          `karochat:calltools:${currentUserId}`,
+          s ? "0" : "1"
+        );
+      } catch {
+        // ignore
+      }
+      return !s;
+    });
+  }
   const [fourLinesWarning, setFourLinesWarning] = useState<string | null>(null);
   const [flaggedCat, setFlaggedCat] = useState<FlagCategory | null>(null);
   const [threadParentId, setThreadParentId] = useState<string | null>(null);
@@ -1678,15 +1707,25 @@ export function RoomChat({
         );
       })()}
 
-      {/* Visible resize grip at the TOP of the window (mirrors the bottom bar)
-         so users can grab the top and drag to resize too. */}
-      <TopResizeHandle
-        targetRef={sectionRef}
-        px={chatPx}
-        wPx={chatWPx}
-        onBeginDrag={beginDrag}
-        onReset={resetSize}
-      />
+      {/* Expand/collapse for the call & video strips below. Replaces the old
+         visible top resize grip — the invisible EdgeHandles strip on the top
+         edge still lets users drag-resize from up here. While a recording is
+         live the strips are forced visible so the indicator can't be hidden. */}
+      {!isSaved && (
+        <button
+          type="button"
+          onClick={toggleCallTools}
+          aria-expanded={callToolsOpen || !!recordingStartedAt}
+          aria-controls="call-tool-strips"
+          className="flex w-full items-center justify-center gap-1.5 rounded-t-2xl border-b border-white/5 bg-white/[0.03] px-3 py-1.5 text-[10px] uppercase tracking-widest text-white/55 transition hover:bg-white/[0.06] hover:text-white/85"
+        >
+          {callToolsOpen || !!recordingStartedAt ? (
+            <>▲ Hide call &amp; video tools</>
+          ) : (
+            <>📞 Expand for audio &amp; video calls ▼</>
+          )}
+        </button>
+      )}
 
       <div className="flex items-center justify-between border-b border-white/5 px-4 py-2 text-xs text-white/50">
         <div className="flex items-center gap-2">
@@ -1733,24 +1772,34 @@ export function RoomChat({
         </div>
       </div>
 
-      <ConferenceTools
-        roomId={roomId}
-        isOwner={!!isOwner}
-        isDm={!!isDm}
-        isSaved={!!isSaved}
-        recordingStartedAt={recordingStartedAt ?? null}
-      />
-
-      {/* Hide the widget while the call panel is mounted in this room so
-          the user doesn't see duplicate "Voice & Video" controls. */}
-      {!isSaved && !widgetCallMode && (
-        <CallWidget
+      {/* CSS-hidden (never unmounted) when collapsed so captions, consent,
+          and breakout state inside survive toggling. Recording in progress
+          forces the strips visible. */}
+      <div
+        id="call-tool-strips"
+        className={
+          callToolsOpen || !!recordingStartedAt ? undefined : "hidden"
+        }
+      >
+        <ConferenceTools
           roomId={roomId}
-          roomName={roomName}
-          onlineCount={onlineCount}
-          onStart={(mode) => setWidgetCallMode(mode)}
+          isOwner={!!isOwner}
+          isDm={!!isDm}
+          isSaved={!!isSaved}
+          recordingStartedAt={recordingStartedAt ?? null}
         />
-      )}
+
+        {/* Hide the widget while the call panel is mounted in this room so
+            the user doesn't see duplicate "Voice & Video" controls. */}
+        {!isSaved && !widgetCallMode && (
+          <CallWidget
+            roomId={roomId}
+            roomName={roomName}
+            onlineCount={onlineCount}
+            onStart={(mode) => setWidgetCallMode(mode)}
+          />
+        )}
+      </div>
 
       {isVault && (
         <div className="flex items-center gap-2 border-b border-neon-purple/20 bg-neon-purple/5 px-4 py-1.5 text-[11px] text-neon-purple">
