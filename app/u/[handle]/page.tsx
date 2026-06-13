@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Logo, Wordmark } from "@/components/Brand";
 import { PresenceDot } from "@/components/PresenceDot";
 import { ReportProfileButton } from "./ReportProfileButton";
+import { FollowButton } from "@/components/FollowButton";
 
 export const dynamic = "force-dynamic";
 
@@ -186,6 +187,7 @@ export default async function ProfilePage({
           >
             Find more people
           </Link>
+          <FollowButton targetId={profile.id} />
           <ReportProfileButton
             profileId={profile.id}
             handle={profile.username}
