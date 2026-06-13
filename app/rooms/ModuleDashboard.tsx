@@ -45,23 +45,25 @@ const SECTIONS: Section[] = [
       { href: "/shorts", label: "Shorts", emoji: "🎬", grad: "from-pink-400 via-rose-500 to-fuchsia-600" }
     ]
   },
-  {
-    // Doctor / Ask-a-doctor tiles are intentionally hidden here (the /doctor
-    // routes still work if visited directly). This slot is now the entry into
-    // the Infotainment hub: free movies & music, karaoke, go-live & more.
-    title: "Infotainment",
-    tiles: [
-      { href: "/infotainment", label: "Movies & Music", emoji: "🎬", grad: "from-rose-400 via-red-500 to-fuchsia-600" },
-      { href: "/infotainment#karaoke", label: "Karaoke & Live", emoji: "🎤", grad: "from-violet-400 via-purple-500 to-fuchsia-600" },
-      { href: "/infotainment#golive", label: "Go Live", emoji: "📡", grad: "from-amber-300 via-orange-500 to-red-600" },
-      { href: "/infotainment#royalty", label: "Royalty-Free", emoji: "🆓", grad: "from-emerald-300 via-teal-400 to-cyan-500" }
-    ]
-  },
+  // NOTE: The "Infotainment" section is intentionally hidden for now (kept for
+  // later re-enable). The /infotainment routes still work if visited directly.
+  // To bring it back, restore this section object:
+  // {
+  //   title: "Infotainment",
+  //   tiles: [
+  //     { href: "/infotainment", label: "Movies & Music", emoji: "🎬", grad: "from-rose-400 via-red-500 to-fuchsia-600" },
+  //     { href: "/infotainment#karaoke", label: "Karaoke & Live", emoji: "🎤", grad: "from-violet-400 via-purple-500 to-fuchsia-600" },
+  //     { href: "/infotainment#golive", label: "Go Live", emoji: "📡", grad: "from-amber-300 via-orange-500 to-red-600" },
+  //     { href: "/infotainment#royalty", label: "Royalty-Free", emoji: "🆓", grad: "from-emerald-300 via-teal-400 to-cyan-500" }
+  //   ]
+  // },
   {
     title: "Wellbeing",
     tiles: [
       { href: "/sexed", label: "Sex ed", emoji: "💞", grad: "from-rose-400 via-pink-500 to-fuchsia-600" },
-      { href: "/sexed/ask", label: "Ask Karo", emoji: "💬", grad: "from-emerald-300 via-teal-400 to-cyan-500" }
+      { href: "/sexed/ask", label: "Ask Karo", emoji: "💬", grad: "from-emerald-300 via-teal-400 to-cyan-500" },
+      { href: "/ayurveda", label: "Ayurveda", emoji: "🌿", grad: "from-green-300 via-emerald-500 to-teal-700" },
+      { href: "/diet", label: "Diet & Recipes", emoji: "🥗", grad: "from-lime-300 via-amber-400 to-orange-500" }
     ]
   },
   {

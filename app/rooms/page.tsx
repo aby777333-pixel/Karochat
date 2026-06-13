@@ -234,6 +234,8 @@ export default async function RoomsPage({
               >
                 💞 Sex ed
               </Link>
+              {/* Infotainment shortcut hidden for now (kept for later re-enable;
+                  the /infotainment route still works directly).
               <Link
                 href="/infotainment"
                 className="rounded-lg border border-neon-red/40 bg-neon-red/10 px-3 py-1.5 text-neon-red hover:bg-neon-red/20"
@@ -241,6 +243,7 @@ export default async function RoomsPage({
               >
                 🎬 Infotainment
               </Link>
+              */}
               <Link
                 href="/read"
                 className="rounded-lg border border-neon-purple/40 bg-neon-purple/10 px-3 py-1.5 text-neon-purple hover:bg-neon-purple/20"
