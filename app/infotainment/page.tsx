@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Logo, Wordmark } from "@/components/Brand";
-import { InfotainmentClient, type InfoRoom } from "./InfotainmentClient";
+import { InfotainmentClient, type InfoRoom, type Track } from "./InfotainmentClient";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +44,17 @@ export default async function InfotainmentPage() {
     member_count: r.member_count
   }));
 
+  // Latest community music uploads (public) for the in-hub player.
+  const { data: tracksRaw } = await supabase
+    .from("tracks_with_author")
+    .select(
+      "id, title, artist, audio_url, owner_username, owner_display_name, created_at"
+    )
+    .eq("is_public", true)
+    .order("created_at", { ascending: false })
+    .limit(12);
+  const tracks = (tracksRaw ?? []) as Track[];
+
   return (
     <main className="mx-auto flex min-h-[100dvh] w-full max-w-3xl flex-col px-3 py-5 sm:px-5 sm:py-8">
       <header className="flex items-center justify-between gap-2">
@@ -59,7 +70,11 @@ export default async function InfotainmentPage() {
         </Link>
       </header>
 
-      <InfotainmentClient rooms={rooms} username={profile.username as string} />
+      <InfotainmentClient
+        rooms={rooms}
+        username={profile.username as string}
+        tracks={tracks}
+      />
     </main>
   );
 }

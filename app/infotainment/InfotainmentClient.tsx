@@ -29,6 +29,16 @@ export type InfoRoom = {
   member_count: number;
 };
 
+export type Track = {
+  id: string;
+  title: string;
+  artist: string | null;
+  audio_url: string;
+  owner_username: string | null;
+  owner_display_name: string | null;
+  created_at: string;
+};
+
 type GroupDef = { slug: string; label: string; emoji: string };
 
 // Display order + labels for the room groups.
@@ -70,10 +80,12 @@ const ROYALTY_FREE: { name: string; desc: string; url: string }[] = [
 
 export function InfotainmentClient({
   rooms,
-  username
+  username,
+  tracks
 }: {
   rooms: InfoRoom[];
   username: string;
+  tracks: Track[];
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
@@ -239,8 +251,8 @@ export function InfotainmentClient({
           ⬆️ Upload your music & videos
         </h2>
         <p className="mt-1 text-sm leading-relaxed text-white/70">
-          Post videos & shorts to your profile, or share music files directly
-          in any Music or Creator room (drag a file into the chat).
+          Upload your own music & videos — you keep the rights. Post videos &
+          shorts to your profile, or upload audio tracks to the community player.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Link
@@ -249,13 +261,54 @@ export function InfotainmentClient({
           >
             📹 Upload a video / short
           </Link>
-          <a
-            href="#info-music"
-            className="rounded-xl border border-white/12 bg-white/5 px-4 py-2 text-sm text-white/85 hover:bg-white/10"
+          <Link
+            href="/infotainment/upload-music"
+            className="rounded-xl border border-neon-mint/40 bg-neon-mint/10 px-4 py-2 text-sm font-medium text-neon-mint hover:bg-neon-mint/20"
           >
-            🎵 Share music in a room
-          </a>
+            🎵 Upload music
+          </Link>
         </div>
+      </section>
+
+      {/* Latest community music — real uploads, inline player */}
+      <section id="mymusic" className="surface-glass tint-mint scroll-mt-20 p-5">
+        <div className="mb-2 flex items-baseline justify-between gap-2">
+          <h2 className="font-display text-lg font-semibold text-white">
+            🎵 Latest music
+          </h2>
+          <Link
+            href="/infotainment/upload-music"
+            className="shrink-0 text-xs text-neon-mint hover:underline"
+          >
+            + Upload
+          </Link>
+        </div>
+        {tracks.length === 0 ? (
+          <p className="text-sm text-white/55">
+            No uploads yet — be the first to share a track.
+          </p>
+        ) : (
+          <ul className="flex flex-col gap-2.5">
+            {tracks.map((t) => (
+              <li
+                key={t.id}
+                className="rounded-xl border border-white/10 bg-black/20 px-3 py-2.5"
+              >
+                <div className="mb-1.5 flex items-baseline justify-between gap-2">
+                  <span className="min-w-0 break-words text-sm font-medium text-white">
+                    {t.title}
+                  </span>
+                  <span className="shrink-0 text-[11px] text-white/45">
+                    {t.artist ||
+                      t.owner_display_name ||
+                      (t.owner_username ? `@${t.owner_username}` : "")}
+                  </span>
+                </div>
+                <audio src={t.audio_url} controls preload="none" className="w-full" />
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       {/* Karaoke & live singing */}
