@@ -18,13 +18,15 @@ export const metadata: Metadata = {
   applicationName: "Karochat",
   manifest: "/manifest.webmanifest",
   icons: {
+    // Browser-tab favicon: white-background mark so the flower reads clearly on
+    // dark tab bars. Kept separate from the PWA install icons (which stay
+    // transparent via manifest.webmanifest + /icon.svg).
     icon: [
-      { url: "/icon.svg", type: "image/svg+xml" },
-      { url: "/icons/icon-192.webp", sizes: "192x192", type: "image/webp" },
-      { url: "/icons/icon-512.webp", sizes: "512x512", type: "image/webp" }
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.png", sizes: "180x180", type: "image/png" }
     ],
     apple: [{ url: "/icons/icon-512.webp", sizes: "512x512" }],
-    shortcut: ["/icon.svg"]
+    shortcut: ["/favicon.svg"]
   },
   appleWebApp: {
     capable: true,
