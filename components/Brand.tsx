@@ -1,38 +1,23 @@
 import clsx from "clsx";
 
 /**
- * Karochat brand mark — the speech-bubble-headed figure, painted in the
- * purple→magenta brand gradient. Square, transparent PNG (object-contain so
- * it never distorts inside the square sizing classes callers pass in).
+ * Karochat brand mark — the colourful firework / flower burst (red, navy &
+ * amber petals around a pixel-bloom centre). Square, transparent PNG rendered
+ * with object-contain so it never distorts inside the square sizing classes
+ * callers pass in (e.g. `h-7 w-7`, `h-9 w-9`). Default size matches the old
+ * inline mark so every existing call site keeps the same footprint.
  */
 export function Logo({ className }: { className?: string }) {
-  // New mark (Wave 22): a triumphant figure with raised arms (purple→indigo
-  // body) beneath a glowing orange→pink head — open, human, uplifting.
-  // Crisp inline SVG, sharp at any size.
   return (
-    <svg
-      viewBox="0 0 200 200"
-      role="img"
-      aria-label="Karochat"
-      xmlns="http://www.w3.org/2000/svg"
-      className={clsx("h-7 w-7", className)}
-    >
-      <defs>
-        <linearGradient id="karoBody" x1="0" y1="70" x2="0" y2="196" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#9A4FB5" />
-          <stop offset="1" stopColor="#2E2A8C" />
-        </linearGradient>
-        <linearGradient id="karoHead" x1="0" y1="18" x2="0" y2="66" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#FBB04C" />
-          <stop offset="1" stopColor="#EE3C8B" />
-        </linearGradient>
-      </defs>
-      <circle cx="100" cy="42" r="24" fill="url(#karoHead)" />
-      <path
-        d="M24 84 L86 132 L100 194 L114 132 L176 84 L100 118 Z"
-        fill="url(#karoBody)"
-      />
-    </svg>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/flower-logo.png"
+      alt="Karochat"
+      width={200}
+      height={200}
+      decoding="async"
+      className={clsx("h-7 w-7 object-contain", className)}
+    />
   );
 }
 
