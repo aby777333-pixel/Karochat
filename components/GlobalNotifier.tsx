@@ -16,7 +16,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { playBuzz, playChime, playCallRing, vibrate } from "@/lib/sounds";
+import { playBuzz, playChime, playCallRing, vibrate, unlockAudio } from "@/lib/sounds";
 
 type IncomingMessage = {
   id: string;
@@ -59,6 +59,22 @@ export function GlobalNotifier() {
   const seenRef = useRef<Set<string>>(new Set());
   const profileCacheRef = useRef<Map<string, string>>(new Map());
   const ringStopRef = useRef<(() => void) | null>(null);
+
+  // Unlock the AudioContext on the first user gesture so that sounds triggered
+  // later by realtime events (incoming-call ring, chimes) actually play —
+  // browsers keep audio suspended until a gesture. Harmless + idempotent.
+  useEffect(() => {
+    const unlock = () => unlockAudio();
+    const opts: AddEventListenerOptions = { once: true, passive: true };
+    window.addEventListener("pointerdown", unlock, opts);
+    window.addEventListener("keydown", unlock, opts);
+    window.addEventListener("touchstart", unlock, opts);
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+      window.removeEventListener("touchstart", unlock);
+    };
+  }, []);
 
   useEffect(() => {
     let alive = true;

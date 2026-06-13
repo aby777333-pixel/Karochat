@@ -24,6 +24,7 @@ import { DMListClient } from "./DMListClient";
 import { GuestAccessCard } from "./GuestAccessCard";
 import { PushAutoSubscribe } from "@/components/PushAutoSubscribe";
 import { NotificationSettings } from "@/components/NotificationSettings";
+import { NewUserRooms } from "./NewUserRooms";
 // import { DailyPrompt } from "./DailyPrompt"; // hidden by request — keep file for re-enable
 
 export const dynamic = "force-dynamic";
@@ -326,6 +327,10 @@ export default async function RoomsPage({
 
             <DismissibleSection id="notifications">
               <NotificationSettings />
+            </DismissibleSection>
+
+            <DismissibleSection id="new-user-rooms">
+              <NewUserRooms />
             </DismissibleSection>
 
             <DismissibleSection id="explore">

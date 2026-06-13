@@ -276,6 +276,19 @@ select option:hover {
   }
 }
 
+/* The floating reactions / raise-hand strip sits near the bottom of the call
+   surface (≈ bottom: 4rem). When the in-call "Messages" chat is open its text
+   composer would be covered by that strip — lift the composer above it so the
+   input stays usable. Also give it a solid backdrop so it reads clearly. */
+.lk-call-host .lk-chat-form {
+  margin-bottom: 5rem !important;
+  position: relative;
+  z-index: 20;
+}
+.lk-call-host .lk-chat {
+  background: rgba(10, 11, 15, 0.92);
+}
+
 /* Respect prefers-reduced-motion: kill the loud animations (shake, rise,
    radial pulse, shimmer) and downgrade the nudge to a soft border pulse so
    incoming nudges are still visible without slamming the window around. */

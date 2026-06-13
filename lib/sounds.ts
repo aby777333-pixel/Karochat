@@ -25,6 +25,22 @@ function getCtx(): AudioContext | null {
   }
 }
 
+/**
+ * Resume the (otherwise autoplay-blocked) AudioContext. Browsers start it
+ * "suspended" until a user gesture, so programmatic rings/chimes triggered by
+ * a realtime event (e.g. an incoming call) stay silent until this runs once
+ * inside/after any gesture. Call it from a global gesture listener so every
+ * later sound — including the incoming-call ring — actually plays. Idempotent.
+ */
+export function unlockAudio(): void {
+  try {
+    const ac = getCtx();
+    if (ac && ac.state === "suspended") void ac.resume().catch(() => {});
+  } catch {
+    // ignore
+  }
+}
+
 export function soundEnabled(): boolean {
   try {
     return window.localStorage.getItem("karochat:sound") !== "off";

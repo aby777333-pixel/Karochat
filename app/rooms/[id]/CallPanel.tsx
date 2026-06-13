@@ -17,6 +17,7 @@ import {
 } from "@livekit/components-react";
 import { Track } from "livekit-client";
 import "@livekit/components-styles";
+import { playRing } from "@/lib/sounds";
 
 type TokenResp = { token: string; url: string; room: string };
 
@@ -726,6 +727,29 @@ function CallExtras() {
       }
     }
   );
+
+  // Caller ringback — while you're the only one in the call, play a gentle
+  // ringing tone every few seconds (capped at 30s) so the caller actually
+  // hears it "ringing" until the other side joins. Stops the instant a second
+  // participant connects; resumes if everyone leaves. Respects the sound
+  // toggle (playRing no-ops when sound is off / audio is locked).
+  useEffect(() => {
+    if (participants.length > 1) return;
+    let stopped = false;
+    const startedAt = Date.now();
+    playRing();
+    const iv = setInterval(() => {
+      if (stopped || Date.now() - startedAt > 30000) {
+        clearInterval(iv);
+        return;
+      }
+      playRing();
+    }, 3000);
+    return () => {
+      stopped = true;
+      clearInterval(iv);
+    };
+  }, [participants.length]);
 
   function react(emoji: string) {
     const name =

@@ -516,7 +516,7 @@ function TreeRoomRow({
   return (
     <li
       className={clsx(
-        "group flex items-center justify-between gap-2 py-1",
+        "group flex items-start justify-between gap-2 py-1",
         empty && "opacity-60"
       )}
     >
@@ -524,16 +524,16 @@ function TreeRoomRow({
         type="button"
         onClick={onEnter}
         disabled={joining}
-        className="flex min-w-0 flex-1 items-center gap-2 text-left"
+        className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5 text-left"
         title={room.topic ?? room.name}
       >
         <span
           aria-hidden
-          className="inline-block w-3 text-white/30 group-hover:text-white/55"
+          className="mt-0.5 inline-block w-3 shrink-0 self-start text-white/30 group-hover:text-white/55"
         >
           └
         </span>
-        <span className="truncate font-mono text-[13px] text-white/85 group-hover:text-white">
+        <span className="min-w-0 break-words font-mono text-[13px] leading-snug text-white/85 group-hover:text-white">
           {room.name}
         </span>
         <span className="shrink-0 font-mono text-[11px] text-white/45">
