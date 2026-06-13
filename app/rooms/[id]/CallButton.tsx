@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
+import { ringRoom } from "@/lib/ringRoom";
 
 const CallPanel = dynamic(
   () => import("./CallPanel").then((m) => m.CallPanel),
@@ -140,6 +141,7 @@ export function CallButton({
                 onClick={() => {
                   setMode("audio");
                   setMenuOpen(false);
+                  void ringRoom(roomId, "audio");
                 }}
                 className="flex flex-col items-center gap-1 rounded-xl border border-neon-blue/40 bg-neon-blue/10 px-4 py-4 text-sm text-neon-blue hover:bg-neon-blue/20"
               >
@@ -150,6 +152,7 @@ export function CallButton({
                 onClick={() => {
                   setMode("video");
                   setMenuOpen(false);
+                  void ringRoom(roomId, "video");
                 }}
                 className="flex flex-col items-center gap-1 rounded-xl border border-neon-purple/40 bg-neon-purple/10 px-4 py-4 text-sm text-neon-purple hover:bg-neon-purple/20"
               >

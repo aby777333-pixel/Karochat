@@ -45,6 +45,7 @@ import { MessageSearchBar } from "@/components/MessageSearchBar";
 import { ForwardModal } from "@/components/ForwardModal";
 import { TypingIndicator } from "@/components/TypingIndicator";
 import { CallWidget } from "@/components/CallWidget";
+import { ringRoom } from "@/lib/ringRoom";
 import { MediaEmbed, detectMedia } from "@/components/MediaEmbed";
 import { ROOM_THEMES } from "@/components/RoomThemePicker";
 import { useResizableHeight } from "@/lib/useResizableHeight";
@@ -1866,7 +1867,12 @@ export function RoomChat({
             roomId={roomId}
             roomName={roomName}
             onlineCount={onlineCount}
-            onStart={(mode) => setWidgetCallMode(mode)}
+            onStart={(mode) => {
+              setWidgetCallMode(mode);
+              // Ring the other member(s) so calls actually "ping" them —
+              // in-app (open) + Web Push (closed). No-op / capped for big rooms.
+              void ringRoom(roomId, mode);
+            }}
           />
         )}
       </div>

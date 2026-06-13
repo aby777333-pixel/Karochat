@@ -16,7 +16,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { playBuzz, playChime } from "@/lib/sounds";
+import { playBuzz, playChime, playCallRing, vibrate } from "@/lib/sounds";
 
 type IncomingMessage = {
   id: string;
@@ -34,6 +34,19 @@ type Toast = {
   title: string;
   body: string;
   emoji: string;
+  /** Optional explicit destination (e.g. a call deep-link). Defaults to the room. */
+  href?: string;
+  /** Call toasts get a louder, longer-lived treatment. */
+  call?: boolean;
+};
+
+type IncomingPing = {
+  id: string;
+  from_profile: string;
+  to_profile: string;
+  kind: string;
+  room_id: string | null;
+  message: string | null;
 };
 
 const MAX_TOASTS = 3;
@@ -45,6 +58,7 @@ export function GlobalNotifier() {
   const dmRoomsRef = useRef<Set<string>>(new Set());
   const seenRef = useRef<Set<string>>(new Set());
   const profileCacheRef = useRef<Map<string, string>>(new Map());
+  const ringStopRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -65,9 +79,85 @@ export function GlobalNotifier() {
 
     function pushToast(t: Toast) {
       setToasts((prev) => [t, ...prev].slice(0, MAX_TOASTS));
+      // Call invites linger longer so they can actually be answered.
       setTimeout(() => {
         setToasts((prev) => prev.filter((x) => x.key !== t.key));
-      }, 7000);
+      }, t.call ? 30000 : 7000);
+    }
+
+    // Incoming call ping (room/DM call) → ring + vibrate + toast + browser
+    // notification, on any page. Tapping deep-links into the call (auto-answer).
+    async function handleCall(p: IncomingPing) {
+      const me = meRef.current;
+      if (!me || p.from_profile === me.id) return;
+      if (p.kind !== "call" || !p.room_id) return;
+      if (seenRef.current.has(p.id)) return;
+      seenRef.current.add(p.id);
+      if (seenRef.current.size > 500) seenRef.current.clear();
+
+      // The Meet-now radar screen rings these itself — don't double up there.
+      if (
+        typeof window !== "undefined" &&
+        window.location.pathname.startsWith("/meet/now")
+      ) {
+        return;
+      }
+
+      const mode = p.message === "video" ? "video" : "audio";
+      // Already sitting in that room with the call panel? Let the room handle it.
+      const inThatRoom =
+        typeof window !== "undefined" &&
+        window.location.pathname.includes(p.room_id) &&
+        document.visibilityState === "visible";
+
+      const name = await senderName(p.from_profile);
+      const title = `${name} is calling`;
+      const body = mode === "video" ? "Incoming video call" : "Incoming voice call";
+      const href = `/rooms/${p.room_id}?call=${mode}`;
+
+      if (!inThatRoom) {
+        pushToast({
+          key: p.id,
+          roomId: p.room_id,
+          title,
+          body,
+          emoji: "📞",
+          href,
+          call: true
+        });
+      }
+
+      // Ring + haptics (user-controllable via the sound/vibration toggles).
+      const stopRing = playCallRing(5);
+      ringStopRef.current?.();
+      ringStopRef.current = stopRing;
+      setTimeout(() => stopRing(), 16000);
+      vibrate([300, 150, 300, 150, 300, 150, 300]);
+
+      // Lock-screen / background notification when the tab isn't focused.
+      try {
+        if (
+          "Notification" in window &&
+          Notification.permission === "granted" &&
+          (document.visibilityState !== "visible" || !document.hasFocus())
+        ) {
+          const n = new Notification(`📞 ${title}`, {
+            body,
+            icon: "/icon.svg",
+            badge: "/icon.svg",
+            tag: `karochat-call-${p.room_id}`,
+            requireInteraction: true
+          });
+          n.onclick = () => {
+            window.focus();
+            window.location.href = href;
+            n.close();
+          };
+          setTimeout(() => n.close(), 20000);
+        }
+      } catch {
+        // ignore
+      }
     }
 
     async function handle(m: IncomingMessage) {
@@ -120,12 +210,10 @@ export function GlobalNotifier() {
       // 1) In-app toast (clickable, prominent, never off-screen).
       pushToast({ key: m.id, roomId: m.room_id, title, body, emoji });
 
-      // 2) Sound + vibration.
+      // 2) Sound + vibration (both user-controllable).
       if (kind === "nudge") playBuzz();
       else playChime();
-      if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-        navigator.vibrate?.(kind === "nudge" ? [60, 30, 60, 30, 60] : [80, 40, 80]);
-      }
+      vibrate(kind === "nudge" ? [60, 30, 60, 30, 60] : [80, 40, 80]);
 
       // 3) Browser notification when the tab is hidden/unfocused.
       try {
@@ -207,11 +295,25 @@ export function GlobalNotifier() {
               });
           }
         )
+        // Incoming room/DM call pings (kind='call') — ring on any page.
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "radar_pings",
+            filter: `to_profile=eq.${user.id}`
+          },
+          (payload) => {
+            void handleCall(payload.new as IncomingPing);
+          }
+        )
         .subscribe();
     })();
 
     return () => {
       alive = false;
+      ringStopRef.current?.();
       if (channel) void supabase.removeChannel(channel);
     };
   }, [supabase]);
@@ -225,10 +327,16 @@ export function GlobalNotifier() {
           key={t.key}
           type="button"
           onClick={() => {
+            ringStopRef.current?.();
             setToasts((prev) => prev.filter((x) => x.key !== t.key));
-            window.location.href = `/rooms/${t.roomId}`;
+            window.location.href = t.href ?? `/rooms/${t.roomId}`;
           }}
-          className="surface-glass pointer-events-auto flex min-w-0 items-start gap-2.5 p-3 text-left shadow-2xl transition hover:border-neon-blue/40"
+          className={
+            "surface-glass pointer-events-auto flex min-w-0 items-start gap-2.5 p-3 text-left shadow-2xl transition " +
+            (t.call
+              ? "animate-pulse border-neon-mint/60 ring-1 ring-neon-mint/40 hover:border-neon-mint"
+              : "hover:border-neon-blue/40")
+          }
         >
           <span className="mt-0.5 shrink-0 text-lg" aria-hidden>
             {t.emoji}
@@ -242,8 +350,13 @@ export function GlobalNotifier() {
                 {t.body}
               </span>
             )}
-            <span className="mt-0.5 block text-[10px] uppercase tracking-widest text-neon-blue/80">
-              Tap to open
+            <span
+              className={
+                "mt-0.5 block text-[10px] uppercase tracking-widest " +
+                (t.call ? "text-neon-mint" : "text-neon-blue/80")
+              }
+            >
+              {t.call ? "Tap to answer" : "Tap to open"}
             </span>
           </span>
         </button>

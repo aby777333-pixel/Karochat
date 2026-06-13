@@ -23,6 +23,7 @@ import { WelcomeHero } from "./WelcomeHero";
 import { DMListClient } from "./DMListClient";
 import { GuestAccessCard } from "./GuestAccessCard";
 import { PushAutoSubscribe } from "@/components/PushAutoSubscribe";
+import { NotificationSettings } from "@/components/NotificationSettings";
 // import { DailyPrompt } from "./DailyPrompt"; // hidden by request — keep file for re-enable
 
 export const dynamic = "force-dynamic";
@@ -202,8 +203,8 @@ export default async function RoomsPage({
       <main className="mx-auto flex min-h-[100dvh] max-w-6xl flex-col px-1 py-5 md:py-7">
         <header className="surface-glass flex flex-row items-center justify-between gap-2 px-3 py-2 md:px-4 md:py-3">
           <Link href="/rooms" className="flex shrink-0 items-center gap-2">
-            <Logo className="h-7 w-7" />
-            <Wordmark className="text-lg" />
+            <Logo className="h-11 w-11" />
+            <Wordmark className="text-2xl" />
           </Link>
           <div className="flex flex-wrap items-center gap-2 text-xs sm:justify-end md:gap-3">
             {/* Module shortcuts — hidden on mobile (the colourful dashboard +
@@ -322,6 +323,10 @@ export default async function RoomsPage({
         <div className="mt-5 grid flex-1 grid-cols-1 gap-5 lg:grid-cols-[1fr_340px]">
           <div className="space-y-5">
             <GuestAccessCard />
+
+            <DismissibleSection id="notifications">
+              <NotificationSettings />
+            </DismissibleSection>
 
             <DismissibleSection id="explore">
               <ModuleDashboard />

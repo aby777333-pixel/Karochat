@@ -31,19 +31,27 @@ self.addEventListener("push", (event) => {
     data = { title: "Karochat", body: event.data ? event.data.text() : "" };
   }
   const title = data.title || "Karochat";
+  const isCall = (data.tag || "") === "radar-call";
   const options = {
     body: data.body || "",
     icon: "/icon.svg",
     badge: "/icon.svg",
     tag: data.tag || "karochat",
     renotify: true,
+    // Calls stay on screen until answered/dismissed and buzz harder.
+    requireInteraction: isCall,
     // Device vibration on Android Chrome (ignored where unsupported).
-    vibrate: [120, 60, 120],
+    vibrate: isCall ? [300, 150, 300, 150, 300, 150, 300] : [120, 60, 120],
     // Action buttons (Chrome/Android/Edge; harmlessly ignored elsewhere).
-    actions: [
-      { action: "open", title: "Open" },
-      { action: "dismiss", title: "Dismiss" }
-    ],
+    actions: isCall
+      ? [
+          { action: "open", title: "Answer" },
+          { action: "dismiss", title: "Decline" }
+        ]
+      : [
+          { action: "open", title: "Open" },
+          { action: "dismiss", title: "Dismiss" }
+        ],
     data: { url: data.url || "/" }
   };
   event.waitUntil(self.registration.showNotification(title, options));

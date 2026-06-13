@@ -26,8 +26,8 @@ export default async function Home() {
     <main className="mx-auto flex min-h-screen max-w-6xl flex-col px-6 py-8">
       <header className="flex items-center">
         <Link href="/" className="flex items-center gap-2">
-          <Logo />
-          <Wordmark />
+          <Logo className="h-12 w-12" />
+          <Wordmark className="text-3xl" />
         </Link>
       </header>
 

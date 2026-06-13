@@ -16,7 +16,7 @@ export function Logo({ className }: { className?: string }) {
       width={200}
       height={200}
       decoding="async"
-      className={clsx("h-7 w-7 object-contain", className)}
+      className={clsx("h-9 w-9 object-contain", className)}
     />
   );
 }

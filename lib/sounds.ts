@@ -41,6 +41,38 @@ export function setSoundEnabled(on: boolean): void {
   }
 }
 
+/** Whether haptic feedback (navigator.vibrate) is enabled. Default: on. */
+export function vibrateEnabled(): boolean {
+  try {
+    return window.localStorage.getItem("karochat:vibrate") !== "off";
+  } catch {
+    return true;
+  }
+}
+
+export function setVibrateEnabled(on: boolean): void {
+  try {
+    window.localStorage.setItem("karochat:vibrate", on ? "on" : "off");
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * Vibrate the device, respecting the user's haptics toggle. No-op server-side,
+ * when haptics are off, or when the browser doesn't support the Vibration API
+ * (e.g. desktop, iOS Safari). Never throws.
+ */
+export function vibrate(pattern: number | number[]): void {
+  try {
+    if (!vibrateEnabled()) return;
+    if (typeof navigator === "undefined" || !("vibrate" in navigator)) return;
+    navigator.vibrate?.(pattern);
+  } catch {
+    // ignore
+  }
+}
+
 function tone(
   ac: AudioContext,
   freq: number,
@@ -101,4 +133,27 @@ export function playRing(): void {
   } catch {
     // ignore
   }
+}
+
+/**
+ * Incoming-call ringtone: a longer, repeating two-tone ring (≈ a few seconds)
+ * so an incoming call is unmistakable. Returns a stop() to cancel it once the
+ * call is answered or dismissed. Respects the sound toggle.
+ */
+export function playCallRing(repeats = 4): () => void {
+  if (!soundEnabled()) return () => {};
+  const timers: ReturnType<typeof setTimeout>[] = [];
+  let cancelled = false;
+  const burst = () => {
+    if (cancelled) return;
+    playRing();
+  };
+  burst();
+  for (let i = 1; i < repeats; i++) {
+    timers.push(setTimeout(burst, i * 1500));
+  }
+  return () => {
+    cancelled = true;
+    for (const t of timers) clearTimeout(t);
+  };
 }
