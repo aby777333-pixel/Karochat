@@ -254,6 +254,266 @@ const GROUPS: Group[] = [
         ]
       }
     ]
+  },
+  {
+    title: "Skin conditions",
+    emoji: "🩹",
+    items: [
+      {
+        name: "Eczema (atopic dermatitis)",
+        tips: [
+          "Cooling, anti-inflammatory: neem, turmeric and aloe vera applied externally.",
+          "Coconut oil to soothe and moisturise dry, itchy patches.",
+          "Reduce very spicy, sour and fermented foods (Pitta aggravators); manage stress.",
+          "Use gentle, fragrance-free cleansers; keep skin well moisturised. See a dermatologist for severe flares."
+        ]
+      },
+      {
+        name: "Psoriasis",
+        tips: [
+          "Blood-purifying herbs traditionally used: neem, manjistha, turmeric (with a practitioner).",
+          "Gentle oiling (coconut/sesame) for scaling; lukewarm baths, avoid harsh soaps.",
+          "Reduce stress, alcohol and red meat; favour cooling, fresh foods.",
+          "Moderate sunlight can help — coordinate with your dermatologist."
+        ]
+      },
+      {
+        name: "Tanning & pigmentation",
+        tips: [
+          "Cooling packs: sandalwood, aloe vera, rose water; besan (gram flour) + turmeric + curd.",
+          "Fresh aloe or cucumber on the skin; hydrate well.",
+          "Use sun protection; tan fades with gentle, consistent care."
+        ]
+      },
+      {
+        name: "Dry & cracked skin",
+        tips: [
+          "Daily oil massage (sesame/almond) before bathing; ghee on very dry lips and heels.",
+          "Warm, moist, healthy-fat foods; avoid very hot showers and harsh soap.",
+          "Stay hydrated; humidify dry rooms."
+        ]
+      },
+      {
+        name: "Premature greying (support)",
+        tips: [
+          "Amla, bhringraj and curry leaves are traditionally used for hair.",
+          "Scalp oiling with amla/coconut oil; reduce stress.",
+          "Ensure protein, iron and B12 — check for deficiencies with a doctor."
+        ]
+      },
+      {
+        name: "Dark circles",
+        tips: [
+          "Cool compress; cucumber or potato slices; a little almond oil gently around the eyes.",
+          "Prioritise sleep and hydration; manage screen strain.",
+          "Persistent dark circles can signal anaemia — get checked."
+        ]
+      }
+    ]
+  },
+  {
+    title: "Eyes, nails & oral care",
+    emoji: "👁️",
+    items: [
+      {
+        name: "Eye strain & dryness",
+        tips: [
+          "Follow the 20-20-20 rule; splash the eyes with cool water.",
+          "Vitamin-A foods (carrots, greens) and ghee support eye health.",
+          "Reduce glare; blink often. See an eye doctor for persistent dryness or pain."
+        ]
+      },
+      {
+        name: "Brittle nails",
+        tips: [
+          "Massage nails with warm coconut or almond oil.",
+          "Ensure protein, biotin, iron and zinc in the diet.",
+          "Avoid harsh chemicals; keep nails clean and dry."
+        ]
+      },
+      {
+        name: "Oral care & gums",
+        tips: [
+          "Oil pulling (sesame/coconut) and tongue scraping each morning.",
+          "Clove or neem for gums; a salt-water rinse for soreness.",
+          "See a dentist for bleeding gums or lasting pain."
+        ]
+      },
+      {
+        name: "Mouth ulcers",
+        tips: [
+          "Rinse with cool water; dab honey or coconut on the ulcer.",
+          "Reduce spicy and sour foods; favour cooling foods and hydrate.",
+          "Recurrent ulcers should be reviewed by a doctor."
+        ]
+      },
+      {
+        name: "Bad breath",
+        tips: [
+          "Tongue scraping and oil pulling; chew fennel, cardamom or clove.",
+          "Hydrate and address digestion — often the real root."
+        ]
+      }
+    ]
+  },
+  {
+    title: "Gut — diarrhea, dysentery & more",
+    emoji: "🚰",
+    items: [
+      {
+        name: "Diarrhea (loose motions)",
+        tips: [
+          "Rehydrate: ORS, coconut water, rice water (kanji), buttermilk with roasted cumin.",
+          "Light foods: soft rice, moong dal khichdi, banana, pomegranate.",
+          "Avoid heavy, oily, raw and dairy-rich foods until settled.",
+          "See a doctor urgently if there is blood, high fever, or signs of dehydration — especially in children and the elderly."
+        ]
+      },
+      {
+        name: "Dysentery",
+        tips: [
+          "Pomegranate, bael (wood apple) and buttermilk are traditional.",
+          "Hydrate aggressively; keep the diet light and bland.",
+          "Blood or mucus in stool, fever or weakness needs prompt medical care."
+        ]
+      },
+      {
+        name: "Piles (haemorrhoids) — support",
+        tips: [
+          "High-fibre diet and plenty of water; avoid straining and excess chillies.",
+          "Triphala helps keep stools soft; warm sitz baths ease discomfort.",
+          "Bleeding or severe pain — see a doctor."
+        ]
+      }
+    ]
+  },
+  {
+    title: "Inflammation & organ detox",
+    emoji: "🫁",
+    items: [
+      {
+        name: "Chronic inflammation",
+        tips: [
+          "Turmeric (with black pepper), ginger and garlic; cut fried, sugary and ultra-processed foods.",
+          "Favour fresh vegetables, whole grains and healthy fats; prioritise sleep and movement.",
+          "Persistent inflammation needs medical evaluation."
+        ]
+      },
+      {
+        name: "Liver support & detox",
+        tips: [
+          "Bitter greens, beetroot, amla; warm lemon water in the morning.",
+          "Traditional herbs: bhumi amla, kutki, kalmegh, turmeric (with a practitioner).",
+          "Reduce alcohol and very oily/fried foods; stay hydrated.",
+          "Get liver function tested if you have symptoms."
+        ]
+      },
+      {
+        name: "Lung & respiratory cleanse",
+        tips: [
+          "Steam inhalation; tulsi, ginger, liquorice (mulethi), turmeric.",
+          "Pranayama (breathing exercises) builds lung capacity.",
+          "Avoid smoke and pollution; warm fluids. Honey with a little black pepper traditionally clears mucus."
+        ]
+      },
+      {
+        name: "Kidney & urinary support",
+        tips: [
+          "Stay well hydrated; coriander-seed water and coconut water.",
+          "Reduce excess salt; gokshura and punarnava are traditional (with a practitioner).",
+          "Barley water for urinary comfort; see a doctor for infections or stones."
+        ]
+      },
+      {
+        name: "Blood purification",
+        tips: [
+          "Neem, manjistha and turmeric are traditionally 'blood-purifying' (with a practitioner).",
+          "Bitter greens, amla (vitamin C) and plenty of water.",
+          "Supports clearer skin; pair with good digestion."
+        ]
+      }
+    ]
+  },
+  {
+    title: "Heart & circulation",
+    emoji: "❤️",
+    items: [
+      {
+        name: "Heart wellness",
+        tips: [
+          "Arjuna bark is a classic Ayurvedic heart tonic (only with a doctor).",
+          "Garlic, turmeric, flaxseed and oats; reduce salt, fried foods and trans-fats.",
+          "Daily exercise, stress management and good sleep.",
+          "Know your blood pressure and cholesterol; follow your cardiologist's advice."
+        ]
+      },
+      {
+        name: "Cholesterol support",
+        tips: [
+          "Oats, flaxseed, garlic and amla; reduce fried and processed foods.",
+          "Guggul is traditionally used (with a practitioner).",
+          "Regular exercise makes the biggest difference."
+        ]
+      },
+      {
+        name: "Blood pressure support",
+        tips: [
+          "Reduce salt; potassium-rich foods (banana, greens, coconut water).",
+          "Stress reduction, pranayama and adequate sleep.",
+          "Take prescribed medication and monitor — never stop without your doctor."
+        ]
+      },
+      {
+        name: "Circulation & varicose veins",
+        tips: [
+          "Leg elevation, regular movement and gentle oil massage toward the heart.",
+          "Avoid long periods of standing or sitting; stay active.",
+          "Severe vein problems need medical review."
+        ]
+      }
+    ]
+  },
+  {
+    title: "Everyday practices (Dinacharya)",
+    emoji: "🌅",
+    items: [
+      {
+        name: "Morning routine",
+        tips: [
+          "Wake early; warm water; empty the bowels; scrape the tongue.",
+          "A little yoga/movement and breathing to start the day.",
+          "Eat a warm, settling breakfast."
+        ]
+      },
+      {
+        name: "Tongue scraping & oil pulling",
+        tips: [
+          "Scrape the tongue each morning to clear 'ama' (coating).",
+          "Swish sesame or coconut oil for 5-10 minutes for oral & gum health, then spit and rinse."
+        ]
+      },
+      {
+        name: "Self-massage (Abhyanga)",
+        tips: [
+          "Warm-oil massage before a bath calms the nervous system and nourishes skin.",
+          "Sesame oil suits Vata; coconut oil suits Pitta."
+        ]
+      },
+      {
+        name: "Seasonal routine (Ritucharya)",
+        tips: [
+          "Eat and live with the season — warming foods in winter, cooling in summer.",
+          "Adjust your routine to the climate to stay balanced."
+        ]
+      },
+      {
+        name: "Hydration & meal timing",
+        tips: [
+          "Sip warm water through the day; eat your largest meal at midday when digestion is strongest.",
+          "Avoid heavy late dinners; leave a gap before sleep."
+        ]
+      }
+    ]
   }
 ];
 

@@ -248,6 +248,163 @@ const GOALS: Goal[] = [
         steps: "Blend, strain and serve chilled. Cooling and gut-friendly."
       }
     ]
+  },
+  {
+    title: "Eczema & psoriasis (skin-calming)",
+    emoji: "🩹",
+    principles: [
+      "Anti-inflammatory, cooling foods: leafy greens, cucumber, coconut, omega-3s (flax, walnuts, fish).",
+      "Reduce common triggers: very spicy, sour, fried and ultra-processed foods, excess sugar and alcohol.",
+      "Stay hydrated; some people find dairy or gluten aggravates flares — observe your own body.",
+      "Diet supports the skin; work with a dermatologist for treatment."
+    ],
+    recipes: [
+      {
+        name: "Cooling cucumber-mint raita",
+        ingredients: "1 cup curd, ½ grated cucumber, mint, roasted cumin, pinch of salt",
+        steps: "Mix and chill. Soothing and gut-friendly (skip if dairy triggers you)."
+      },
+      {
+        name: "Omega-3 veggie bowl",
+        ingredients: "Steamed greens, quinoa or brown rice, flaxseed, olive oil, lemon",
+        steps: "Assemble, drizzle olive oil & lemon, sprinkle ground flax."
+      }
+    ]
+  },
+  {
+    title: "Liver support & detox",
+    emoji: "💚",
+    principles: [
+      "Bitter greens (spinach, methi), beetroot, garlic, amla and turmeric support the liver.",
+      "Warm lemon water in the morning; plenty of fluids and fibre.",
+      "Cut alcohol, fried and very oily foods.",
+      "Get liver function checked if you have symptoms — diet supports, it doesn't treat disease."
+    ],
+    recipes: [
+      {
+        name: "Beetroot-carrot-amla juice",
+        ingredients: "1 beetroot, 2 carrots, 1 amla (or lemon), ginger",
+        steps: "Juice or blend and strain. Antioxidant-rich morning tonic."
+      },
+      {
+        name: "Bitter greens stir-fry",
+        ingredients: "Methi/spinach, garlic, turmeric, little olive oil, black pepper",
+        steps: "Sauté garlic, add greens and spices, cook briefly."
+      }
+    ]
+  },
+  {
+    title: "Lung & respiratory health",
+    emoji: "🫁",
+    principles: [
+      "Warm, anti-inflammatory foods: ginger, tulsi, turmeric, garlic, honey.",
+      "Vitamin C (citrus, amla) and vitamin A (carrots, greens) support the airways.",
+      "Avoid cold, heavy, mucus-forming foods during congestion; no smoking.",
+      "Pair with breathing exercises (pranayama)."
+    ],
+    recipes: [
+      {
+        name: "Tulsi-ginger kadha",
+        ingredients: "Tulsi leaves, ginger, black pepper, cinnamon, clove, water, honey",
+        steps: "Boil the spices, strain, add honey when warm. Sip through the day."
+      },
+      {
+        name: "Turmeric honey-pepper paste",
+        ingredients: "½ tsp turmeric, pinch black pepper, 1 tsp honey",
+        steps: "Mix and take a little to soothe a congested chest (not for under-1s)."
+      }
+    ]
+  },
+  {
+    title: "Eye health",
+    emoji: "👁️",
+    principles: [
+      "Vitamin A & beta-carotene: carrots, sweet potato, spinach, pumpkin.",
+      "Lutein/zeaxanthin from leafy greens; omega-3s; ghee in moderation.",
+      "Stay hydrated; limit screen strain; vitamin C foods protect the eyes."
+    ],
+    recipes: [
+      {
+        name: "Carrot-spinach soup",
+        ingredients: "2 carrots, handful spinach, garlic, herbs, black pepper",
+        steps: "Simmer until soft and blend. Rich in eye-friendly nutrients."
+      }
+    ]
+  },
+  {
+    title: "Gut recovery (diarrhea/dysentery)",
+    emoji: "🚰",
+    principles: [
+      "Rehydrate first: ORS, coconut water, rice water (kanji), buttermilk with roasted cumin.",
+      "Light, bland, binding foods: soft rice, moong khichdi, banana, pomegranate, curd.",
+      "Avoid oily, spicy, raw and high-fibre foods until settled.",
+      "See a doctor for blood in stool, high fever or dehydration — especially in kids/elderly."
+    ],
+    recipes: [
+      {
+        name: "Rice water (kanji)",
+        ingredients: "Cooked rice + extra water, pinch of salt",
+        steps: "Boil rice with extra water, strain the starchy liquid, sip warm. Gently rehydrating."
+      },
+      {
+        name: "Banana-pomegranate curd",
+        ingredients: "1 banana, pomegranate seeds, ½ cup curd",
+        steps: "Mash banana into curd, top with pomegranate. Soothing and binding."
+      }
+    ]
+  },
+  {
+    title: "Strong nails & hair",
+    emoji: "💅",
+    principles: [
+      "Protein with every meal; biotin (eggs, nuts, seeds), iron (greens, legumes), zinc, omega-3s.",
+      "Amla and curry leaves traditionally support hair; stay hydrated.",
+      "Rule out iron/B12/thyroid issues with a doctor if hair fall is significant."
+    ],
+    recipes: [
+      {
+        name: "Seed & nut trail mix",
+        ingredients: "Almonds, walnuts, pumpkin & sunflower seeds, a few raisins",
+        steps: "Mix and keep handy. Protein, zinc and healthy fats for hair & nails."
+      }
+    ]
+  },
+  {
+    title: "Kidney & urinary health",
+    emoji: "💧",
+    principles: [
+      "Hydration is everything: water, coconut water, barley water, coriander-seed water.",
+      "Moderate salt and protein; reduce excess oxalate foods if prone to stones (ask your doctor).",
+      "Cranberry/barley water for urinary comfort; see a doctor for infections or stones."
+    ],
+    recipes: [
+      {
+        name: "Coriander-seed water",
+        ingredients: "1 tbsp coriander seeds, 2 cups water",
+        steps: "Boil, steep, strain and sip through the day. Cooling and diuretic."
+      }
+    ]
+  },
+  {
+    title: "Bone & joint health",
+    emoji: "🦴",
+    principles: [
+      "Calcium & vitamin D: dairy or fortified plant milk, sesame, ragi, greens, sunlight.",
+      "Anti-inflammatory spices (turmeric, ginger); omega-3s; adequate protein.",
+      "Pair with weight-bearing exercise to keep bones strong."
+    ],
+    recipes: [
+      {
+        name: "Ragi (finger millet) porridge",
+        ingredients: "Ragi flour, milk or water, dates/jaggery, cardamom",
+        steps: "Cook ragi with milk to a smooth porridge; sweeten lightly. Calcium-rich."
+      },
+      {
+        name: "Sesame-jaggery bites (til laddu)",
+        ingredients: "Roasted sesame seeds, a little jaggery",
+        steps: "Warm jaggery, mix with sesame, roll into small balls. Calcium & iron snack."
+      }
+    ]
   }
 ];
 
