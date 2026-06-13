@@ -55,7 +55,20 @@ const GROUPS: GroupDef[] = [
   { slug: "info-talent", label: "Talent & Competitions", emoji: "🏆" },
   { slug: "info-creators", label: "Creators & Channels", emoji: "🎭" },
   { slug: "info-freemedia", label: "Free Movies & Music", emoji: "🎬" },
-  { slug: "info-royalty", label: "Royalty-Free Media", emoji: "🆓" }
+  { slug: "info-royalty", label: "Royalty-Free Media", emoji: "🆓" },
+  { slug: "info-learn-instruments", label: "Learn — Instruments", emoji: "🎹" },
+  { slug: "info-learn-vocals", label: "Learn — Vocals & Theory", emoji: "🎼" },
+  { slug: "info-learn-genres", label: "Learn — by Genre", emoji: "🎷" },
+  { slug: "info-teach", label: "Teach Music — host classes", emoji: "👩‍🏫" },
+  { slug: "info-practice", label: "Practice & Jam Rooms", emoji: "🎸" }
+];
+
+const LEARN_SLUGS = [
+  "info-teach",
+  "info-learn-instruments",
+  "info-learn-vocals",
+  "info-learn-genres",
+  "info-practice"
 ];
 
 // Real, legal free-to-watch / public-domain sources.
@@ -388,9 +401,30 @@ export function InfotainmentClient({
         />
       </section>
 
+      {/* Learn & Teach Music */}
+      <section id="learn" className="surface-glass tint-amber scroll-mt-20 p-5">
+        <h2 className="font-display text-lg font-semibold text-white">
+          🎓 Learn &amp; Teach Music
+        </h2>
+        <p className="mt-1 text-sm text-white/65">
+          Live lessons in every instrument, voice, theory and genre. Teachers
+          host classes (voice + video); students join, practise and jam. Or
+          create your own lesson room.
+        </p>
+      </section>
+      {LEARN_SLUGS.map((slug) => (
+        <RoomGroup
+          key={slug}
+          def={GROUPS.find((g) => g.slug === slug)!}
+          rooms={byGroup.get(slug) ?? []}
+          busy={busy}
+          onEnter={joinAndEnter}
+          anchorId={slug}
+        />
+      ))}
+
       <p className="px-1 pb-6 text-center text-[11px] text-white/35">
-        More creator tools (music studio, AI generation, monetization &
-        lobby-wide live invites) are on the way.
+        More creator tools (AI generation, monetization & more) are on the way.
       </p>
     </div>
   );

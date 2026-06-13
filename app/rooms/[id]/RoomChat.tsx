@@ -38,6 +38,7 @@ import { EmojiPicker } from "@/components/EmojiPicker";
 import { GifPicker } from "@/components/GifPicker";
 import { MentionMenu } from "@/components/MentionMenu";
 import { VoiceRecorder } from "@/components/VoiceRecorder";
+import { KaraokeStudio } from "@/components/KaraokeStudio";
 import { VideoRecorder } from "@/components/VideoRecorder";
 import { flagCategory, flagWarning, reportFlag, type FlagCategory } from "@/lib/flaggedTerms";
 import { PinnedStrip } from "@/components/PinnedStrip";
@@ -425,6 +426,7 @@ export function RoomChat({
   const [showVideo, setShowVideo] = useState(false);
   const [showStickers, setShowStickers] = useState(false);
   const [showLines, setShowLines] = useState(false);
+  const [showKaraoke, setShowKaraoke] = useState(false);
   const [dictating, setDictating] = useState(false);
   const [mentionState, setMentionState] = useState<{
     query: string;
@@ -2313,6 +2315,30 @@ export function RoomChat({
               />
             )}
           </div>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setShowKaraoke(true);
+                setShowStickers(false);
+                setShowEmoji(false);
+                setShowGif(false);
+                setShowVoice(false);
+                setShowLines(false);
+                setTtlMenuOpen(false);
+              }}
+              aria-label="Karaoke studio"
+              title="Karaoke studio — lyrics, vocal tuner, metronome, backing tracks"
+              className="grid h-9 w-9 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-xl border border-neon-red/40 bg-neon-red/10 text-neon-red transition hover:bg-neon-red/20"
+            >
+              🎤
+            </button>
+          </div>
+          <KaraokeStudio
+            open={showKaraoke}
+            onClose={() => setShowKaraoke(false)}
+            roomName={roomName}
+          />
           <div className="relative">
             <button
               type="button"
