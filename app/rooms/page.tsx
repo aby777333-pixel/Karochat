@@ -234,11 +234,11 @@ export default async function RoomsPage({
                 💞 Sex ed
               </Link>
               <Link
-                href="/doctor"
-                className="rounded-lg border border-neon-blue/40 bg-neon-blue/10 px-3 py-1.5 text-neon-blue hover:bg-neon-blue/20"
-                title="Ask a Doctor — verified clinicians, general guidance (Phase 4)"
+                href="/infotainment"
+                className="rounded-lg border border-neon-red/40 bg-neon-red/10 px-3 py-1.5 text-neon-red hover:bg-neon-red/20"
+                title="Infotainment — free movies & music, karaoke, podcasts, radio, go live"
               >
-                🩺 Doctor
+                🎬 Infotainment
               </Link>
               <Link
                 href="/read"

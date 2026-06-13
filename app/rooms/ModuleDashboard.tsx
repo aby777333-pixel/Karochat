@@ -46,10 +46,20 @@ const SECTIONS: Section[] = [
     ]
   },
   {
-    title: "Health & care",
+    // Doctor / Ask-a-doctor tiles are intentionally hidden here (the /doctor
+    // routes still work if visited directly). This slot is now the entry into
+    // the Infotainment hub: free movies & music, karaoke, go-live & more.
+    title: "Infotainment",
     tiles: [
-      { href: "/doctor", label: "Doctor", emoji: "🩺", grad: "from-sky-300 via-cyan-400 to-teal-500" },
-      { href: "/doctor/ask", label: "Ask a doctor", emoji: "🧑‍⚕️", grad: "from-blue-400 via-sky-500 to-cyan-600" },
+      { href: "/infotainment", label: "Movies & Music", emoji: "🎬", grad: "from-rose-400 via-red-500 to-fuchsia-600" },
+      { href: "/infotainment#karaoke", label: "Karaoke & Live", emoji: "🎤", grad: "from-violet-400 via-purple-500 to-fuchsia-600" },
+      { href: "/infotainment#golive", label: "Go Live", emoji: "📡", grad: "from-amber-300 via-orange-500 to-red-600" },
+      { href: "/infotainment#royalty", label: "Royalty-Free", emoji: "🆓", grad: "from-emerald-300 via-teal-400 to-cyan-500" }
+    ]
+  },
+  {
+    title: "Wellbeing",
+    tiles: [
       { href: "/sexed", label: "Sex ed", emoji: "💞", grad: "from-rose-400 via-pink-500 to-fuchsia-600" },
       { href: "/sexed/ask", label: "Ask Karo", emoji: "💬", grad: "from-emerald-300 via-teal-400 to-cyan-500" }
     ]
