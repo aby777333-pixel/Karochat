@@ -49,6 +49,14 @@ type IncomingPing = {
   message: string | null;
 };
 
+type IncomingBroadcast = {
+  id: string;
+  host_id: string;
+  room_id: string;
+  title: string;
+  mode: string;
+};
+
 const MAX_TOASTS = 3;
 
 export function GlobalNotifier() {
@@ -256,6 +264,61 @@ export function GlobalNotifier() {
       }
     }
 
+    // A creator went live → gentle in-app announcement on any page/room, so
+    // the whole community can jump in as audience. (Closed-app users get the
+    // Web Push fan-out from start_broadcast; this is the open-app counterpart.)
+    async function handleLive(b: IncomingBroadcast) {
+      const me = meRef.current;
+      if (!me || b.host_id === me.id) return;
+      if (!b.room_id) return;
+      if (seenRef.current.has(b.id)) return;
+      seenRef.current.add(b.id);
+      if (seenRef.current.size > 500) seenRef.current.clear();
+
+      // Don't interrupt someone who's already in that very room.
+      const inThatRoom =
+        typeof window !== "undefined" &&
+        window.location.pathname.includes(b.room_id) &&
+        document.visibilityState === "visible";
+      if (inThatRoom) return;
+
+      const mode = b.mode === "audio" ? "audio" : "video";
+      const name = await senderName(b.host_id);
+      pushToast({
+        key: `live-${b.id}`,
+        roomId: b.room_id,
+        title: `${name} is live`,
+        body: b.title || "Tap to join the broadcast",
+        emoji: "🔴",
+        href: `/rooms/${b.room_id}?call=${mode}`
+      });
+      playChime();
+      vibrate([90, 50, 90]);
+
+      try {
+        if (
+          "Notification" in window &&
+          Notification.permission === "granted" &&
+          (document.visibilityState !== "visible" || !document.hasFocus())
+        ) {
+          const n = new Notification(`🔴 ${name} is live`, {
+            body: b.title || "Tap to join the broadcast",
+            icon: "/icon.svg",
+            badge: "/icon.svg",
+            tag: `karochat-live-${b.room_id}`
+          });
+          n.onclick = () => {
+            window.focus();
+            window.location.href = `/rooms/${b.room_id}?call=${mode}`;
+            n.close();
+          };
+          setTimeout(() => n.close(), 10000);
+        }
+      } catch {
+        // ignore
+      }
+    }
+
     void (async () => {
       const {
         data: { user }
@@ -322,6 +385,14 @@ export function GlobalNotifier() {
           },
           (payload) => {
             void handleCall(payload.new as IncomingPing);
+          }
+        )
+        // Someone went live → community-wide in-app announcement.
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "live_broadcasts" },
+          (payload) => {
+            void handleLive(payload.new as IncomingBroadcast);
           }
         )
         .subscribe();

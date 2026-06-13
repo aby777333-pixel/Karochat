@@ -25,6 +25,7 @@ import { GuestAccessCard } from "./GuestAccessCard";
 import { PushAutoSubscribe } from "@/components/PushAutoSubscribe";
 import { NotificationSettings } from "@/components/NotificationSettings";
 import { NewUserRooms } from "./NewUserRooms";
+import { LiveBroadcasts } from "@/components/LiveBroadcasts";
 // import { DailyPrompt } from "./DailyPrompt"; // hidden by request — keep file for re-enable
 
 export const dynamic = "force-dynamic";
@@ -323,6 +324,8 @@ export default async function RoomsPage({
 
         <div className="mt-5 grid flex-1 grid-cols-1 gap-5 lg:grid-cols-[1fr_340px]">
           <div className="space-y-5">
+            <LiveBroadcasts />
+
             <GuestAccessCard />
 
             <DismissibleSection id="notifications">

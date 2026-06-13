@@ -133,6 +133,13 @@ export function InfotainmentClient({
       .from("rooms")
       .update({ category_slug: "infotainment", subcategory_slug: "info-live" })
       .eq("id", data.id);
+    // Announce to the whole community: lobby "Live now" banner + in-app toast
+    // on every page/room, plus Web Push to opted-in offline users. Non-fatal.
+    await supabase.rpc("start_broadcast", {
+      p_room_id: data.id,
+      p_title: "Live broadcast",
+      p_mode: mode
+    });
     router.push(`/rooms/${data.id}?call=${mode}`);
     router.refresh();
   }
@@ -201,10 +208,10 @@ export function InfotainmentClient({
           📡 Go live & broadcast
         </h2>
         <p className="mt-1 text-sm leading-relaxed text-white/70">
-          Start an instant live room and broadcast video or audio to anyone who
-          joins. Share the room link, or use the in-room call button to ring &
-          push-notify members. Bigger lobby-wide audience invites are rolling
-          out next.
+          Start an instant live room and broadcast video or audio. The moment
+          you go live, everyone gets a <strong className="text-white">Live now</strong> alert
+          in the lobby and across KaroChat — and opted-in users get a push
+          notification to join as audience, even with the app closed.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <button
