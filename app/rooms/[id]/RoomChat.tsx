@@ -2338,6 +2338,9 @@ export function RoomChat({
             open={showKaraoke}
             onClose={() => setShowKaraoke(false)}
             roomName={roomName}
+            roomId={roomId}
+            userId={currentUserId}
+            userName={currentDisplayName || currentUsername}
           />
           <div className="relative">
             <button
