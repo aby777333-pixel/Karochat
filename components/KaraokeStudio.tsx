@@ -133,6 +133,7 @@ export function KaraokeStudio({
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
           {tab === "sing" && (
             <SingStage
+              roomName={roomName}
               roomId={roomId}
               userId={userId}
               userName={userName}
@@ -185,15 +186,68 @@ function pickAudioMime(): string {
   return "";
 }
 
+function pickVideoMime(): string {
+  const cands = [
+    "video/webm;codecs=vp9,opus",
+    "video/webm;codecs=vp8,opus",
+    "video/webm",
+    "video/mp4"
+  ];
+  for (const c of cands) {
+    try {
+      if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(c)) {
+        return c;
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return "";
+}
+
+// Turn a music-site link into an embeddable player URL where the site allows it
+// (YouTube / Spotify / SoundCloud). Returns null for everything else so the
+// caller can just open it in a new tab.
+function toEmbed(url: string): string | null {
+  try {
+    const u = new URL(url.startsWith("http") ? url : `https://${url}`);
+    const host = u.hostname.replace(/^www\./, "");
+    if (host === "youtu.be") {
+      const id = u.pathname.slice(1).split("/")[0];
+      return id ? `https://www.youtube.com/embed/${id}` : null;
+    }
+    if (host.endsWith("youtube.com")) {
+      const v = u.searchParams.get("v");
+      if (v) return `https://www.youtube.com/embed/${v}`;
+      const m = u.pathname.match(/\/(embed|shorts|live)\/([^/?]+)/);
+      if (m && m[2]) return `https://www.youtube.com/embed/${m[2]}`;
+    }
+    if (host.endsWith("spotify.com")) {
+      const parts = u.pathname.split("/").filter(Boolean);
+      if (parts.length >= 2) {
+        return `https://open.spotify.com/embed/${parts[0]}/${parts[1]}`;
+      }
+    }
+    if (host.endsWith("soundcloud.com")) {
+      return `https://w.soundcloud.com/player/?url=${encodeURIComponent(u.href)}&auto_play=false`;
+    }
+  } catch {
+    // not a URL — caller falls back to opening as a search/site
+  }
+  return null;
+}
+
 // ── Sing stage (player + room sync + mic deck) ───────────────────────────────
 type Track = { title: string; url: string; syncable: boolean; local: boolean };
 
 function SingStage({
+  roomName,
   roomId,
   userId,
   userName,
   findSeed
 }: {
+  roomName: string;
   roomId?: string;
   userId?: string;
   userName?: string;
@@ -215,6 +269,11 @@ function SingStage({
   const [urlInput, setUrlInput] = useState("");
   const [findQ, setFindQ] = useState("");
   const [uploading, setUploading] = useState(false);
+
+  // Invite audience + "play a music website" extras.
+  const [invited, setInvited] = useState(false);
+  const [siteUrl, setSiteUrl] = useState("");
+  const [embedSrc, setEmbedSrc] = useState<string | null>(null);
 
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -508,7 +567,73 @@ function SingStage({
     }
   }
 
+  // Invite the room's audience: copy the link, try the native share sheet, and
+  // drop an invite line into the room chat so people see it.
+  async function inviteAudience() {
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    const url = roomId ? `${base}/rooms/${roomId}` : base;
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      // ignore
+    }
+    try {
+      if (typeof navigator !== "undefined" && navigator.share) {
+        await navigator.share({
+          title: "Sing with me on Karochat",
+          text: `🎤 Come sing with me in ${roomName}!`,
+          url
+        });
+      }
+    } catch {
+      // user dismissed the share sheet — fine
+    }
+    if (roomId && userId) {
+      try {
+        await supabase.from("messages").insert({
+          sender_id: userId,
+          room_id: roomId,
+          content: `🎤 Karaoke time in ${roomName}! Open the voice call (📞), grab a mic and sing with me → ${url}`,
+          type: "text"
+        });
+      } catch {
+        // posting an invite is best-effort
+      }
+    }
+    setInvited(true);
+    setTimeout(() => setInvited(false), 2200);
+  }
+
+  // "Play a music website": embed YouTube / Spotify / SoundCloud inline where
+  // allowed, otherwise open the site in a new tab.
+  function openMusicSite(raw?: string) {
+    const value = (raw ?? siteUrl).trim();
+    if (!value) return;
+    const embed = toEmbed(value);
+    if (embed) {
+      setEmbedSrc(embed);
+      return;
+    }
+    const href =
+      value.startsWith("http://") || value.startsWith("https://")
+        ? value
+        : `https://${value}`;
+    if (typeof window !== "undefined") {
+      window.open(href, "_blank", "noopener,noreferrer");
+    }
+  }
+
   const findHref = ytKaraoke(findQ.trim() || "popular song");
+  const MUSIC_SITES: { label: string; href: string }[] = [
+    { label: "YouTube", href: "https://www.youtube.com" },
+    { label: "YouTube Music", href: "https://music.youtube.com" },
+    { label: "Spotify", href: "https://open.spotify.com" },
+    { label: "SoundCloud", href: "https://soundcloud.com" },
+    { label: "JioSaavn", href: "https://www.jiosaavn.com" },
+    { label: "Gaana", href: "https://gaana.com" },
+    { label: "Wynk", href: "https://wynk.in" },
+    { label: "Apple Music", href: "https://music.apple.com" }
+  ];
 
   return (
     <div className="space-y-4">
@@ -521,6 +646,15 @@ function SingStage({
           <span className="text-white/85">Sync</span> is on, one tap plays it for
           the whole room in time, and you all sing over it.
         </p>
+        {roomId && (
+          <button
+            type="button"
+            onClick={() => void inviteAudience()}
+            className="mt-2 rounded-lg border border-neon-mint/40 bg-neon-mint/10 px-3 py-1.5 text-[11px] font-medium text-neon-mint transition hover:bg-neon-mint/20"
+          >
+            {invited ? "✓ Invite shared" : "📣 Ask audience to join"}
+          </button>
+        )}
       </div>
 
       {/* Hidden file input shared by "Load file" + "Share to room" */}
@@ -746,8 +880,13 @@ function SingStage({
         <p className="rounded-md bg-neon-red/10 px-2 py-1 text-xs text-neon-red">{err}</p>
       )}
 
-      {/* Mic deck — sing & record over the backing track */}
-      <MicDeck audioRef={audioRef} />
+      {/* Record deck — mic, camera, record & post */}
+      <RecordDeck
+        audioRef={audioRef}
+        roomId={roomId}
+        userId={userId}
+        userName={userName}
+      />
 
       {/* Find a backing track (YouTube fallback) */}
       <div className="rounded-xl border border-white/10 bg-black/20 p-3">
@@ -772,20 +911,111 @@ function SingStage({
           </a>
         </div>
       </div>
+
+      {/* Play a music website — embed where allowed, else open in a new tab */}
+      <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+        <p className="text-[11px] text-white/55">
+          Play from a music site — paste a YouTube / Spotify / SoundCloud link to
+          play it here, or open any music website.
+        </p>
+        <div className="mt-2 flex gap-2">
+          <input
+            value={siteUrl}
+            onChange={(e) => setSiteUrl(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") openMusicSite();
+            }}
+            placeholder="Paste a music link or website…"
+            className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none placeholder:text-white/30 focus:border-neon-purple/60"
+          />
+          <button
+            type="button"
+            onClick={() => openMusicSite()}
+            disabled={!siteUrl.trim()}
+            className="shrink-0 rounded-xl border border-neon-purple/50 bg-neon-purple/20 px-3 py-2 text-sm font-medium text-white transition hover:bg-neon-purple/30 disabled:opacity-50"
+          >
+            ▶ Play
+          </button>
+        </div>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {MUSIC_SITES.map((s) => (
+            <a
+              key={s.label}
+              href={s.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] text-white/75 transition hover:border-white/25 hover:bg-white/5"
+            >
+              {s.label} ↗
+            </a>
+          ))}
+        </div>
+        {embedSrc && (
+          <div className="mt-3">
+            <div className="mb-1 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setEmbedSrc(null)}
+                className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-white/55 hover:bg-white/10"
+              >
+                ✕ Close player
+              </button>
+            </div>
+            <div className="overflow-hidden rounded-xl border border-white/10 bg-black">
+              <iframe
+                src={embedSrc}
+                title="Music player"
+                className="h-48 w-full"
+                allow="autoplay; encrypted-media; clipboard-write; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+            <p className="mt-1 text-[10px] text-white/40">
+              External player — its audio can&apos;t be captured in recordings; use
+              it as a reference or sing-along.
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-// ── Mic deck — device pick, reverb monitor, record-your-cover ────────────────
-function MicDeck({ audioRef }: { audioRef: React.RefObject<HTMLAudioElement | null> }) {
+// ── Record deck — mic + camera, reverb monitor, record / auto-record, post ───
+function RecordDeck({
+  audioRef,
+  roomId,
+  userId,
+  userName
+}: {
+  audioRef: React.RefObject<HTMLAudioElement | null>;
+  roomId?: string;
+  userId?: string;
+  userName?: string;
+}) {
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+
   const [on, setOn] = useState(false);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [deviceId, setDeviceId] = useState<string>("");
   const [monitor, setMonitor] = useState(0); // hear-yourself volume (0 by default → no speaker feedback)
   const [reverb, setReverb] = useState(0.3);
   const [recording, setRecording] = useState(false);
+  const [autoRecord, setAutoRecord] = useState(false);
   const [clipUrl, setClipUrl] = useState<string | null>(null);
+  const [clipKind, setClipKind] = useState<"audio" | "video">("audio");
   const [err, setErr] = useState<string | null>(null);
+
+  // Camera (small inbuilt self-view; turns recordings into video).
+  const [camOn, setCamOn] = useState(false);
+  const [camDevices, setCamDevices] = useState<MediaDeviceInfo[]>([]);
+  const [camId, setCamId] = useState<string>("");
+
+  // Posting / sharing.
+  const [posting, setPosting] = useState(false);
+  const [postedUrl, setPostedUrl] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const ctxRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -798,18 +1028,33 @@ function MicDeck({ audioRef }: { audioRef: React.RefObject<HTMLAudioElement | nu
   const recRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const clipUrlRef = useRef<string | null>(null);
+  const clipBlobRef = useRef<Blob | null>(null);
+  const camStreamRef = useRef<MediaStream | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const camOnRef = useRef(false);
+  camOnRef.current = camOn;
 
   const canRecord = typeof MediaRecorder !== "undefined";
 
-  const setClip = useCallback((url: string | null) => {
+  const setClip = useCallback((url: string | null, blob?: Blob | null) => {
     if (clipUrlRef.current) URL.revokeObjectURL(clipUrlRef.current);
     clipUrlRef.current = url;
+    clipBlobRef.current = blob ?? null;
     setClipUrl(url);
+    setPostedUrl(null);
+    setNotice(null);
+  }, []);
+
+  const stopCamera = useCallback(() => {
+    camStreamRef.current?.getTracks().forEach((t) => t.stop());
+    camStreamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setCamOn(false);
   }, []);
 
   const stopMic = useCallback(() => {
     try {
-      recRef.current?.state !== "inactive" && recRef.current?.stop();
+      if (recRef.current && recRef.current.state !== "inactive") recRef.current.stop();
     } catch {
       // ignore
     }
@@ -833,9 +1078,18 @@ function MicDeck({ audioRef }: { audioRef: React.RefObject<HTMLAudioElement | nu
   useEffect(() => {
     return () => {
       stopMic();
+      stopCamera();
       setClip(null);
     };
-  }, [stopMic, setClip]);
+  }, [stopMic, stopCamera, setClip]);
+
+  // Attach the camera stream to the preview <video> once it mounts.
+  useEffect(() => {
+    if (camOn && videoRef.current && camStreamRef.current) {
+      videoRef.current.srcObject = camStreamRef.current;
+      void videoRef.current.play().catch(() => {});
+    }
+  }, [camOn]);
 
   // Reverb impulse response (decaying noise).
   function makeImpulse(ctx: AudioContext, seconds: number, decay: number): AudioBuffer {
@@ -926,12 +1180,37 @@ function MicDeck({ audioRef }: { audioRef: React.RefObject<HTMLAudioElement | nu
     }
   }
 
+  async function startCamera() {
+    setErr(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: camId ? { deviceId: { exact: camId } } : true,
+        audio: false
+      });
+      camStreamRef.current = stream;
+      setCamOn(true);
+      try {
+        const list = await navigator.mediaDevices.enumerateDevices();
+        setCamDevices(list.filter((d) => d.kind === "videoinput"));
+      } catch {
+        // ignore
+      }
+    } catch (e: any) {
+      setErr(
+        e?.name === "NotAllowedError"
+          ? "Camera permission denied. Allow camera access to record video."
+          : "Couldn't start the camera."
+      );
+      stopCamera();
+    }
+  }
+
   function startRecording() {
     setErr(null);
     const ctx = ctxRef.current;
     const recDest = recDestRef.current;
     if (!ctx || !recDest || !canRecord) {
-      setErr("Recording isn't available in this browser.");
+      setErr("Turn on your mic first to record.");
       return;
     }
     try {
@@ -949,15 +1228,31 @@ function MicDeck({ audioRef }: { audioRef: React.RefObject<HTMLAudioElement | nu
           // backing tap failed (e.g. cross-origin) — record the vocal only
         }
       }
-      const mime = pickAudioMime();
-      const rec = new MediaRecorder(recDest.stream, mime ? { mimeType: mime } : undefined);
+
+      // Video if the camera is on, else audio only.
+      const useVideo =
+        camOnRef.current &&
+        !!camStreamRef.current &&
+        camStreamRef.current.getVideoTracks().length > 0;
+      const kind: "audio" | "video" = useVideo ? "video" : "audio";
+      const stream = useVideo
+        ? new MediaStream([
+            ...(camStreamRef.current as MediaStream).getVideoTracks(),
+            ...recDest.stream.getAudioTracks()
+          ])
+        : recDest.stream;
+      const mime = useVideo ? pickVideoMime() : pickAudioMime();
+      const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
       chunksRef.current = [];
       rec.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
       rec.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: mime || "audio/webm" });
-        setClip(URL.createObjectURL(blob));
+        const blob = new Blob(chunksRef.current, {
+          type: mime || (useVideo ? "video/webm" : "audio/webm")
+        });
+        setClipKind(kind);
+        setClip(URL.createObjectURL(blob), blob);
       };
       rec.start();
       recRef.current = rec;
@@ -977,23 +1272,258 @@ function MicDeck({ audioRef }: { audioRef: React.RefObject<HTMLAudioElement | nu
     setRecording(false);
   }
 
+  // Auto-record: arm to the backing player's play/pause/ended.
+  useEffect(() => {
+    const a = audioRef.current;
+    if (!a || !autoRecord || !on) return;
+    const onPlay = () => {
+      if (ctxRef.current && !recRef.current) startRecording();
+    };
+    const onStop = () => {
+      if (recRef.current) stopRecording();
+    };
+    a.addEventListener("play", onPlay);
+    a.addEventListener("pause", onStop);
+    a.addEventListener("ended", onStop);
+    return () => {
+      a.removeEventListener("play", onPlay);
+      a.removeEventListener("pause", onStop);
+      a.removeEventListener("ended", onStop);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRecord, on]);
+
+  // ── posting / sharing ──────────────────────────────────────────────────────
+  function flash(msg: string) {
+    setNotice(msg);
+  }
+
+  async function postToMusic() {
+    const blob = clipBlobRef.current;
+    if (!blob) return;
+    if (!userId) {
+      setErr("Sign in to post your cover.");
+      return;
+    }
+    if (blob.size > 40 * 1024 * 1024) {
+      setErr("That take is over 40 MB — record a shorter one to post to Music.");
+      return;
+    }
+    setPosting(true);
+    setErr(null);
+    try {
+      const ext = (blob.type || "").includes("mp4") ? "m4a" : "webm";
+      const path = `${userId}/${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("music")
+        .upload(path, blob, { contentType: blob.type || "audio/webm", upsert: false });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from("music").getPublicUrl(path);
+      const { error: insErr } = await supabase.from("tracks").insert({
+        owner_id: userId,
+        audio_url: pub.publicUrl,
+        title: `Karaoke cover · ${new Date().toLocaleDateString()}`,
+        artist: userName || null,
+        is_public: true
+      });
+      if (insErr) throw insErr;
+      setPostedUrl(pub.publicUrl);
+      flash("✓ Posted to Music — find it in Live & Karaoke music.");
+    } catch (e: any) {
+      setErr(e?.message ?? "Couldn't post to Music.");
+    } finally {
+      setPosting(false);
+    }
+  }
+
+  async function postToShorts() {
+    const blob = clipBlobRef.current;
+    if (!blob) return;
+    if (!userId) {
+      setErr("Sign in to post your cover.");
+      return;
+    }
+    if (blob.size > 50 * 1024 * 1024) {
+      setErr("That clip is over 50 MB — record a shorter one to post to Shorts.");
+      return;
+    }
+    setPosting(true);
+    setErr(null);
+    try {
+      const baseMime = (blob.type || "video/webm").split(";")[0] || "video/webm";
+      const ext = baseMime.includes("mp4") ? "mp4" : "webm";
+      const path = `${userId}/${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("shorts")
+        .upload(path, blob, { contentType: baseMime, upsert: false });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from("shorts").getPublicUrl(path);
+      const { error: insErr } = await supabase.from("shorts").insert({
+        author_id: userId,
+        video_url: pub.publicUrl,
+        caption: "🎤 Karaoke cover",
+        is_public: true
+      });
+      if (insErr) throw insErr;
+      setPostedUrl(pub.publicUrl);
+      flash("✓ Posted to Shorts — find it in the Shorts feed.");
+    } catch (e: any) {
+      setErr(e?.message ?? "Couldn't post to Shorts.");
+    } finally {
+      setPosting(false);
+    }
+  }
+
+  async function shareToChat() {
+    const blob = clipBlobRef.current;
+    if (!blob) return;
+    if (!roomId || !userId) {
+      setErr("Join a room & sign in to share to the chat.");
+      return;
+    }
+    if (blob.size > 50 * 1024 * 1024) {
+      setErr("That take is over 50 MB — too big to share to the chat.");
+      return;
+    }
+    setPosting(true);
+    setErr(null);
+    try {
+      const baseMime =
+        (blob.type || (clipKind === "video" ? "video/webm" : "audio/webm")).split(";")[0] ||
+        "audio/webm";
+      const ext = baseMime.includes("mp4")
+        ? clipKind === "video"
+          ? "mp4"
+          : "m4a"
+        : "webm";
+      const path = `${userId}/${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("chat-files")
+        .upload(path, blob, { contentType: baseMime, upsert: false });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from("chat-files").getPublicUrl(path);
+      const { error: insErr } = await supabase.from("messages").insert({
+        sender_id: userId,
+        room_id: roomId,
+        content: "🎤 My karaoke cover",
+        file_url: pub.publicUrl,
+        file_name: `karaoke-cover.${ext}`,
+        file_size: blob.size,
+        file_mime: baseMime,
+        type: "file"
+      });
+      if (insErr) throw insErr;
+      flash("✓ Shared to the room chat.");
+    } catch (e: any) {
+      setErr(e?.message ?? "Couldn't share to the chat.");
+    } finally {
+      setPosting(false);
+    }
+  }
+
+  async function shareLink() {
+    if (!postedUrl) return;
+    try {
+      if (typeof navigator !== "undefined" && navigator.share) {
+        await navigator.share({ title: "My karaoke cover", url: postedUrl });
+        return;
+      }
+    } catch {
+      // fall through to copy
+    }
+    try {
+      await navigator.clipboard.writeText(postedUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      // ignore
+    }
+  }
+
+  const downloadExt =
+    clipKind === "video"
+      ? (clipBlobRef.current?.type || "").includes("mp4")
+        ? "mp4"
+        : "webm"
+      : (clipBlobRef.current?.type || "").includes("mp4")
+      ? "m4a"
+      : "webm";
+
   return (
     <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-medium text-white">🎙️ Your mic</p>
-        <button
-          type="button"
-          onClick={() => (on ? stopMic() : void startMic())}
-          className={
-            "rounded-xl px-3 py-1.5 text-xs font-medium transition " +
-            (on
-              ? "border border-neon-red/40 bg-neon-red/15 text-neon-red hover:bg-neon-red/25"
-              : "border border-neon-mint/40 bg-neon-mint/15 text-neon-mint hover:bg-neon-mint/25")
-          }
-        >
-          {on ? "■ Stop mic" : "🎤 Turn on mic"}
-        </button>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-medium text-white">🎙️ Mic &amp; camera</p>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => (camOn ? stopCamera() : void startCamera())}
+            className={
+              "rounded-xl px-3 py-1.5 text-xs font-medium transition " +
+              (camOn
+                ? "border border-neon-blue/50 bg-neon-blue/15 text-neon-blue hover:bg-neon-blue/25"
+                : "border border-white/15 bg-white/5 text-white/85 hover:bg-white/10")
+            }
+            title="Small inbuilt camera — turn recordings into video"
+          >
+            {camOn ? "📷 Camera on" : "📷 Camera"}
+          </button>
+          <button
+            type="button"
+            onClick={() => (on ? stopMic() : void startMic())}
+            className={
+              "rounded-xl px-3 py-1.5 text-xs font-medium transition " +
+              (on
+                ? "border border-neon-red/40 bg-neon-red/15 text-neon-red hover:bg-neon-red/25"
+                : "border border-neon-mint/40 bg-neon-mint/15 text-neon-mint hover:bg-neon-mint/25")
+            }
+          >
+            {on ? "■ Stop mic" : "🎤 Turn on mic"}
+          </button>
+        </div>
       </div>
+
+      {/* Camera self-view */}
+      {camOn && (
+        <div className="mt-3 space-y-2">
+          <div className="relative inline-block overflow-hidden rounded-xl border border-white/10 bg-black">
+            <video
+              ref={videoRef}
+              muted
+              playsInline
+              autoPlay
+              className="h-28 w-40 object-cover"
+              style={{ transform: "scaleX(-1)" }}
+            />
+            {recording && (
+              <span className="absolute left-1.5 top-1.5 rounded-full bg-neon-red/80 px-1.5 py-0.5 text-[9px] font-medium text-white">
+                ● REC
+              </span>
+            )}
+          </div>
+          {camDevices.length > 1 && (
+            <select
+              value={camId}
+              onChange={(e) => {
+                setCamId(e.target.value);
+                stopCamera();
+                setTimeout(() => void startCamera(), 60);
+              }}
+              className="block w-full max-w-[16rem] rounded-lg border border-white/10 bg-black/40 px-2 py-1.5 text-xs text-white/85 outline-none focus:border-neon-blue/60"
+            >
+              <option value="">Default camera</option>
+              {camDevices.map((d) => (
+                <option key={d.deviceId} value={d.deviceId}>
+                  {d.label || "Camera"}
+                </option>
+              ))}
+            </select>
+          )}
+          <p className="text-[10px] text-white/40">
+            Want to see each other? Open the room&apos;s video call (📞) — this is
+            your own preview, captured into video recordings.
+          </p>
+        </div>
+      )}
 
       {on && (
         <div className="mt-3 space-y-3">
@@ -1064,25 +1594,82 @@ function MicDeck({ audioRef }: { audioRef: React.RefObject<HTMLAudioElement | nu
                   : "border border-white/15 bg-white/5 text-white/85 hover:bg-white/10") +
                 (canRecord ? "" : " opacity-40")
               }
-              title="Record your cover (mic + backing track)"
+              title="Record your cover (camera + mic + backing track)"
             >
-              {recording ? "■ Stop recording" : "⏺ Record cover"}
+              {recording
+                ? "■ Stop recording"
+                : camOn
+                ? "⏺ Record video"
+                : "⏺ Record cover"}
             </button>
             {recording && <span className="text-[11px] text-neon-red">● recording…</span>}
+            <label className="flex items-center gap-1.5 text-[11px] text-white/55">
+              <input
+                type="checkbox"
+                checked={autoRecord}
+                onChange={(e) => setAutoRecord(e.target.checked)}
+                className="accent-neon-red"
+              />
+              Auto-record when the track plays
+            </label>
           </div>
 
           {clipUrl && (
             <div className="rounded-xl border border-white/10 bg-black/20 p-2">
-              <p className="mb-1 text-[11px] text-white/55">Your take:</p>
-              <audio src={clipUrl} controls className="w-full" />
-              <div className="mt-2 flex gap-2">
+              <p className="mb-1 text-[11px] text-white/55">
+                Your take {clipKind === "video" ? "(video)" : "(audio)"}:
+              </p>
+              {clipKind === "video" ? (
+                <video src={clipUrl} controls playsInline className="w-full rounded-lg" />
+              ) : (
+                <audio src={clipUrl} controls className="w-full" />
+              )}
+              <div className="mt-2 flex flex-wrap gap-2">
                 <a
                   href={clipUrl}
-                  download={`karochat-cover.${(pickAudioMime().includes("mp4") ? "m4a" : "webm")}`}
-                  className="rounded-lg border border-neon-mint/40 bg-neon-mint/10 px-3 py-1 text-[11px] text-neon-mint hover:bg-neon-mint/20"
+                  download={`karochat-cover.${downloadExt}`}
+                  className="rounded-lg border border-white/15 bg-white/5 px-3 py-1 text-[11px] text-white/85 hover:bg-white/10"
                 >
                   ⬇ Download
                 </a>
+                {clipKind === "video" ? (
+                  <button
+                    type="button"
+                    onClick={() => void postToShorts()}
+                    disabled={posting}
+                    className="rounded-lg border border-neon-purple/40 bg-neon-purple/15 px-3 py-1 text-[11px] text-white hover:bg-neon-purple/25 disabled:opacity-50"
+                  >
+                    🎬 Post to Shorts
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => void postToMusic()}
+                    disabled={posting}
+                    className="rounded-lg border border-neon-mint/40 bg-neon-mint/15 px-3 py-1 text-[11px] text-neon-mint hover:bg-neon-mint/25 disabled:opacity-50"
+                  >
+                    🎵 Post to Music
+                  </button>
+                )}
+                {roomId && (
+                  <button
+                    type="button"
+                    onClick={() => void shareToChat()}
+                    disabled={posting}
+                    className="rounded-lg border border-white/15 bg-white/5 px-3 py-1 text-[11px] text-white/85 hover:bg-white/10 disabled:opacity-50"
+                  >
+                    💬 Share to room
+                  </button>
+                )}
+                {postedUrl && (
+                  <button
+                    type="button"
+                    onClick={() => void shareLink()}
+                    className="rounded-lg border border-neon-blue/40 bg-neon-blue/10 px-3 py-1 text-[11px] text-neon-blue hover:bg-neon-blue/20"
+                  >
+                    {copied ? "✓ Link copied" : "🔗 Share link"}
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setClip(null)}
@@ -1091,6 +1678,10 @@ function MicDeck({ audioRef }: { audioRef: React.RefObject<HTMLAudioElement | nu
                   Discard
                 </button>
               </div>
+              {posting && (
+                <p className="mt-1 text-[10px] text-white/45">Uploading…</p>
+              )}
+              {notice && <p className="mt-1 text-[10px] text-neon-mint">{notice}</p>}
             </div>
           )}
         </div>
