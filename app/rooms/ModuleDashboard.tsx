@@ -42,7 +42,8 @@ const SECTIONS: Section[] = [
       { href: "/books", label: "Books", emoji: "📚", grad: "from-blue-400 via-indigo-500 to-violet-600" },
       { href: "/read", label: "Read", emoji: "📖", grad: "from-violet-400 via-purple-500 to-fuchsia-600" },
       { href: "/write", label: "Write", emoji: "✍️", grad: "from-teal-300 via-emerald-400 to-green-500" },
-      { href: "/shorts", label: "Shorts", emoji: "🎬", grad: "from-pink-400 via-rose-500 to-fuchsia-600" }
+      { href: "/shorts", label: "Shorts", emoji: "🎬", grad: "from-pink-400 via-rose-500 to-fuchsia-600" },
+      { href: "/videos", label: "Videos", emoji: "🎞️", grad: "from-sky-400 via-blue-500 to-indigo-600" }
     ]
   },
   // NOTE: The "Infotainment" section is intentionally hidden for now (kept for
@@ -71,6 +72,7 @@ const SECTIONS: Section[] = [
     tiles: [
       { href: "/stories/new", label: "Add story", emoji: "✨", grad: "from-fuchsia-400 via-purple-500 to-indigo-600" },
       { href: "/shorts/new", label: "Post short", emoji: "📹", grad: "from-orange-300 via-red-400 to-rose-600" },
+      { href: "/videos/new", label: "Post video", emoji: "🎥", grad: "from-sky-300 via-blue-400 to-indigo-600" },
       { href: "/charter", label: "Charter", emoji: "🌍", grad: "from-cyan-300 via-sky-400 to-blue-600" },
       { href: "/suggestions", label: "Suggestions", emoji: "💡", grad: "from-amber-300 via-yellow-400 to-orange-500" }
     ]

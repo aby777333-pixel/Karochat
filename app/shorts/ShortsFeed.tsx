@@ -5,6 +5,7 @@ import Link from "next/link";
 import clsx from "clsx";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { PresenceDot } from "@/components/PresenceDot";
+import { CommentSection } from "@/components/CommentSection";
 
 export type ShortRow = {
   id: string;
@@ -15,6 +16,7 @@ export type ShortRow = {
   is_public: boolean;
   view_count: number;
   like_count: number;
+  comment_count: number;
   created_at: string;
   author_username: string | null;
   author_display_name: string | null;
@@ -142,6 +144,7 @@ export function ShortsFeed({
         <ShortCard
           key={s.id}
           short={s}
+          currentUserId={currentUserId}
           isMine={s.author_id === currentUserId}
           isLiked={liked.has(s.id)}
           onLike={() => void toggleLike(s)}
@@ -155,6 +158,7 @@ export function ShortsFeed({
 
 function ShortCard({
   short,
+  currentUserId,
   isMine,
   isLiked,
   onLike,
@@ -162,6 +166,7 @@ function ShortCard({
   onToggleVisibility
 }: {
   short: ShortRow;
+  currentUserId: string;
   isMine: boolean;
   isLiked: boolean;
   onLike: () => void;
@@ -277,6 +282,13 @@ function ShortCard({
           {short.caption}
         </p>
       )}
+
+      <CommentSection
+        kind="short"
+        parentId={short.id}
+        currentUserId={currentUserId}
+        initialCount={short.comment_count ?? 0}
+      />
     </article>
   );
 }

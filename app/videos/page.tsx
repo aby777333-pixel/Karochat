@@ -4,11 +4,11 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Logo, Wordmark } from "@/components/Brand";
 import { SignOutButton } from "@/components/SignOutButton";
 import { AdRails } from "@/components/AdRails";
-import { ShortsFeed, type ShortRow } from "./ShortsFeed";
+import { VideosFeed, type VideoRow } from "./VideosFeed";
 
 export const dynamic = "force-dynamic";
 
-export default async function ShortsPage() {
+export default async function VideosPage() {
   const supabase = createSupabaseServerClient();
   const {
     data: { user }
@@ -23,23 +23,22 @@ export default async function ShortsPage() {
   if (!profile?.username) redirect("/onboarding");
   if (!profile.terms_accepted_at) redirect("/terms");
 
-  const { data: rawShorts } = await supabase
-    .from("shorts_with_author")
+  const { data: rawVideos } = await supabase
+    .from("videos_with_author")
     .select("*")
     .order("created_at", { ascending: false })
     .limit(50);
 
-  const shorts = (rawShorts ?? []) as ShortRow[];
+  const videos = (rawVideos ?? []) as VideoRow[];
 
-  // Likes I've made — surface so the heart button starts in the right state.
   const myLikedIds = new Set<string>();
-  if (shorts.length > 0) {
+  if (videos.length > 0) {
     const { data: liked } = await supabase
-      .from("short_likes")
-      .select("short_id")
+      .from("video_likes")
+      .select("video_id")
       .eq("user_id", user.id)
-      .in("short_id", shorts.map((s) => s.id));
-    for (const row of liked ?? []) myLikedIds.add(row.short_id as string);
+      .in("video_id", videos.map((v) => v.id));
+    for (const row of liked ?? []) myLikedIds.add(row.video_id as string);
   }
 
   return (
@@ -59,29 +58,29 @@ export default async function ShortsPage() {
             </Link>
             <Link
               href="/shorts"
-              className="shrink-0 rounded-lg border border-neon-blue/40 bg-neon-blue/10 px-3 py-1.5 text-neon-blue"
+              className="shrink-0 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-white/80 hover:bg-white/10 hover:text-white"
             >
               🎬<span className="hidden md:inline"> Shorts</span>
             </Link>
             <Link
               href="/videos"
-              className="shrink-0 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-white/80 hover:bg-white/10 hover:text-white"
+              className="shrink-0 rounded-lg border border-neon-blue/40 bg-neon-blue/10 px-3 py-1.5 text-neon-blue"
             >
               🎞️<span className="hidden md:inline"> Videos</span>
             </Link>
             <Link
-              href="/shorts/new"
+              href="/videos/new"
               className="shrink-0 rounded-lg bg-neon-blue px-3 py-1.5 font-medium text-ink-900 shadow-glow-blue hover:bg-neon-blue/90"
             >
-              + <span className="hidden md:inline">Post</span>
+              + <span className="hidden md:inline">Add</span>
             </Link>
             <SignOutButton />
           </nav>
         </header>
 
-        <ShortsFeed
+        <VideosFeed
           currentUserId={user.id}
-          initialShorts={shorts}
+          initialVideos={videos}
           initiallyLiked={Array.from(myLikedIds)}
         />
       </main>
