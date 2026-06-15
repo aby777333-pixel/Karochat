@@ -47,7 +47,8 @@ export function KaraokeStudio({
   roomName,
   roomId,
   userId,
-  userName
+  userName,
+  initialTab
 }: {
   open: boolean;
   onClose: () => void;
@@ -58,10 +59,17 @@ export function KaraokeStudio({
   roomId?: string;
   userId?: string;
   userName?: string;
+  // Optional — which tab to land on each time the studio opens (default "sing").
+  initialTab?: Tab;
 }) {
-  const [tab, setTab] = useState<Tab>("sing");
+  const [tab, setTab] = useState<Tab>(initialTab ?? "sing");
   // A query the Library tab can hand to the Sing tab's "Find a backing track".
   const [findSeed, setFindSeed] = useState<string>("");
+
+  // When the studio (re)opens, honour the requested landing tab.
+  useEffect(() => {
+    if (open && initialTab) setTab(initialTab);
+  }, [open, initialTab]);
 
   // Close on Escape.
   useEffect(() => {
@@ -1404,6 +1412,47 @@ function RecordDeck({
     }
   }
 
+  // Post a video take to the long-form Videos feed (videos bucket + table —
+  // migration 0087). Only offered for video clips; the bucket accepts webm/mp4.
+  async function postToVideos() {
+    const blob = clipBlobRef.current;
+    if (!blob) return;
+    if (!userId) {
+      setErr("Sign in to post your cover.");
+      return;
+    }
+    if (blob.size > 200 * 1024 * 1024) {
+      setErr("That video is over 200 MB — record a shorter one to post to Videos.");
+      return;
+    }
+    setPosting(true);
+    setErr(null);
+    try {
+      const baseMime = (blob.type || "video/webm").split(";")[0] || "video/webm";
+      const ext = baseMime.includes("mp4") ? "mp4" : "webm";
+      const path = `${userId}/${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("videos")
+        .upload(path, blob, { contentType: baseMime, upsert: false });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from("videos").getPublicUrl(path);
+      const { error: insErr } = await supabase.from("videos").insert({
+        author_id: userId,
+        kind: "upload",
+        video_url: pub.publicUrl,
+        title: `🎤 Karaoke cover · ${new Date().toLocaleDateString()}`,
+        is_public: true
+      });
+      if (insErr) throw insErr;
+      setPostedUrl(pub.publicUrl);
+      flash("✓ Posted to Videos — find it in the Videos feed.");
+    } catch (e: any) {
+      setErr(e?.message ?? "Couldn't post to Videos.");
+    } finally {
+      setPosting(false);
+    }
+  }
+
   async function shareToChat() {
     const blob = clipBlobRef.current;
     if (!blob) return;
@@ -1663,14 +1712,24 @@ function RecordDeck({
                   ⬇ Download
                 </a>
                 {clipKind === "video" ? (
-                  <button
-                    type="button"
-                    onClick={() => void postToShorts()}
-                    disabled={posting}
-                    className="rounded-lg border border-neon-purple/40 bg-neon-purple/15 px-3 py-1 text-[11px] text-white hover:bg-neon-purple/25 disabled:opacity-50"
-                  >
-                    🎬 Post to Shorts
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => void postToShorts()}
+                      disabled={posting}
+                      className="rounded-lg border border-neon-purple/40 bg-neon-purple/15 px-3 py-1 text-[11px] text-white hover:bg-neon-purple/25 disabled:opacity-50"
+                    >
+                      🎬 Post to Shorts
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void postToVideos()}
+                      disabled={posting}
+                      className="rounded-lg border border-neon-blue/40 bg-neon-blue/15 px-3 py-1 text-[11px] text-white hover:bg-neon-blue/25 disabled:opacity-50"
+                    >
+                      🎞️ Post to Videos
+                    </button>
+                  </>
                 ) : (
                   <button
                     type="button"

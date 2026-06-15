@@ -44,7 +44,8 @@ const SECTIONS: Section[] = [
       { href: "/write", label: "Write", emoji: "✍️", grad: "from-teal-300 via-emerald-400 to-green-500" },
       { href: "/shorts", label: "Shorts", emoji: "🎬", grad: "from-pink-400 via-rose-500 to-fuchsia-600" },
       { href: "/videos", label: "Videos", emoji: "🎞️", grad: "from-sky-400 via-blue-500 to-indigo-600" },
-      { href: "/livetv", label: "TV & Radio", emoji: "📺", grad: "from-cyan-300 via-sky-500 to-blue-700" }
+      { href: "/livetv", label: "TV & Radio", emoji: "📺", grad: "from-cyan-300 via-sky-500 to-blue-700" },
+      { href: "/karaoke", label: "Karaoke", emoji: "🎤", grad: "from-fuchsia-400 via-purple-500 to-indigo-600" }
     ]
   },
   // NOTE: The "Infotainment" section is intentionally hidden for now (kept for
