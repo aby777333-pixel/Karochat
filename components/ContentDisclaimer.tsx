@@ -8,7 +8,7 @@
 
 import Link from "next/link";
 
-type Scope = "general" | "files" | "media";
+type Scope = "general" | "files" | "media" | "assistant";
 
 const TEXT: Record<Scope, { title: string; body: string }> = {
   general: {
@@ -25,6 +25,11 @@ const TEXT: Record<Scope, { title: string; body: string }> = {
     title: "Upload & download disclaimer",
     body:
       "This content is uploaded and shared by users. Karochat does not host the rights to, vet or take responsibility for any uploaded or downloaded media or links. Share only your own content or content you have the right to share, and view, download or open anything here at your own risk. Illegal, non-consensual or infringing content is prohibited and removed when reported."
+  },
+  assistant: {
+    title: "Assistant, reminders & files disclaimer",
+    body:
+      "The AI assistant can be wrong or incomplete — verify anything important and treat it as general information, not professional (medical, legal, financial or safety) advice. Alarms, timers and reminders run in your browser and only fire while this tab is open and your device is awake, so don't rely on them for anything critical. Your tasks, notes and uploaded files are stored for your convenience; keep your own backups of anything important. You are responsible for what you upload, and you upload and download at your own risk."
   }
 };
 
