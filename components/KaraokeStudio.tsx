@@ -216,9 +216,11 @@ function toEmbed(url: string): string | null {
       const id = u.pathname.slice(1).split("/")[0];
       return id ? `https://www.youtube.com/embed/${id}` : null;
     }
-    if (host.endsWith("youtube.com")) {
+    if (host.endsWith("youtube.com") || host.endsWith("youtube-nocookie.com")) {
       const v = u.searchParams.get("v");
-      if (v) return `https://www.youtube.com/embed/${v}`;
+      const list = u.searchParams.get("list");
+      if (v) return `https://www.youtube.com/embed/${v}${list ? `?list=${list}` : ""}`;
+      if (list) return `https://www.youtube.com/embed/videoseries?list=${list}`;
       const m = u.pathname.match(/\/(embed|shorts|live)\/([^/?]+)/);
       if (m && m[2]) return `https://www.youtube.com/embed/${m[2]}`;
     }
@@ -274,6 +276,7 @@ function SingStage({
   const [invited, setInvited] = useState(false);
   const [siteUrl, setSiteUrl] = useState("");
   const [embedSrc, setEmbedSrc] = useState<string | null>(null);
+  const [embedOrig, setEmbedOrig] = useState<string>("");
 
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -589,6 +592,20 @@ function SingStage({
       // user dismissed the share sheet — fine
     }
     if (roomId && userId) {
+      // Announce to the WHOLE community: this lights up the lobby "Live now"
+      // banner + an in-app "live" toast for everyone logged in (via the
+      // live_broadcasts realtime feed + GlobalNotifier) and web-pushes opted-in
+      // offline users — so anyone interested can tap to join as audience.
+      try {
+        await supabase.rpc("start_broadcast", {
+          p_room_id: roomId,
+          p_title: `🎤 Karaoke in ${roomName} — come sing!`,
+          p_mode: "audio"
+        });
+      } catch {
+        // best-effort — fall back to the chat invite below
+      }
+      // Also drop an invite line into this room's chat.
       try {
         await supabase.from("messages").insert({
           sender_id: userId,
@@ -601,7 +618,7 @@ function SingStage({
       }
     }
     setInvited(true);
-    setTimeout(() => setInvited(false), 2200);
+    setTimeout(() => setInvited(false), 2600);
   }
 
   // "Play a music website": embed YouTube / Spotify / SoundCloud inline where
@@ -609,15 +626,16 @@ function SingStage({
   function openMusicSite(raw?: string) {
     const value = (raw ?? siteUrl).trim();
     if (!value) return;
-    const embed = toEmbed(value);
-    if (embed) {
-      setEmbedSrc(embed);
-      return;
-    }
     const href =
       value.startsWith("http://") || value.startsWith("https://")
         ? value
         : `https://${value}`;
+    const embed = toEmbed(value);
+    if (embed) {
+      setEmbedOrig(href);
+      setEmbedSrc(embed);
+      return;
+    }
     if (typeof window !== "undefined") {
       window.open(href, "_blank", "noopener,noreferrer");
     }
@@ -652,7 +670,7 @@ function SingStage({
             onClick={() => void inviteAudience()}
             className="mt-2 rounded-lg border border-neon-mint/40 bg-neon-mint/10 px-3 py-1.5 text-[11px] font-medium text-neon-mint transition hover:bg-neon-mint/20"
           >
-            {invited ? "✓ Invite shared" : "📣 Ask audience to join"}
+            {invited ? "✓ Announced to the lobby" : "📣 Ask audience to join"}
           </button>
         )}
       </div>
@@ -952,7 +970,17 @@ function SingStage({
         </div>
         {embedSrc && (
           <div className="mt-3">
-            <div className="mb-1 flex justify-end">
+            <div className="mb-1 flex items-center justify-end gap-1.5">
+              {embedOrig && (
+                <a
+                  href={embedOrig}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-white/70 hover:bg-white/10"
+                >
+                  Open ↗
+                </a>
+              )}
               <button
                 type="button"
                 onClick={() => setEmbedSrc(null)}
@@ -972,7 +1000,9 @@ function SingStage({
             </div>
             <p className="mt-1 text-[10px] text-white/40">
               External player — its audio can&apos;t be captured in recordings; use
-              it as a reference or sing-along.
+              it as a reference or sing-along. If it says &ldquo;video
+              unavailable&rdquo;, the owner blocked embedding — tap{" "}
+              <span className="text-white/60">Open ↗</span> to play it on the site.
             </p>
           </div>
         )}

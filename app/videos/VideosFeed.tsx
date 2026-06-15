@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { PresenceDot } from "@/components/PresenceDot";
@@ -39,9 +40,24 @@ export function VideosFeed({
   initiallyLiked: string[];
 }) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const router = useRouter();
   const [videos, setVideos] = useState<VideoRow[]>(initialVideos);
   const [liked, setLiked] = useState<Set<string>>(new Set(initiallyLiked));
   const [error, setError] = useState<string | null>(null);
+
+  // DM the uploader — opens/creates a 1:1 DM room, then navigates to it.
+  async function messageAuthor(authorId: string) {
+    if (authorId === currentUserId) return;
+    const { data, error: rpcErr } = await supabase.rpc("get_or_create_dm", {
+      p_target_user_id: authorId
+    });
+    if (rpcErr || !data) {
+      setError(rpcErr?.message ?? "Could not start a DM.");
+      return;
+    }
+    router.push(`/rooms/${data}`);
+    router.refresh();
+  }
 
   async function toggleLike(video: VideoRow) {
     const wasLiked = liked.has(video.id);
@@ -142,6 +158,7 @@ export function VideosFeed({
           onLike={() => void toggleLike(v)}
           onDelete={() => void deleteVideo(v)}
           onToggleVisibility={() => void toggleVisibility(v)}
+          onMessage={() => void messageAuthor(v.author_id)}
         />
       ))}
     </div>
@@ -163,7 +180,8 @@ function VideoCard({
   isLiked,
   onLike,
   onDelete,
-  onToggleVisibility
+  onToggleVisibility,
+  onMessage
 }: {
   video: VideoRow;
   currentUserId: string;
@@ -172,6 +190,7 @@ function VideoCard({
   onLike: () => void;
   onDelete: () => void;
   onToggleVisibility: () => void;
+  onMessage: () => void;
 }) {
   const name = video.author_display_name ?? video.author_username ?? "Someone";
   const handle = video.author_username ?? "anon";
@@ -202,6 +221,17 @@ function VideoCard({
           </div>
         </div>
         <div className="flex items-center gap-2 text-[10px] text-white/40">
+          {!isMine && (
+            <button
+              type="button"
+              onClick={onMessage}
+              aria-label="Message the uploader"
+              title="Send a direct message to the uploader"
+              className="rounded-md border border-neon-blue/40 bg-neon-blue/10 px-2 py-0.5 text-neon-blue hover:bg-neon-blue/20"
+            >
+              💬 Message
+            </button>
+          )}
           {!video.is_public && !isMine && (
             <span className="rounded-sm border border-white/10 bg-white/5 px-1.5 py-0.5 uppercase tracking-widest">
               🔒 private
