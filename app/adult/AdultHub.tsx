@@ -23,8 +23,10 @@ type Post = {
   media_url: string | null;
   external_url: string | null;
   title: string | null;
+  category: string | null;
   country: string | null;
   region: string | null;
+  is_public: boolean;
   created_at: string;
   author_username: string | null;
   author_display_name: string | null;
@@ -33,6 +35,21 @@ type Post = {
 type RoomRow = { id: string; name: string; member_count: number };
 
 const COUNTRY_NAMES = COUNTRIES.map((c) => c.name);
+const ADULT_CATEGORIES = [
+  "Amateur",
+  "Couples",
+  "Solo",
+  "Gay",
+  "Lesbian",
+  "Trans",
+  "Fetish & Kink",
+  "BDSM",
+  "Cosplay & Roleplay",
+  "Short clip",
+  "Full video",
+  "Verification",
+  "Other"
+];
 
 export function AdultHub({ userId }: { userId: string; userName: string }) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
@@ -52,6 +69,12 @@ export function AdultHub({ userId }: { userId: string; userName: string }) {
   const [linkUrl, setLinkUrl] = useState("");
   const [uploading, setUploading] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  const [visibility, setVisibility] = useState<"public" | "private">("public");
+  const [category, setCategory] = useState("");
+
+  // Wall view + filters.
+  const [wallView, setWallView] = useState<"public" | "mine">("public");
+  const [catFilter, setCatFilter] = useState("all");
 
   // Adult TV channels (country/state-wise, user-submitted live streams).
   const [channels, setChannels] = useState<Post[]>([]);
@@ -69,18 +92,22 @@ export function AdultHub({ userId }: { userId: string; userName: string }) {
     let qb = supabase
       .from("adult_media_with_author")
       .select("*")
-      .eq("is_public", true)
       .neq("kind", "channel")
       .order("created_at", { ascending: false })
       .limit(60);
+    // "My posts" shows the author's own (public + private); RLS allows it.
+    // "Public wall" shows public posts from everyone (attested adults only).
+    if (wallView === "mine") qb = qb.eq("author_id", userId);
+    else qb = qb.eq("is_public", true);
     if (filterCountry !== "all") qb = qb.eq("country", filterCountry);
+    if (catFilter !== "all") qb = qb.eq("category", catFilter);
     const { data, error: e } = await qb;
     if (e) {
       setError(e.message);
       return;
     }
     setPosts((data ?? []) as Post[]);
-  }, [supabase, filterCountry]);
+  }, [supabase, filterCountry, catFilter, wallView, userId]);
 
   const loadChannels = useCallback(async () => {
     let qb = supabase
@@ -190,12 +217,13 @@ export function AdultHub({ userId }: { userId: string; userName: string }) {
         kind,
         media_url: pub.publicUrl,
         title: title.trim() || null,
+        category: category || null,
         country: country || null,
         region: region.trim() || null,
-        is_public: true
+        is_public: visibility === "public"
       });
       if (insErr) throw insErr;
-      setNote("✓ Shared.");
+      setNote(visibility === "public" ? "✓ Shared to the public wall." : "✓ Saved privately.");
       setTitle("");
       setRegion("");
       await loadPosts();
@@ -219,12 +247,13 @@ export function AdultHub({ userId }: { userId: string; userName: string }) {
         kind: "link",
         external_url: href,
         title: title.trim() || null,
+        category: category || null,
         country: country || null,
         region: region.trim() || null,
-        is_public: true
+        is_public: visibility === "public"
       });
       if (insErr) throw insErr;
-      setNote("✓ Link shared.");
+      setNote(visibility === "public" ? "✓ Link shared." : "✓ Saved privately.");
       setLinkUrl("");
       setTitle("");
       setRegion("");
@@ -487,18 +516,61 @@ export function AdultHub({ userId }: { userId: string; userName: string }) {
 
       {/* Composer */}
       <section className="surface-glass p-4">
-        <p className="text-sm font-medium text-white">⬆️ Share to the wall</p>
+        <p className="text-sm font-medium text-white">⬆️ Share your videos, shorts &amp; pics</p>
         <p className="mt-0.5 text-[11px] text-white/50">
-          Your own image / video / audio, or an external link. Add a country &amp;
-          state so others can find it locally.
+          Upload your own image / video / short / audio (up to 512 MB) or paste a
+          link. Write a caption, pick a category, set country &amp; state, and choose
+          public or private.
         </p>
+
+        {/* Public / private */}
+        <div className="mt-3 inline-flex rounded-xl border border-white/10 bg-white/5 p-0.5 text-sm">
+          <button
+            type="button"
+            onClick={() => setVisibility("public")}
+            className={
+              "rounded-lg px-3 py-1.5 transition " +
+              (visibility === "public" ? "bg-neon-mint/20 text-neon-mint" : "text-white/65 hover:bg-white/10")
+            }
+          >
+            🌐 Public
+          </button>
+          <button
+            type="button"
+            onClick={() => setVisibility("private")}
+            className={
+              "rounded-lg px-3 py-1.5 transition " +
+              (visibility === "private" ? "bg-neon-amber/20 text-neon-amber" : "text-white/65 hover:bg-white/10")
+            }
+          >
+            🔒 Private
+          </button>
+        </div>
+        {visibility === "private" && (
+          <p className="mt-1 text-[10px] text-white/40">
+            Private posts are visible only to you (under “My posts”).
+          </p>
+        )}
+
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Title (optional)"
+            placeholder="Caption…"
             className="rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none placeholder:text-white/30 focus:border-neon-purple/60"
           />
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white/85 outline-none focus:border-neon-purple/60"
+          >
+            <option value="">Category…</option>
+            {ADULT_CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
           <div className="flex gap-2">
             <select
               value={country}
@@ -553,24 +625,61 @@ export function AdultHub({ userId }: { userId: string; userName: string }) {
 
       {/* Feed */}
       <section className="surface-glass p-4">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <h2 className="font-display text-lg font-semibold">Community wall</h2>
-          <select
-            value={filterCountry}
-            onChange={(e) => setFilterCountry(e.target.value)}
-            className="rounded-lg border border-white/10 bg-black/40 px-2 py-1.5 text-xs text-white/85 outline-none focus:border-neon-purple/60"
-          >
-            <option value="all">All countries</option>
-            {COUNTRY_NAMES.map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="inline-flex rounded-xl border border-white/10 bg-white/5 p-0.5 text-sm">
+            <button
+              type="button"
+              onClick={() => setWallView("public")}
+              className={
+                "rounded-lg px-3 py-1.5 transition " +
+                (wallView === "public" ? "bg-neon-purple/25 text-white" : "text-white/65 hover:bg-white/10")
+              }
+            >
+              Public wall
+            </button>
+            <button
+              type="button"
+              onClick={() => setWallView("mine")}
+              className={
+                "rounded-lg px-3 py-1.5 transition " +
+                (wallView === "mine" ? "bg-neon-purple/25 text-white" : "text-white/65 hover:bg-white/10")
+              }
+            >
+              My posts
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <select
+              value={catFilter}
+              onChange={(e) => setCatFilter(e.target.value)}
+              className="rounded-lg border border-white/10 bg-black/40 px-2 py-1.5 text-xs text-white/85 outline-none focus:border-neon-purple/60"
+            >
+              <option value="all">All categories</option>
+              {ADULT_CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+            <select
+              value={filterCountry}
+              onChange={(e) => setFilterCountry(e.target.value)}
+              className="rounded-lg border border-white/10 bg-black/40 px-2 py-1.5 text-xs text-white/85 outline-none focus:border-neon-purple/60"
+            >
+              <option value="all">All countries</option>
+              {COUNTRY_NAMES.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
         {posts.length === 0 ? (
           <p className="px-1 py-6 text-center text-sm text-white/50">
-            Nothing here yet — be the first to share.
+            {wallView === "mine"
+              ? "You haven't posted anything yet."
+              : "Nothing here yet — be the first to share."}
           </p>
         ) : (
           <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -598,16 +707,32 @@ export function AdultHub({ userId }: { userId: string; userName: string }) {
                     🔗 {p.title || p.external_url} ↗
                   </a>
                 )}
-                <div className="flex items-center justify-between gap-2 px-3 py-2 text-[11px] text-white/45">
-                  <span className="min-w-0 truncate">
-                    {p.title ? <span className="text-white/70">{p.title} · </span> : null}
-                    {p.author_display_name || p.author_username || "someone"}
-                  </span>
-                  {(p.country || p.region) && (
-                    <span className="shrink-0">
-                      {[p.region, p.country].filter(Boolean).join(", ")}
-                    </span>
+                <div className="space-y-1 px-3 py-2">
+                  {(p.category || !p.is_public) && (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {p.category && (
+                        <span className="rounded-md bg-neon-purple/15 px-1.5 py-0.5 text-[10px] text-neon-purple">
+                          {p.category}
+                        </span>
+                      )}
+                      {!p.is_public && (
+                        <span className="rounded-md bg-neon-amber/15 px-1.5 py-0.5 text-[10px] text-neon-amber">
+                          🔒 Private
+                        </span>
+                      )}
+                    </div>
                   )}
+                  <div className="flex items-center justify-between gap-2 text-[11px] text-white/45">
+                    <span className="min-w-0 truncate">
+                      {p.title ? <span className="text-white/70">{p.title} · </span> : null}
+                      {p.author_display_name || p.author_username || "someone"}
+                    </span>
+                    {(p.country || p.region) && (
+                      <span className="shrink-0">
+                        {[p.region, p.country].filter(Boolean).join(", ")}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </li>
             ))}
