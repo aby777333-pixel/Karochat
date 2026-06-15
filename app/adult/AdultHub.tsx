@@ -57,11 +57,19 @@ export function AdultHub({ userId }: { userId: string; userName: string }) {
   const router = useRouter();
 
   const [rooms, setRooms] = useState<RoomRow[]>([]);
+  const [communityRooms, setCommunityRooms] = useState<RoomRow[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterCountry, setFilterCountry] = useState("all");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Create-your-own adult room.
+  const [crName, setCrName] = useState("");
+  const [crDesc, setCrDesc] = useState("");
+  const [crVis, setCrVis] = useState<"public" | "listed" | "unlisted">("public");
+  const [crBusy, setCrBusy] = useState(false);
+  const [crErr, setCrErr] = useState<string | null>(null);
 
   // Composer state
   const [title, setTitle] = useState("");
@@ -127,6 +135,15 @@ export function AdultHub({ userId }: { userId: string; userName: string }) {
     setChannels((data ?? []) as Post[]);
   }, [supabase, chFilter]);
 
+  const loadCommunity = useCallback(async () => {
+    const { data } = await supabase.rpc("browse_catalog", {
+      p_category_slug: "adult",
+      p_subcategory_slug: "adult-community",
+      p_limit: 40
+    });
+    setCommunityRooms((data ?? []) as RoomRow[]);
+  }, [supabase]);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -144,7 +161,7 @@ export function AdultHub({ userId }: { userId: string; userName: string }) {
           merged.sort((a, b) => b.member_count - a.member_count);
           setRooms(merged.slice(0, 16));
         }
-        await Promise.all([loadPosts(), loadChannels()]);
+        await Promise.all([loadPosts(), loadChannels(), loadCommunity()]);
       } catch {
         if (!cancelled) setError("Couldn't load the hub. Try again.");
       } finally {
@@ -176,6 +193,42 @@ export function AdultHub({ userId }: { userId: string; userName: string }) {
     } catch (e: any) {
       setError(e?.message ?? "Could not join.");
       setBusy(null);
+    }
+  }
+
+  // Create a user-owned adult room (their own "category") and go to it.
+  async function createAdultRoom() {
+    const name = crName.trim();
+    if (!name) {
+      setCrErr("Give your room a name.");
+      return;
+    }
+    setCrBusy(true);
+    setCrErr(null);
+    try {
+      const { data, error: e } = await supabase
+        .rpc("create_room", {
+          p_name: name,
+          p_description: crDesc.trim() || null,
+          p_visibility: crVis
+        })
+        .single<{ id: string; invite_code: string | null; visibility: string }>();
+      if (e || !data) throw e ?? new Error("Could not create the room.");
+      // Tag it into the adult catalog (community subcategory) + enable voice/cam.
+      // Best-effort: the room already works without this.
+      await supabase
+        .from("rooms")
+        .update({
+          category_slug: "adult",
+          subcategory_slug: "adult-community",
+          voice_enabled: true,
+          cam_enabled: true
+        })
+        .eq("id", data.id);
+      router.push(`/rooms/${data.id}`);
+    } catch (e: any) {
+      setCrErr(e?.message ?? "Could not create the room.");
+      setCrBusy(false);
     }
   }
 
@@ -339,6 +392,83 @@ export function AdultHub({ userId }: { userId: string; userName: string }) {
         ) : (
           <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {rooms.map((r) => (
+              <li key={r.id}>
+                <button
+                  type="button"
+                  onClick={() => void joinRoom(r.id)}
+                  disabled={!!busy}
+                  className="flex w-full items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-left transition hover:border-neon-purple/40 hover:bg-white/5 disabled:opacity-50"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm text-white/90">{r.name}</span>
+                    <span className="block text-[11px] text-white/40">{r.member_count} in room</span>
+                  </span>
+                  <span className="shrink-0 rounded-md border border-neon-purple/30 bg-neon-purple/10 px-2 py-0.5 text-[11px] text-neon-purple">
+                    {busy === r.id ? "…" : "Join →"}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* Create your own adult room */}
+      <section className="surface-glass p-4">
+        <h2 className="font-display text-lg font-semibold">Create your own adult room</h2>
+        <p className="mt-0.5 text-[11px] text-white/50">
+          Start your own adult room / category — name it, choose who can join, then
+          invite people. Voice, video &amp; text are on.
+        </p>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <input
+            value={crName}
+            onChange={(e) => setCrName(e.target.value)}
+            placeholder="Room name / category…"
+            className="rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none placeholder:text-white/30 focus:border-neon-red/60"
+          />
+          <select
+            value={crVis}
+            onChange={(e) => setCrVis(e.target.value as "public" | "listed" | "unlisted")}
+            className="rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white/85 outline-none focus:border-neon-red/60"
+          >
+            <option value="public">🌐 Public — anyone can join</option>
+            <option value="listed">📋 Listed — visible, request to join</option>
+            <option value="unlisted">🔒 Private — invite only</option>
+          </select>
+        </div>
+        <input
+          value={crDesc}
+          onChange={(e) => setCrDesc(e.target.value)}
+          placeholder="Topic / description (optional)"
+          className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none placeholder:text-white/30 focus:border-neon-red/60"
+        />
+        <div className="mt-2 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void createAdultRoom()}
+            disabled={crBusy || !crName.trim()}
+            className="rounded-xl border border-neon-red/50 bg-neon-red/15 px-3 py-2 text-sm font-medium text-white transition hover:bg-neon-red/25 disabled:opacity-50"
+          >
+            {crBusy ? "Creating…" : "➕ Create room"}
+          </button>
+        </div>
+        {crErr && <p className="mt-2 rounded-md bg-neon-red/10 px-2 py-1 text-xs text-neon-red">{crErr}</p>}
+      </section>
+
+      {/* Community-created rooms */}
+      <section className="surface-glass p-4">
+        <div className="mb-3 flex items-baseline justify-between gap-3">
+          <h2 className="font-display text-lg font-semibold">Community rooms</h2>
+          <span className="text-[11px] text-white/40">created by members</span>
+        </div>
+        {communityRooms.length === 0 ? (
+          <p className="px-1 py-5 text-center text-sm text-white/50">
+            No community rooms yet — be the first to create one above.
+          </p>
+        ) : (
+          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {communityRooms.map((r) => (
               <li key={r.id}>
                 <button
                   type="button"
