@@ -514,6 +514,114 @@ const GROUPS: Group[] = [
         ]
       }
     ]
+  },
+  {
+    title: "Common herbs & their uses",
+    emoji: "🌿",
+    items: [
+      {
+        name: "Ashwagandha",
+        tips: [
+          "An adaptogen traditionally used to ease stress and fatigue and support sleep and stamina.",
+          "Often taken as warm milk with a little ghee at night. Avoid in pregnancy unless advised."
+        ]
+      },
+      {
+        name: "Triphala",
+        tips: [
+          "A three-fruit blend used to support gentle digestion, regularity and detox.",
+          "Commonly taken as warm water at night. Start low; it can be mildly laxative."
+        ]
+      },
+      {
+        name: "Tulsi (holy basil)",
+        tips: [
+          "Used for coughs, colds and stress relief; brewed as a simple herbal tea.",
+          "Add a few fresh leaves to hot water with ginger and honey for a soothing brew."
+        ]
+      },
+      {
+        name: "Brahmi & Shankhpushpi",
+        tips: [
+          "Traditionally used to support memory, focus and a calm mind.",
+          "Often taken as a tea or with warm milk; best used consistently over time."
+        ]
+      },
+      {
+        name: "Giloy (Guduchi)",
+        tips: [
+          "Used to support immunity and recovery, especially after fevers.",
+          "Available as juice, powder or tablet — follow product guidance or a practitioner."
+        ]
+      }
+    ]
+  },
+  {
+    title: "Fever, infections & seasonal care",
+    emoji: "🤒",
+    items: [
+      {
+        name: "Fever care (supportive)",
+        tips: [
+          "Rest, warm fluids, and light, easy-to-digest food (khichdi, soups); tulsi-ginger tea is traditional.",
+          "Keep hydrated. A high or persistent fever needs a doctor — Ayurveda here is supportive, not a substitute."
+        ]
+      },
+      {
+        name: "Seasonal allergies",
+        tips: [
+          "Steam inhalation, warm fluids, and avoiding cold/heavy foods are traditional comforts.",
+          "Nasya (a drop of warm sesame oil in each nostril) is used by some; patch-test and go gently."
+        ]
+      },
+      {
+        name: "Monsoon & immunity",
+        tips: [
+          "Favour freshly cooked, warm, lightly spiced food; avoid raw, cold and stale foods when digestion is weak.",
+          "Ginger, turmeric, black pepper and tulsi are classic monsoon supports."
+        ]
+      }
+    ]
+  },
+  {
+    title: "Men's & sexual wellness (general)",
+    emoji: "💪",
+    items: [
+      {
+        name: "Vitality & stamina",
+        tips: [
+          "Traditional 'rasayana' foods — soaked almonds, dates, milk and ghee — are used to build strength.",
+          "Sleep, exercise and stress management matter as much as any herb. See a clinician for medical concerns."
+        ]
+      },
+      {
+        name: "Stress-related low energy",
+        tips: [
+          "Adaptogens like ashwagandha are traditionally used; pair with routine, sunlight and movement.",
+          "Persistent issues (libido, mood, fatigue) deserve a proper medical check — don't self-treat serious symptoms."
+        ]
+      }
+    ]
+  },
+  {
+    title: "Mother & baby (gentle, traditional)",
+    emoji: "🍼",
+    items: [
+      {
+        name: "Postnatal nourishment",
+        tips: [
+          "Warm, moist, easily-digested foods (khichdi, soups, ghee, gentle spices) are traditional for recovery.",
+          "Always follow your doctor's and midwife's advice; introduce herbs only with professional guidance."
+        ]
+      },
+      {
+        name: "Baby massage (Abhyanga)",
+        tips: [
+          "Gentle daily massage with a suitable warm oil is a long-held tradition for bonding and sleep.",
+          "Use a baby-safe oil, keep the room warm, and stop if the skin reacts."
+        ]
+      }
+    ]
   }
 ];
 

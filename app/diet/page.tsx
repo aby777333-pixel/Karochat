@@ -405,6 +405,174 @@ const GOALS: Goal[] = [
         steps: "Warm jaggery, mix with sesame, roll into small balls. Calcium & iron snack."
       }
     ]
+  },
+  {
+    title: "PCOS / hormone balance (supportive)",
+    emoji: "🌸",
+    principles: [
+      "Favour low-glycaemic, high-fibre meals; pair carbs with protein & healthy fat to steady blood sugar.",
+      "Include leafy greens, berries, flax/pumpkin seeds, cinnamon; go easy on refined sugar and fried food.",
+      "Regular movement and good sleep matter as much as food. Work with a clinician for diagnosis."
+    ],
+    recipes: [
+      {
+        name: "Cinnamon flax overnight oats",
+        ingredients: "Rolled oats, milk of choice, 1 tbsp ground flaxseed, cinnamon, berries",
+        steps: "Mix oats, milk, flax and cinnamon; refrigerate overnight. Top with berries. Steady-energy breakfast."
+      },
+      {
+        name: "Chana (chickpea) & greens bowl",
+        ingredients: "Boiled chickpeas, spinach, tomato, cumin, lemon, olive oil",
+        steps: "Sauté greens with cumin, fold in chickpeas and tomato, finish with lemon. Protein + fibre."
+      }
+    ]
+  },
+  {
+    title: "Thyroid support (general)",
+    emoji: "🦋",
+    principles: [
+      "Include iodine sources sensibly (iodised salt, dairy, fish), plus selenium (Brazil nuts, eggs) and zinc.",
+      "Don't overdo raw goitrogens (large amounts of raw cabbage/cauliflower) — cooking reduces them.",
+      "This is general info — thyroid conditions need a doctor's diagnosis and medication, not diet alone."
+    ],
+    recipes: [
+      {
+        name: "Egg & spinach scramble",
+        ingredients: "Eggs, spinach, a little cheese, pepper",
+        steps: "Scramble eggs with wilted spinach; selenium, zinc and protein in one plate."
+      },
+      {
+        name: "Brazil-nut yoghurt bowl",
+        ingredients: "Plain yoghurt, 1–2 Brazil nuts (chopped), seeds, fruit",
+        steps: "Top yoghurt with nuts, seeds and fruit. Just 1–2 Brazil nuts gives plenty of selenium."
+      }
+    ]
+  },
+  {
+    title: "Brain & memory",
+    emoji: "🧠",
+    principles: [
+      "Omega-3 fats (oily fish, walnuts, flax), colourful vegetables and berries support brain health.",
+      "Whole grains for steady glucose; stay hydrated; limit ultra-processed food and excess sugar.",
+      "Sleep, movement and learning new things matter as much as any single food."
+    ],
+    recipes: [
+      {
+        name: "Walnut-berry breakfast bowl",
+        ingredients: "Yoghurt or oats, walnuts, blueberries, a drizzle of honey",
+        steps: "Combine and top with walnuts and berries — omega-3s and antioxidants."
+      },
+      {
+        name: "Sardine / mackerel toast",
+        ingredients: "Wholegrain toast, tinned sardines or mackerel, lemon, pepper",
+        steps: "Mash oily fish onto toast with lemon. Rich in brain-friendly omega-3."
+      }
+    ]
+  },
+  {
+    title: "Sleep & calm",
+    emoji: "🌙",
+    principles: [
+      "Lighter evening meals; finish eating a couple of hours before bed.",
+      "Magnesium-rich foods (nuts, seeds, greens, banana) and warm milk can help wind down.",
+      "Cut caffeine after early afternoon; limit alcohol, which fragments sleep."
+    ],
+    recipes: [
+      {
+        name: "Golden turmeric milk",
+        ingredients: "Warm milk of choice, pinch turmeric, nutmeg, a little honey",
+        steps: "Warm gently, whisk in spices and honey. A soothing pre-bed drink."
+      },
+      {
+        name: "Banana-almond nightcap",
+        ingredients: "Banana, a few almonds",
+        steps: "Eat a banana with a few almonds — magnesium and a little tryptophan to wind down."
+      }
+    ]
+  },
+  {
+    title: "Pregnancy & nursing (nourishing)",
+    emoji: "🤰",
+    principles: [
+      "Plenty of iron (greens, lentils, dates), calcium (dairy, sesame, ragi) and folate (greens, citrus, beans).",
+      "Small, frequent meals help with nausea; stay well hydrated. Avoid raw/undercooked foods and excess caffeine.",
+      "Always follow your doctor's and midwife's advice and any prescribed supplements."
+    ],
+    recipes: [
+      {
+        name: "Date & nut energy balls",
+        ingredients: "Dates, almonds, walnuts, a little ghee",
+        steps: "Blend and roll into balls. Iron- and calorie-dense snack for energy."
+      },
+      {
+        name: "Moong dal khichdi",
+        ingredients: "Rice, moong dal, turmeric, cumin, ghee, vegetables",
+        steps: "Pressure-cook to a soft, easy-to-digest one-pot meal. Gentle and nourishing."
+      }
+    ]
+  },
+  {
+    title: "Iron & anaemia support",
+    emoji: "🩸",
+    principles: [
+      "Iron-rich foods: greens, lentils, beans, dates, jaggery, red meat/liver (if you eat them).",
+      "Pair plant iron with vitamin C (lemon, citrus, tomato) to absorb more; avoid tea/coffee with iron-rich meals.",
+      "Persistent fatigue or pallor deserves a blood test — anaemia has many causes."
+    ],
+    recipes: [
+      {
+        name: "Spinach-dal with lemon",
+        ingredients: "Toor or masoor dal, spinach, garlic, cumin, lemon",
+        steps: "Cook dal with spinach and a tadka; finish with lemon for better iron uptake."
+      },
+      {
+        name: "Date & jaggery shake",
+        ingredients: "Milk, soaked dates, a little jaggery",
+        steps: "Blend until smooth. An easy iron-and-energy boost."
+      }
+    ]
+  },
+  {
+    title: "Cholesterol-friendly",
+    emoji: "❤️‍🩹",
+    principles: [
+      "Soluble fibre (oats, barley, beans, apples) helps lower LDL; add nuts and olive oil in moderation.",
+      "Swap fried and trans-fat foods for grilled, steamed or baked; choose oily fish over red/processed meat.",
+      "Pair with movement; follow your doctor's advice and any medication."
+    ],
+    recipes: [
+      {
+        name: "Oat & apple porridge",
+        ingredients: "Rolled oats, water/milk, grated apple, cinnamon, a few walnuts",
+        steps: "Cook oats with apple and cinnamon; top with walnuts. Soluble fibre + healthy fats."
+      },
+      {
+        name: "Rajma (kidney bean) bowl",
+        ingredients: "Kidney beans, tomato, onion, garlic, light spices, brown rice",
+        steps: "Simmer beans in a light tomato gravy; serve with brown rice. Fibre-rich and filling."
+      }
+    ]
+  },
+  {
+    title: "Menopause support (general)",
+    emoji: "🌷",
+    principles: [
+      "Calcium & vitamin D for bones; protein to maintain muscle; phytoestrogen foods (soy, flax) for some.",
+      "Limit caffeine, spicy food and alcohol if they trigger hot flushes; stay hydrated.",
+      "General info only — discuss symptoms and options with your clinician."
+    ],
+    recipes: [
+      {
+        name: "Soy & vegetable stir-fry",
+        ingredients: "Tofu or edamame, mixed vegetables, ginger, soy sauce, sesame",
+        steps: "Stir-fry tofu and veg with ginger; finish with sesame. Protein + phytoestrogens."
+      },
+      {
+        name: "Flax-yoghurt smoothie",
+        ingredients: "Yoghurt, 1 tbsp ground flax, banana, berries",
+        steps: "Blend smooth. Calcium, protein and flax lignans in a glass."
+      }
+    ]
   }
 ];
 

@@ -37,7 +37,7 @@ const SECTIONS: Section[] = [
     ]
   },
   {
-    title: "Library & writing",
+    title: "Library, media & entertainment",
     tiles: [
       { href: "/books", label: "Books", emoji: "📚", grad: "from-blue-400 via-indigo-500 to-violet-600" },
       { href: "/read", label: "Read", emoji: "📖", grad: "from-violet-400 via-purple-500 to-fuchsia-600" },
@@ -46,7 +46,9 @@ const SECTIONS: Section[] = [
       { href: "/videos", label: "Videos", emoji: "🎞️", grad: "from-sky-400 via-blue-500 to-indigo-600" },
       { href: "/livetv", label: "TV & Radio", emoji: "📺", grad: "from-cyan-300 via-sky-500 to-blue-700" },
       { href: "/karaoke", label: "Karaoke", emoji: "🎤", grad: "from-fuchsia-400 via-purple-500 to-indigo-600" },
-      { href: "/sleep", label: "Sleep", emoji: "😴", grad: "from-indigo-400 via-purple-600 to-slate-900" }
+      { href: "/sleep", label: "Sleep", emoji: "😴", grad: "from-indigo-400 via-purple-600 to-slate-900" },
+      { href: "/sports", label: "Sports", emoji: "⚽", grad: "from-green-300 via-emerald-500 to-teal-700" },
+      { href: "/audiobooks", label: "Audiobooks", emoji: "🎧", grad: "from-amber-300 via-orange-400 to-rose-500" }
     ]
   },
   // NOTE: The "Infotainment" section is intentionally hidden for now (kept for
@@ -78,6 +80,12 @@ const SECTIONS: Section[] = [
       { href: "/videos/new", label: "Post video", emoji: "🎥", grad: "from-sky-300 via-blue-400 to-indigo-600" },
       { href: "/charter", label: "Charter", emoji: "🌍", grad: "from-cyan-300 via-sky-400 to-blue-600" },
       { href: "/suggestions", label: "Suggestions", emoji: "💡", grad: "from-amber-300 via-yellow-400 to-orange-500" }
+    ]
+  },
+  {
+    title: "Grown-ups · 18+",
+    tiles: [
+      { href: "/adult", label: "Adult 18+", emoji: "🔞", grad: "from-rose-500 via-red-600 to-rose-900" }
     ]
   }
 ];
