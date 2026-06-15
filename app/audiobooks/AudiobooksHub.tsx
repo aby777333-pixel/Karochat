@@ -19,7 +19,7 @@ import {
   type ArchiveItem
 } from "@/lib/archiveStories";
 
-type Now = { id: string; title: string } | null;
+type Now = { id: string; title: string; isVideo: boolean } | null;
 
 export function AudiobooksHub({
   userId,
@@ -147,16 +147,20 @@ export function AudiobooksHub({
               </button>
             </div>
           </div>
-          <div className="overflow-hidden rounded-xl border border-white/10 bg-black">
-            <iframe
-              key={now.id}
-              src={embedUrl(now.id)}
-              title={now.title}
-              className="h-64 w-full"
-              allow="autoplay; encrypted-media; fullscreen"
-              allowFullScreen
-            />
-          </div>
+          {now.isVideo ? (
+            <div className="overflow-hidden rounded-xl border border-white/10 bg-black">
+              <iframe
+                key={now.id}
+                src={embedUrl(now.id)}
+                title={now.title}
+                className="h-72 w-full"
+                allow="autoplay; encrypted-media; fullscreen"
+                allowFullScreen
+              />
+            </div>
+          ) : (
+            <ArchiveAudioPlayer id={now.id} title={now.title} />
+          )}
         </section>
       )}
 
@@ -180,7 +184,7 @@ export function AudiobooksHub({
                 <li key={it.id}>
                   <button
                     type="button"
-                    onClick={() => setNow({ id: it.id, title: it.title })}
+                    onClick={() => setNow({ id: it.id, title: it.title, isVideo })}
                     className={
                       "flex w-full items-start gap-2 rounded-xl border px-3 py-2 text-left transition " +
                       (active
@@ -212,6 +216,186 @@ export function AudiobooksHub({
 
       {/* Share your own */}
       <ShareYourOwn userId={userId} userName={userName} />
+    </div>
+  );
+}
+
+// Dark, psychedelic audio player with an animated equalizer — replaces the
+// archive.org embed's white panel for audio items. Pulls the item's audio
+// files from archive.org's metadata API and plays them natively (with a chapter
+// playlist for multi-part audiobooks). Falls back to the embed if metadata can't
+// be read, so playback always works.
+type Track = { name: string; url: string; title: string };
+
+function ArchiveAudioPlayer({ id, title }: { id: string; title: string }) {
+  const [tracks, setTracks] = useState<Track[]>([]);
+  const [idx, setIdx] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setFailed(false);
+    setTracks([]);
+    setIdx(0);
+    (async () => {
+      try {
+        const res = await fetch(`https://archive.org/metadata/${encodeURIComponent(id)}`, {
+          cache: "no-store"
+        });
+        if (!res.ok) throw new Error("metadata");
+        const data = (await res.json()) as any;
+        const files: any[] = Array.isArray(data?.files) ? data.files : [];
+        const audioRe = /\.(mp3|ogg|m4a|flac|wav|opus)$/i;
+        const byFmt = (re: RegExp) =>
+          files.filter((f) => f?.name && audioRe.test(f.name) && re.test(String(f.format ?? "")));
+        // Prefer a single format so multi-bitrate items don't list duplicates.
+        let chosen = byFmt(/vbr mp3/i);
+        if (!chosen.length) chosen = byFmt(/mp3/i);
+        if (!chosen.length) chosen = byFmt(/ogg/i);
+        if (!chosen.length) chosen = files.filter((f) => f?.name && audioRe.test(f.name));
+        const seen = new Set<string>();
+        const list: Track[] = [];
+        for (const f of chosen) {
+          const name = String(f.name);
+          if (seen.has(name)) continue;
+          seen.add(name);
+          list.push({
+            name,
+            url: `https://archive.org/download/${encodeURIComponent(id)}/${name
+              .split("/")
+              .map(encodeURIComponent)
+              .join("/")}`,
+            title:
+              (typeof f.title === "string" && f.title) ||
+              name.replace(/\.[^.]+$/, "").replace(/_/g, " ")
+          });
+        }
+        list.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+        if (cancelled) return;
+        if (!list.length) setFailed(true);
+        else setTracks(list);
+      } catch {
+        if (!cancelled) setFailed(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  // Autoplay the next track when one ends.
+  useEffect(() => {
+    const a = audioRef.current;
+    if (a && tracks.length) void a.play().catch(() => {});
+  }, [idx, tracks]);
+
+  if (failed) {
+    return (
+      <div className="overflow-hidden rounded-xl border border-white/10 bg-black">
+        <iframe
+          key={id}
+          src={embedUrl(id)}
+          title={title}
+          className="h-64 w-full"
+          allow="autoplay; encrypted-media; fullscreen"
+          allowFullScreen
+        />
+      </div>
+    );
+  }
+
+  const cur = tracks[idx];
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-white/10">
+      <div className={"kb-aud relative h-44 w-full" + (playing ? " is-playing" : "")}>
+        <div className="kb-aud-bg" aria-hidden />
+        <div className="kb-eq" aria-hidden>
+          {Array.from({ length: 28 }).map((_, i) => (
+            <span key={i} style={{ animationDelay: `${(i % 14) * 0.07}s` }} />
+          ))}
+        </div>
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent p-3">
+          <p className="truncate text-sm font-medium text-white drop-shadow">
+            {cur?.title ?? title}
+          </p>
+          {tracks.length > 1 && (
+            <p className="text-[11px] text-white/70">
+              Track {idx + 1} / {tracks.length}
+            </p>
+          )}
+          {loading && <p className="text-[11px] text-white/70">Loading audio…</p>}
+        </div>
+        <style>{`
+          .kb-aud-bg{position:absolute;inset:0;background:
+            radial-gradient(120% 120% at 20% 20%, #5b21b6 0%, transparent 45%),
+            radial-gradient(120% 120% at 80% 30%, #db2777 0%, transparent 45%),
+            radial-gradient(140% 140% at 50% 95%, #0ea5e9 0%, transparent 50%),
+            #0a0a12;filter:saturate(1.15);animation:kbHue 18s linear infinite}
+          @keyframes kbHue{to{filter:hue-rotate(360deg) saturate(1.15)}}
+          .kb-eq{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:center;gap:3px;padding:0 10px 12px}
+          .kb-eq span{flex:1;max-width:10px;height:14%;border-radius:3px 3px 0 0;
+            background:linear-gradient(to top,#22d3ee,#a78bfa,#f472b6);opacity:.85;
+            animation:kbBar 1.1s ease-in-out infinite;animation-play-state:paused;
+            box-shadow:0 0 8px rgba(167,139,250,.45)}
+          .kb-aud.is-playing .kb-eq span{animation-play-state:running}
+          @keyframes kbBar{0%,100%{height:14%}25%{height:72%}50%{height:34%}75%{height:92%}}
+          @media (prefers-reduced-motion: reduce){
+            .kb-aud-bg,.kb-eq span{animation:none}
+          }
+        `}</style>
+      </div>
+
+      <div className="bg-black/60 p-3">
+        {cur ? (
+          // eslint-disable-next-line jsx-a11y/media-has-caption
+          <audio
+            ref={audioRef}
+            key={cur.url}
+            src={cur.url}
+            controls
+            autoPlay
+            className="w-full"
+            onPlay={() => setPlaying(true)}
+            onPause={() => setPlaying(false)}
+            onEnded={() => {
+              if (idx < tracks.length - 1) setIdx((i) => i + 1);
+              else setPlaying(false);
+            }}
+          />
+        ) : (
+          <p className="py-2 text-center text-sm text-white/50">
+            <span className="mr-2 animate-pulseDot">●</span>Preparing audio…
+          </p>
+        )}
+        {tracks.length > 1 && (
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => setIdx((i) => Math.max(0, i - 1))}
+              disabled={idx === 0}
+              className="rounded-md border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/80 hover:bg-white/10 disabled:opacity-40"
+            >
+              ⏮ Prev
+            </button>
+            <span className="text-[11px] text-white/45">{tracks.length} chapters</span>
+            <button
+              type="button"
+              onClick={() => setIdx((i) => Math.min(tracks.length - 1, i + 1))}
+              disabled={idx >= tracks.length - 1}
+              className="rounded-md border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/80 hover:bg-white/10 disabled:opacity-40"
+            >
+              Next ⏭
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
