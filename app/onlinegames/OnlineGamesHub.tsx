@@ -6,7 +6,7 @@
 //   • Plus a curated directory of the biggest free online-game portals (open in
 //     their own site). No hosting, no installs.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   fetchArchive,
   embedUrl,
@@ -47,8 +47,14 @@ export function OnlineGamesHub() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [now, setNow] = useState<Now>(null);
+  const playerRef = useRef<HTMLDivElement | null>(null);
 
   const cat = useMemo(() => CATS.find((c) => c.key === catKey) ?? CATS[0]!, [catKey]);
+
+  // When a game is picked, bring the player into view immediately.
+  useEffect(() => {
+    if (now) playerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [now]);
 
   useEffect(() => {
     let cancelled = false;
@@ -125,7 +131,7 @@ export function OnlineGamesHub() {
         </div>
 
         {now && (
-          <div className="mt-3 overflow-hidden rounded-xl border border-white/10 bg-black">
+          <div ref={playerRef} className="mt-3 scroll-mt-3 overflow-hidden rounded-xl border border-white/10 bg-black">
             <div className="flex items-center justify-between gap-2 px-3 py-2">
               <p className="min-w-0 truncate text-sm text-white">🎮 {now.title}</p>
               <div className="flex items-center gap-1.5">

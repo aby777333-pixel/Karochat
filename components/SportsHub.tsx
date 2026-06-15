@@ -27,6 +27,12 @@ export function SportsHub() {
   const [err, setErr] = useState<string | null>(null);
   const [now, setNow] = useState<Now>(null);
   const [q, setQ] = useState("");
+  const playerRef = useRef<HTMLDivElement | null>(null);
+
+  // When a channel is picked, bring the player into view immediately.
+  useEffect(() => {
+    if (now) playerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [now]);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,7 +78,7 @@ export function SportsHub() {
       <div className="mt-4 space-y-4">
         {/* Now playing */}
         {now && (
-          <div className="surface-glass overflow-hidden p-3">
+          <div ref={playerRef} className="surface-glass scroll-mt-3 overflow-hidden p-3">
             <div className="mb-2 flex items-center justify-between gap-2">
               <p className="min-w-0 truncate text-sm">
                 <span className="text-white/50">Now playing · </span>

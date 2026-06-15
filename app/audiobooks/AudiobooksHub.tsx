@@ -37,8 +37,14 @@ export function AudiobooksHub({
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [now, setNow] = useState<Now>(null);
+  const playerRef = useRef<HTMLElement | null>(null);
 
   const cat = useMemo(() => CATEGORIES.find((c) => c.key === catKey) ?? CATEGORIES[0]!, [catKey]);
+
+  // When an item is picked, bring the player into view immediately.
+  useEffect(() => {
+    if (now) playerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [now]);
 
   useEffect(() => {
     let cancelled = false;
@@ -124,7 +130,7 @@ export function AudiobooksHub({
 
       {/* Player */}
       {now && (
-        <section className="surface-glass overflow-hidden p-3">
+        <section ref={playerRef} className="surface-glass scroll-mt-3 overflow-hidden p-3">
           <div className="mb-2 flex items-center justify-between gap-2">
             <p className="min-w-0 truncate text-sm">
               <span className="text-white/50">Now playing · </span>
