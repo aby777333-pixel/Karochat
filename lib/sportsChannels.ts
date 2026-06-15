@@ -8,6 +8,7 @@
 // Third-party community streams — availability varies; handled gracefully.
 
 import { COUNTRIES as BASE_COUNTRIES, type Country } from "@/lib/liveChannels";
+import { rbFetch } from "@/lib/radioBrowser";
 
 export type { Country };
 
@@ -66,14 +67,11 @@ export async function fetchSportsTv(code: string): Promise<SportsTv[]> {
 
 export async function fetchSportsRadio(code: string): Promise<SportsRadio[]> {
   // Worldwide → top sports stations regardless of country; else by country.
-  const base = "https://de1.api.radio-browser.info/json/stations";
-  const url =
+  const path =
     code === "global"
-      ? `${base}/bytag/sports?hidebroken=true&order=clickcount&reverse=true&limit=150`
-      : `${base}/search?tag=sports&countrycode=${code.toUpperCase()}&hidebroken=true&order=clickcount&reverse=true&limit=150`;
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) return [];
-  const data = (await res.json()) as any[];
+      ? `/json/stations/bytag/sports?hidebroken=true&order=clickcount&reverse=true&limit=150`
+      : `/json/stations/search?tag=sports&countrycode=${code.toUpperCase()}&hidebroken=true&order=clickcount&reverse=true&limit=150`;
+  const data = await rbFetch(path);
   return (data ?? [])
     .map((s) => ({
       name: (s.name ?? "Station").trim() || "Station",

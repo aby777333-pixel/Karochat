@@ -22,6 +22,7 @@
 // from /sleep.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { rbFetch } from "@/lib/radioBrowser";
 
 // ── Web-Audio sound generators ───────────────────────────────────────────────
 // Every generator takes the AudioContext + the node it should feed (a per-layer
@@ -658,20 +659,10 @@ const MUSIC_CATS: MusicCat[] = [
 ];
 
 async function fetchByTags(tags: string[]): Promise<Station[]> {
-  const base = "https://de1.api.radio-browser.info/json/stations/search";
   const lists = await Promise.all(
-    tags.map(async (t) => {
-      try {
-        const r = await fetch(
-          `${base}?tag=${encodeURIComponent(t)}&hidebroken=true&order=clickcount&reverse=true&limit=80`,
-          { cache: "no-store" }
-        );
-        if (!r.ok) return [];
-        return (await r.json()) as any[];
-      } catch {
-        return [];
-      }
-    })
+    tags.map((t) =>
+      rbFetch(`/json/stations/search?tag=${encodeURIComponent(t)}&hidebroken=true&order=clickcount&reverse=true&limit=80`)
+    )
   );
   const seen = new Set<string>();
   const out: Station[] = [];

@@ -7,6 +7,8 @@
 //   hls.js. These are third-party community streams: some may be offline or
 //   geo-restricted, which the player handles gracefully.
 
+import { rbFetch } from "@/lib/radioBrowser";
+
 export type Country = { code: string; name: string; flag: string };
 
 // ISO-3166 alpha-2 (lowercase for iptv-org M3U filenames, upper-cased for
@@ -99,14 +101,29 @@ export async function fetchTv(code: string): Promise<TvChannel[]> {
   return parseM3u(text);
 }
 
+// Always-available stations to fall back to when the radio-browser directory is
+// briefly down — well-known, stable, free streams (SomaFM + Radio Paradise) so
+// the radio is never empty.
+const FALLBACK_RADIO: RadioStation[] = [
+  { name: "SomaFM · Groove Salad (chill)", url: "https://ice1.somafm.com/groovesalad-128-mp3", favicon: "", bitrate: 128, tags: "chillout, ambient" },
+  { name: "SomaFM · Drone Zone (ambient)", url: "https://ice1.somafm.com/dronezone-128-mp3", favicon: "", bitrate: 128, tags: "ambient" },
+  { name: "SomaFM · Lush (vocal)", url: "https://ice1.somafm.com/lush-128-mp3", favicon: "", bitrate: 128, tags: "vocal" },
+  { name: "SomaFM · Indie Pop Rocks", url: "https://ice1.somafm.com/indiepop-128-mp3", favicon: "", bitrate: 128, tags: "indie pop" },
+  { name: "SomaFM · Secret Agent (lounge)", url: "https://ice1.somafm.com/secretagent-128-mp3", favicon: "", bitrate: 128, tags: "lounge" },
+  { name: "SomaFM · Beat Blender", url: "https://ice1.somafm.com/beatblender-128-mp3", favicon: "", bitrate: 128, tags: "downtempo" },
+  { name: "SomaFM · Deep Space One", url: "https://ice1.somafm.com/deepspaceone-128-mp3", favicon: "", bitrate: 128, tags: "ambient, space" },
+  { name: "SomaFM · Fluid (chillhop)", url: "https://ice1.somafm.com/fluid-128-mp3", favicon: "", bitrate: 128, tags: "chillhop" },
+  { name: "SomaFM · Sonic Universe (jazz)", url: "https://ice1.somafm.com/sonicuniverse-128-mp3", favicon: "", bitrate: 128, tags: "jazz" },
+  { name: "Radio Paradise · Main Mix", url: "https://stream.radioparadise.com/aac-320", favicon: "", bitrate: 320, tags: "eclectic" },
+  { name: "Radio Paradise · Mellow Mix", url: "https://stream.radioparadise.com/mellow-320", favicon: "", bitrate: 320, tags: "mellow" },
+  { name: "Radio Paradise · Rock Mix", url: "https://stream.radioparadise.com/rock-320", favicon: "", bitrate: 320, tags: "rock" }
+];
+
 export async function fetchRadio(code: string): Promise<RadioStation[]> {
-  const res = await fetch(
-    `https://de1.api.radio-browser.info/json/stations/search?countrycode=${code.toUpperCase()}&hidebroken=true&order=clickcount&reverse=true&limit=150`,
-    { cache: "no-store" }
+  const data = await rbFetch(
+    `/json/stations/search?countrycode=${code.toUpperCase()}&hidebroken=true&order=clickcount&reverse=true&limit=150`
   );
-  if (!res.ok) return [];
-  const data = (await res.json()) as any[];
-  return (data ?? [])
+  const stations = (data ?? [])
     .map((s) => ({
       name: (s.name ?? "Station").trim() || "Station",
       url: (s.url_resolved || s.url || "") as string,
@@ -115,4 +132,6 @@ export async function fetchRadio(code: string): Promise<RadioStation[]> {
       tags: (s.tags || "") as string
     }))
     .filter((s) => !!s.url);
+  // Directory down / nothing returned → known-good stations so radio still works.
+  return stations.length ? stations : FALLBACK_RADIO;
 }
