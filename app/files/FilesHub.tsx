@@ -27,7 +27,26 @@ type FileRow = {
   author_display_name: string | null;
 };
 
-const CATEGORIES = ["PDF", "eBook", "Document", "Software", "App (APK)", "Archive", "Audio", "Image", "Other"];
+const CATEGORIES = [
+  "PDF",
+  "eBook",
+  "Document",
+  "Spreadsheet",
+  "Presentation",
+  "Video",
+  "Audio",
+  "Image",
+  "Software",
+  "App (APK)",
+  "Game / ROM",
+  "Code / Scripts",
+  "Design",
+  "Font",
+  "3D / CAD",
+  "Subtitles",
+  "Archive",
+  "Other"
+];
 const MAX_BYTES = 500 * 1024 * 1024; // matches the bucket cap (500 MB)
 
 function fmtSize(b: number | null): string {
@@ -40,26 +59,48 @@ function fmtSize(b: number | null): string {
 
 function catIcon(c: string | null, mime: string | null): string {
   const k = (c || "").toLowerCase();
+  const m = (mime || "").toLowerCase();
   if (k.includes("pdf")) return "📕";
   if (k.includes("ebook")) return "📚";
+  if (k.includes("spreadsheet")) return "📊";
+  if (k.includes("presentation")) return "📽️";
   if (k.includes("doc")) return "📄";
-  if (k.includes("software")) return "💿";
-  if (k.includes("apk") || k.includes("app")) return "📱";
-  if (k.includes("archive")) return "🗜️";
+  if (k.includes("video")) return "🎬";
   if (k.includes("audio")) return "🎵";
   if (k.includes("image")) return "🖼️";
-  if ((mime || "").includes("pdf")) return "📕";
+  if (k.includes("apk") || k.includes("app")) return "📱";
+  if (k.includes("software")) return "💿";
+  if (k.includes("game") || k.includes("rom")) return "🎮";
+  if (k.includes("code") || k.includes("script")) return "💻";
+  if (k.includes("design")) return "🎨";
+  if (k.includes("font")) return "🔤";
+  if (k.includes("3d") || k.includes("cad")) return "🧊";
+  if (k.includes("subtitle")) return "💬";
+  if (k.includes("archive")) return "🗜️";
+  if (m.includes("pdf")) return "📕";
+  if (m.startsWith("video")) return "🎬";
+  if (m.startsWith("audio")) return "🎵";
+  if (m.startsWith("image")) return "🖼️";
   return "📦";
 }
 
 function inferCategory(name: string, mime: string): string {
   const ext = (name.split(".").pop() ?? "").toLowerCase();
   if (ext === "pdf" || mime.includes("pdf")) return "PDF";
-  if (["epub", "mobi", "azw3"].includes(ext)) return "eBook";
-  if (["doc", "docx", "odt", "txt", "rtf", "ppt", "pptx", "xls", "xlsx", "csv"].includes(ext)) return "Document";
-  if (["exe", "msi", "dmg", "pkg", "deb", "rpm", "appimage"].includes(ext)) return "Software";
-  if (ext === "apk") return "App (APK)";
-  if (["zip", "rar", "7z", "tar", "gz"].includes(ext)) return "Archive";
+  if (["epub", "mobi", "azw3", "fb2"].includes(ext)) return "eBook";
+  if (["xls", "xlsx", "ods", "csv", "tsv"].includes(ext)) return "Spreadsheet";
+  if (["ppt", "pptx", "odp", "key"].includes(ext)) return "Presentation";
+  if (["doc", "docx", "odt", "txt", "rtf", "md"].includes(ext)) return "Document";
+  if (["mp4", "mkv", "avi", "mov", "webm", "flv", "wmv", "m4v", "mpg", "mpeg", "3gp"].includes(ext) || mime.startsWith("video")) return "Video";
+  if (["exe", "msi", "dmg", "pkg", "deb", "rpm", "appimage", "bin"].includes(ext)) return "Software";
+  if (["apk", "aab", "ipa", "xapk"].includes(ext)) return "App (APK)";
+  if (["iso", "rom", "nes", "sfc", "smc", "gba", "nds", "gb", "gbc", "z64", "n64", "cue"].includes(ext)) return "Game / ROM";
+  if (["js", "ts", "jsx", "tsx", "py", "java", "c", "cpp", "cs", "go", "rb", "php", "rs", "swift", "kt", "html", "css", "json", "xml", "yaml", "yml", "sh", "sql"].includes(ext)) return "Code / Scripts";
+  if (["psd", "ai", "xd", "fig", "sketch", "afdesign", "afphoto", "indd"].includes(ext)) return "Design";
+  if (["ttf", "otf", "woff", "woff2", "eot"].includes(ext)) return "Font";
+  if (["obj", "stl", "fbx", "blend", "gltf", "glb", "3ds", "dae", "step", "stp", "dwg", "dxf"].includes(ext)) return "3D / CAD";
+  if (["srt", "vtt", "ass", "ssa", "sub"].includes(ext)) return "Subtitles";
+  if (["zip", "rar", "7z", "tar", "gz", "bz2", "xz"].includes(ext)) return "Archive";
   if (mime.startsWith("audio")) return "Audio";
   if (mime.startsWith("image")) return "Image";
   return "Other";
