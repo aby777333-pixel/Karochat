@@ -25,6 +25,18 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  /* Mobile safety net: never let a stray wide element push the whole page
+     sideways. `clip` (not `hidden`) avoids turning <body> into a scroll
+     container, so position:sticky and fixed overlays keep working. Nested
+     horizontal-scroll regions (overflow-x-auto tab bars) are unaffected. */
+  overflow-x: clip;
+  max-width: 100%;
+}
+
+/* Media should always stay inside its container on every device. Tailwind's
+   preflight covers img/video; iframes (embedded players) need this too. */
+iframe {
+  max-width: 100%;
 }
 
 /* Living aurora — the brand glows drift very slowly behind everything.
