@@ -48,7 +48,7 @@ export function OnlineGamesHub() {
   const [err, setErr] = useState<string | null>(null);
   const [now, setNow] = useState<Now>(null);
   const playerRef = useRef<HTMLDivElement | null>(null);
-  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const fsRef = useRef<HTMLDivElement | null>(null);
 
   const cat = useMemo(() => CATS.find((c) => c.key === catKey) ?? CATS[0]!, [catKey]);
 
@@ -57,22 +57,25 @@ export function OnlineGamesHub() {
     if (now) playerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [now]);
 
-  // Make the emulator fill the screen (it scales the game up to fit).
+  // Fullscreen a SAME-ORIGIN wrapper div (the iframe fills it 100%), which the
+  // emulator then scales up to. Fullscreening the cross-origin iframe directly is
+  // unreliable; fullscreening our own element isn't.
   function goFullscreen() {
-    const el = iframeRef.current as
-      | (HTMLIFrameElement & {
-          webkitRequestFullscreen?: () => void;
-          webkitEnterFullscreen?: () => void;
-          msRequestFullscreen?: () => void;
+    const el = fsRef.current as
+      | (HTMLDivElement & {
+          webkitRequestFullscreen?: () => Promise<void> | void;
+          msRequestFullscreen?: () => Promise<void> | void;
         })
       | null;
     if (!el) return;
-    const fn =
-      el.requestFullscreen ?? el.webkitRequestFullscreen ?? el.webkitEnterFullscreen ?? el.msRequestFullscreen;
+    const fn = el.requestFullscreen ?? el.webkitRequestFullscreen ?? el.msRequestFullscreen;
     try {
-      fn?.call(el);
+      const ret = fn?.call(el) as Promise<void> | void;
+      if (ret && typeof (ret as Promise<void>).catch === "function") {
+        (ret as Promise<void>).catch(() => {});
+      }
     } catch {
-      // ignore — fall back to the emulator's own fullscreen control
+      // ignore — the emulator's own fullscreen control still works
     }
   }
 
@@ -160,15 +163,16 @@ export function OnlineGamesHub() {
                 <button type="button" onClick={() => setNow(null)} className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-white/55 hover:bg-white/10">✕ Close</button>
               </div>
             </div>
-            <iframe
-              ref={iframeRef}
-              key={now.id}
-              src={embedUrl(now.id)}
-              title={now.title}
-              className="h-[70vh] w-full bg-black"
-              allow="autoplay; fullscreen; gamepad; clipboard-write"
-              allowFullScreen
-            />
+            <div ref={fsRef} className="h-[70vh] w-full bg-black">
+              <iframe
+                key={now.id}
+                src={embedUrl(now.id)}
+                title={now.title}
+                className="h-full w-full"
+                allow="autoplay; fullscreen; gamepad; clipboard-write"
+                allowFullScreen
+              />
+            </div>
             <p className="px-3 py-1.5 text-[10px] text-white/40">
               Tap ⛶ Fullscreen for the big screen. Click the game and press a key/coin
               button to start. Emulated by the Internet Archive.
