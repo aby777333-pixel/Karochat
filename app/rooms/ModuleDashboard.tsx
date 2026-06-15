@@ -24,8 +24,7 @@ const SECTIONS: Section[] = [
       { href: "#saved", label: "Saved", emoji: "💾", grad: "from-slate-300 via-slate-500 to-slate-700" },
       { href: "#friends", label: "Friends", emoji: "🧑‍🤝‍🧑", grad: "from-emerald-300 via-teal-400 to-cyan-500" },
       { href: "#dms", label: "Messages", emoji: "💬", grad: "from-sky-300 via-blue-500 to-indigo-600" },
-      { href: "#browse-rooms", label: "My rooms", emoji: "🚪", grad: "from-violet-400 via-purple-500 to-fuchsia-600" },
-      { href: "/organizer", label: "Organizer", emoji: "🗂️", grad: "from-amber-300 via-orange-400 to-rose-500" }
+      { href: "#browse-rooms", label: "My rooms", emoji: "🚪", grad: "from-violet-400 via-purple-500 to-fuchsia-600" }
     ]
   },
   {
@@ -35,6 +34,19 @@ const SECTIONS: Section[] = [
       { href: "/meet/now", label: "Meet now", emoji: "⚡", grad: "from-amber-300 via-orange-400 to-orange-600" },
       { href: "/handshake", label: "Handshake", emoji: "🤝", grad: "from-emerald-300 via-teal-400 to-cyan-500" },
       { href: "/rooms?create=1", label: "New room", emoji: "➕", grad: "from-sky-300 via-blue-500 to-indigo-600" }
+    ]
+  },
+  {
+    title: "Smart tools",
+    tiles: [
+      { href: "/organizer", label: "Organizer", emoji: "🗂️", grad: "from-amber-300 via-orange-400 to-rose-500" },
+      { href: "/tools#translate", label: "Translate", emoji: "🌐", grad: "from-sky-300 via-blue-400 to-indigo-600" },
+      { href: "/tools#worldclock", label: "World Clock", emoji: "🕐", grad: "from-slate-300 via-slate-500 to-slate-700" },
+      { href: "/tools#weather", label: "Weather", emoji: "⛅", grad: "from-cyan-300 via-sky-400 to-blue-500" },
+      { href: "/tools#dictionary", label: "Dictionary", emoji: "📖", grad: "from-violet-400 via-purple-500 to-fuchsia-600" },
+      { href: "/tools#convert", label: "Converter", emoji: "🔄", grad: "from-emerald-300 via-teal-400 to-cyan-500" },
+      { href: "/tools#qr", label: "QR Code", emoji: "🔳", grad: "from-zinc-300 via-zinc-500 to-zinc-700" },
+      { href: "/tools#calc", label: "Calculator", emoji: "🧮", grad: "from-amber-300 via-orange-400 to-red-500" }
     ]
   },
   {
@@ -50,7 +62,8 @@ const SECTIONS: Section[] = [
       { href: "/sleep", label: "Sleep", emoji: "😴", grad: "from-indigo-400 via-purple-600 to-slate-900" },
       { href: "/sports", label: "Sports", emoji: "⚽", grad: "from-green-300 via-emerald-500 to-teal-700" },
       { href: "/audiobooks", label: "Audiobooks", emoji: "🎧", grad: "from-amber-300 via-orange-400 to-rose-500" },
-      { href: "/files", label: "Files & Apps", emoji: "📂", grad: "from-slate-300 via-slate-500 to-slate-700" }
+      { href: "/files", label: "Files & Apps", emoji: "📂", grad: "from-slate-300 via-slate-500 to-slate-700" },
+      { href: "/fun#games", label: "Games", emoji: "🎮", grad: "from-fuchsia-400 via-pink-500 to-rose-600" }
     ]
   },
   // NOTE: The "Infotainment" section is intentionally hidden for now (kept for
@@ -72,7 +85,10 @@ const SECTIONS: Section[] = [
       { href: "/sexed/ask", label: "Ask Karo", emoji: "💬", grad: "from-emerald-300 via-teal-400 to-cyan-500" },
       { href: "/ayurveda", label: "Ayurveda", emoji: "🌿", grad: "from-green-300 via-emerald-500 to-teal-700" },
       { href: "/diet", label: "Diet & Recipes", emoji: "🥗", grad: "from-lime-300 via-amber-400 to-orange-500" },
-      { href: "/hope", label: "Hope", emoji: "🫂", grad: "from-sky-300 via-indigo-400 to-violet-600" }
+      { href: "/hope", label: "Hope", emoji: "🫂", grad: "from-sky-300 via-indigo-400 to-violet-600" },
+      { href: "/doctor", label: "Ask a Doctor", emoji: "🩺", grad: "from-rose-300 via-red-400 to-rose-600" },
+      { href: "/breathe", label: "Breathe", emoji: "🌬️", grad: "from-cyan-300 via-sky-400 to-blue-500" },
+      { href: "/firstaid", label: "First Aid", emoji: "🚑", grad: "from-red-400 via-rose-500 to-red-700" }
     ]
   },
   {
@@ -82,7 +98,10 @@ const SECTIONS: Section[] = [
       { href: "/shorts/new", label: "Post short", emoji: "📹", grad: "from-orange-300 via-red-400 to-rose-600" },
       { href: "/videos/new", label: "Post video", emoji: "🎥", grad: "from-sky-300 via-blue-400 to-indigo-600" },
       { href: "/charter", label: "Charter", emoji: "🌍", grad: "from-cyan-300 via-sky-400 to-blue-600" },
-      { href: "/suggestions", label: "Suggestions", emoji: "💡", grad: "from-amber-300 via-yellow-400 to-orange-500" }
+      { href: "/suggestions", label: "Suggestions", emoji: "💡", grad: "from-amber-300 via-yellow-400 to-orange-500" },
+      { href: "/students", label: "Students", emoji: "🎓", grad: "from-indigo-300 via-blue-400 to-violet-600" },
+      { href: "/fun#icebreakers", label: "Icebreakers", emoji: "💬", grad: "from-teal-300 via-emerald-400 to-cyan-500" },
+      { href: "/fun#inspire", label: "Inspiration", emoji: "✨", grad: "from-amber-300 via-orange-400 to-pink-500" }
     ]
   },
   {
