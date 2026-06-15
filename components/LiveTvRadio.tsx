@@ -98,7 +98,7 @@ export function LiveTvRadio() {
           {now.kind === "tv" ? (
             <TvPlayer url={now.url} />
           ) : (
-            <audio key={now.url} src={now.url} controls autoPlay className="w-full" />
+            <RadioPlayer url={now.url} />
           )}
         </div>
       )}
@@ -275,6 +275,55 @@ function TvPlayer({ url }: { url: string }) {
         className="mx-auto block max-h-[70vh] w-full rounded-lg bg-black"
       />
       {err && <p className="mt-1 text-[11px] text-neon-amber">{err}</p>}
+    </div>
+  );
+}
+
+// Radio player — native controls under a dark, psychedelic animated equalizer.
+// The bars are decorative (they dance while playing, freeze when paused): routing
+// a cross-origin stream through Web Audio's analyser would mute it, so we don't.
+function RadioPlayer({ url }: { url: string }) {
+  const ref = useRef<HTMLAudioElement | null>(null);
+  const [playing, setPlaying] = useState(false);
+  return (
+    <div className="overflow-hidden rounded-xl border border-white/10">
+      <div className={"rad-aud relative h-32 w-full" + (playing ? " is-playing" : "")}>
+        <div className="rad-bg" aria-hidden />
+        <div className="rad-eq" aria-hidden>
+          {Array.from({ length: 32 }).map((_, i) => (
+            <span key={i} style={{ animationDelay: `${(i % 16) * 0.06}s` }} />
+          ))}
+        </div>
+        <style>{`
+          .rad-bg{position:absolute;inset:0;background:
+            radial-gradient(120% 120% at 15% 20%, #7c3aed 0%, transparent 45%),
+            radial-gradient(120% 120% at 85% 25%, #db2777 0%, transparent 45%),
+            radial-gradient(140% 140% at 50% 95%, #0ea5e9 0%, transparent 50%),
+            #0a0a12;filter:saturate(1.15);animation:radHue 16s linear infinite}
+          @keyframes radHue{to{filter:hue-rotate(360deg) saturate(1.15)}}
+          .rad-eq{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:center;gap:3px;padding:0 8px 8px}
+          .rad-eq span{flex:1;max-width:9px;height:14%;border-radius:3px 3px 0 0;
+            background:linear-gradient(to top,#22d3ee,#a78bfa,#f472b6);opacity:.85;
+            animation:radBar 1s ease-in-out infinite;animation-play-state:paused;
+            box-shadow:0 0 8px rgba(167,139,250,.45)}
+          .rad-aud.is-playing .rad-eq span{animation-play-state:running}
+          @keyframes radBar{0%,100%{height:14%}25%{height:72%}50%{height:34%}75%{height:90%}}
+          @media (prefers-reduced-motion: reduce){.rad-bg,.rad-eq span{animation:none}}
+        `}</style>
+      </div>
+      <div className="bg-black/60 p-2">
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+        <audio
+          ref={ref}
+          key={url}
+          src={url}
+          controls
+          autoPlay
+          className="w-full"
+          onPlay={() => setPlaying(true)}
+          onPause={() => setPlaying(false)}
+        />
+      </div>
     </div>
   );
 }
