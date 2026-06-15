@@ -19,6 +19,7 @@ import { OwnedRoomDeleteButton } from "./OwnedRoomDeleteButton";
 import { LobbyLeaveButton } from "./LobbyLeaveButton";
 import { MoodMatchedRooms } from "./MoodMatchedRooms";
 import { ModuleDashboard } from "./ModuleDashboard";
+import { ContentDisclaimer } from "@/components/ContentDisclaimer";
 import { WelcomeHero } from "./WelcomeHero";
 import { DMListClient } from "./DMListClient";
 import { GuestAccessCard } from "./GuestAccessCard";
@@ -432,6 +433,10 @@ export default async function RoomsPage({
 
         <div className="flex justify-center">
           <RestoreHiddenSections />
+        </div>
+
+        <div className="mx-auto mt-8 w-full max-w-2xl">
+          <ContentDisclaimer scope="general" />
         </div>
 
         <footer className="mt-8 space-y-1 text-center text-[11px] text-white/30">

@@ -18,6 +18,7 @@ import {
   detailsUrl,
   type ArchiveItem
 } from "@/lib/archiveStories";
+import { ContentDisclaimer } from "@/components/ContentDisclaimer";
 
 type Now = { id: string; title: string; isVideo: boolean } | null;
 
@@ -216,6 +217,8 @@ export function AudiobooksHub({
 
       {/* Share your own */}
       <ShareYourOwn userId={userId} userName={userName} />
+
+      <ContentDisclaimer scope="media" />
     </div>
   );
 }

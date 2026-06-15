@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { COUNTRIES } from "@/lib/liveChannels";
+import { ContentDisclaimer } from "@/components/ContentDisclaimer";
 
 type Post = {
   id: string;
@@ -744,6 +745,8 @@ export function AdultHub({ userId }: { userId: string; userName: string }) {
           authorities.
         </p>
       </section>
+
+      <ContentDisclaimer scope="media" />
     </div>
   );
 }
