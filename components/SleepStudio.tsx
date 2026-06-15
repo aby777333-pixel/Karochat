@@ -643,7 +643,52 @@ const FREE_SOURCES: { label: string; q: string }[] = [
   { label: "Gregorian chant", q: "gregorian chant for sleep" }
 ];
 
-type Section = "sounds" | "frequencies" | "binaural" | "more";
+type Section = "sounds" | "frequencies" | "binaural" | "music" | "more";
+
+// ── Music channels (radio-browser streams) ──────────────────────────────────
+type Station = { name: string; url: string; favicon: string; bitrate: number; tags: string };
+type MusicCat = { key: string; label: string; emoji: string; tags: string[] };
+const MUSIC_CATS: MusicCat[] = [
+  { key: "western", label: "Western classical", emoji: "🎻", tags: ["classical"] },
+  { key: "indian", label: "Indian classical", emoji: "🪕", tags: ["indian classical", "carnatic", "hindustani", "raga"] },
+  { key: "solfeggio", label: "Solfeggio & meditation", emoji: "🧘", tags: ["meditation", "healing", "solfeggio"] },
+  { key: "ambient", label: "Ambient & sleep", emoji: "🌌", tags: ["ambient", "sleep", "relaxation"] }
+];
+
+async function fetchByTags(tags: string[]): Promise<Station[]> {
+  const base = "https://de1.api.radio-browser.info/json/stations/search";
+  const lists = await Promise.all(
+    tags.map(async (t) => {
+      try {
+        const r = await fetch(
+          `${base}?tag=${encodeURIComponent(t)}&hidebroken=true&order=clickcount&reverse=true&limit=80`,
+          { cache: "no-store" }
+        );
+        if (!r.ok) return [];
+        return (await r.json()) as any[];
+      } catch {
+        return [];
+      }
+    })
+  );
+  const seen = new Set<string>();
+  const out: Station[] = [];
+  for (const arr of lists) {
+    for (const s of arr ?? []) {
+      const url = (s.url_resolved || s.url || "") as string;
+      if (!url || seen.has(url)) continue;
+      seen.add(url);
+      out.push({
+        name: (s.name ?? "Station").trim() || "Station",
+        url,
+        favicon: (s.favicon || "") as string,
+        bitrate: (s.bitrate || 0) as number,
+        tags: (s.tags || "") as string
+      });
+    }
+  }
+  return out.slice(0, 80);
+}
 
 // ── Component ────────────────────────────────────────────────────────────────
 export function SleepStudio() {
@@ -893,6 +938,7 @@ export function SleepStudio() {
             ["sounds", "🌧️ Soundscapes"],
             ["frequencies", "🔮 Frequencies"],
             ["binaural", "🎧 Binaural"],
+            ["music", "🎵 Music"],
             ["more", "➕ More & sources"]
           ] as [Section, string][]).map(([key, label]) => (
             <button
@@ -971,6 +1017,8 @@ export function SleepStudio() {
           </div>
         </section>
       )}
+
+      {section === "music" && <MusicChannels />}
 
       {section === "more" && (
         <section className="space-y-4">
@@ -1180,6 +1228,158 @@ function LoopPlayer() {
           <audio key={src} src={src} controls loop autoPlay className="w-full" />
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Music channels — Western & Indian classical, solfeggio/meditation, ambient.
+// Live streams from radio-browser, played under a psychedelic equalizer. These
+// are separate streaming channels (independent of the synth soundscapes above).
+function MusicChannels() {
+  const [catKey, setCatKey] = useState(MUSIC_CATS[0]!.key);
+  const [stations, setStations] = useState<Station[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [now, setNow] = useState<{ name: string; url: string } | null>(null);
+  const cat = MUSIC_CATS.find((c) => c.key === catKey) ?? MUSIC_CATS[0]!;
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setErr(null);
+    (async () => {
+      try {
+        const list = await fetchByTags(cat.tags);
+        if (!cancelled) setStations(list);
+      } catch {
+        if (!cancelled) setErr("Couldn't load channels — check your connection.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [cat]);
+
+  return (
+    <section className="surface-glass p-4">
+      <h2 className="font-display text-lg font-semibold">🎵 Music channels</h2>
+      <p className="mt-0.5 text-[11px] text-white/50">
+        Relaxing live stations — Western &amp; Indian classical, solfeggio &amp;
+        meditation, and ambient. Plays on its own (separate from the soundscapes).
+      </p>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {MUSIC_CATS.map((c) => (
+          <button
+            key={c.key}
+            type="button"
+            onClick={() => setCatKey(c.key)}
+            className={
+              "rounded-lg border px-2.5 py-1.5 text-xs transition " +
+              (c.key === catKey
+                ? "border-neon-purple/50 bg-neon-purple/20 text-white"
+                : "border-white/10 bg-black/20 text-white/75 hover:bg-white/5")
+            }
+          >
+            {c.emoji} {c.label}
+          </button>
+        ))}
+      </div>
+
+      {now && (
+        <div className="mt-3">
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <p className="min-w-0 truncate text-sm text-white">🎶 {now.name}</p>
+            <button type="button" onClick={() => setNow(null)} className="shrink-0 rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-white/55 hover:bg-white/10">
+              ✕ Stop
+            </button>
+          </div>
+          <MusicPlayer url={now.url} />
+        </div>
+      )}
+
+      {err && <p className="mt-2 rounded-md bg-neon-red/10 px-2 py-1 text-xs text-neon-red">{err}</p>}
+      {loading ? (
+        <p className="px-1 py-6 text-center text-sm text-white/50">
+          <span className="mr-2 animate-pulseDot">●</span>Loading {cat.label.toLowerCase()}…
+        </p>
+      ) : stations.length === 0 ? (
+        <p className="px-1 py-6 text-center text-sm text-white/50">No channels found right now. Try another category.</p>
+      ) : (
+        <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {stations.map((s, i) => {
+            const sub = [s.tags?.split(",")[0], s.bitrate ? `${s.bitrate}kbps` : ""].filter(Boolean).join(" · ");
+            const activeRow = now?.url === s.url;
+            return (
+              <li key={`${s.url}-${i}`}>
+                <button
+                  type="button"
+                  onClick={() => setNow({ name: s.name, url: s.url })}
+                  className={
+                    "flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-left transition " +
+                    (activeRow ? "border-neon-purple/50 bg-neon-purple/10" : "border-white/10 bg-black/20 hover:border-white/25 hover:bg-white/5")
+                  }
+                >
+                  {s.favicon ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={s.favicon} alt="" className="h-8 w-8 shrink-0 rounded bg-white/10 object-contain" onError={(e) => ((e.currentTarget as HTMLImageElement).style.visibility = "hidden")} />
+                  ) : (
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded bg-white/10 text-sm">🎵</span>
+                  )}
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm text-white/90">{s.name}</span>
+                    {sub && <span className="block truncate text-[11px] text-white/40">{sub}</span>}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <p className="mt-3 text-[10px] leading-relaxed text-white/35">
+        Stations are provided by the radio-browser community directory. Karochat
+        doesn&apos;t host these streams; availability can vary.
+      </p>
+    </section>
+  );
+}
+
+// Streaming music player with a decorative psychedelic equalizer (bars dance
+// while playing). Cross-origin streams aren't routed through Web Audio so audio
+// is never affected.
+function MusicPlayer({ url }: { url: string }) {
+  const [playing, setPlaying] = useState(false);
+  return (
+    <div className="overflow-hidden rounded-xl border border-white/10">
+      <div className={"slm-aud relative h-28 w-full" + (playing ? " is-playing" : "")}>
+        <div className="slm-bg" aria-hidden />
+        <div className="slm-eq" aria-hidden>
+          {Array.from({ length: 28 }).map((_, i) => (
+            <span key={i} style={{ animationDelay: `${(i % 14) * 0.06}s` }} />
+          ))}
+        </div>
+        <style>{`
+          .slm-bg{position:absolute;inset:0;background:
+            radial-gradient(120% 120% at 15% 20%, #7c3aed 0%, transparent 45%),
+            radial-gradient(120% 120% at 85% 25%, #db2777 0%, transparent 45%),
+            radial-gradient(140% 140% at 50% 95%, #0ea5e9 0%, transparent 50%),
+            #0a0a12;filter:saturate(1.15);animation:slmHue 16s linear infinite}
+          @keyframes slmHue{to{filter:hue-rotate(360deg) saturate(1.15)}}
+          .slm-eq{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:center;gap:3px;padding:0 8px 8px}
+          .slm-eq span{flex:1;max-width:9px;height:14%;border-radius:3px 3px 0 0;
+            background:linear-gradient(to top,#22d3ee,#a78bfa,#f472b6);opacity:.85;
+            animation:slmBar 1s ease-in-out infinite;animation-play-state:paused;
+            box-shadow:0 0 8px rgba(167,139,250,.45)}
+          .slm-aud.is-playing .slm-eq span{animation-play-state:running}
+          @keyframes slmBar{0%,100%{height:14%}25%{height:72%}50%{height:34%}75%{height:90%}}
+          @media (prefers-reduced-motion: reduce){.slm-bg,.slm-eq span{animation:none}}
+        `}</style>
+      </div>
+      <div className="bg-black/60 p-2">
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+        <audio key={url} src={url} controls autoPlay className="w-full" onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} />
+      </div>
     </div>
   );
 }
