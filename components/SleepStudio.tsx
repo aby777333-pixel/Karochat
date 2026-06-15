@@ -651,6 +651,8 @@ type MusicCat = { key: string; label: string; emoji: string; tags: string[] };
 const MUSIC_CATS: MusicCat[] = [
   { key: "western", label: "Western classical", emoji: "🎻", tags: ["classical"] },
   { key: "indian", label: "Indian classical", emoji: "🪕", tags: ["indian classical", "carnatic", "hindustani", "raga"] },
+  { key: "gregorian", label: "Gregorian & choral", emoji: "🕯️", tags: ["gregorian", "chant", "choral", "sacred"] },
+  { key: "soundtrack", label: "Film songs & themes", emoji: "🎬", tags: ["bollywood", "soundtrack", "filmmusic", "film", "cinematic", "movie"] },
   { key: "solfeggio", label: "Solfeggio & meditation", emoji: "🧘", tags: ["meditation", "healing", "solfeggio"] },
   { key: "ambient", label: "Ambient & sleep", emoji: "🌌", tags: ["ambient", "sleep", "relaxation"] }
 ];
