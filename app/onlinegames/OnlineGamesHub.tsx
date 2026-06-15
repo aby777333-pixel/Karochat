@@ -48,6 +48,7 @@ export function OnlineGamesHub() {
   const [err, setErr] = useState<string | null>(null);
   const [now, setNow] = useState<Now>(null);
   const playerRef = useRef<HTMLDivElement | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
   const cat = useMemo(() => CATS.find((c) => c.key === catKey) ?? CATS[0]!, [catKey]);
 
@@ -55,6 +56,25 @@ export function OnlineGamesHub() {
   useEffect(() => {
     if (now) playerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [now]);
+
+  // Make the emulator fill the screen (it scales the game up to fit).
+  function goFullscreen() {
+    const el = iframeRef.current as
+      | (HTMLIFrameElement & {
+          webkitRequestFullscreen?: () => void;
+          webkitEnterFullscreen?: () => void;
+          msRequestFullscreen?: () => void;
+        })
+      | null;
+    if (!el) return;
+    const fn =
+      el.requestFullscreen ?? el.webkitRequestFullscreen ?? el.webkitEnterFullscreen ?? el.msRequestFullscreen;
+    try {
+      fn?.call(el);
+    } catch {
+      // ignore — fall back to the emulator's own fullscreen control
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -135,20 +155,23 @@ export function OnlineGamesHub() {
             <div className="flex items-center justify-between gap-2 px-3 py-2">
               <p className="min-w-0 truncate text-sm text-white">🎮 {now.title}</p>
               <div className="flex items-center gap-1.5">
+                <button type="button" onClick={goFullscreen} className="rounded-md border border-neon-purple/40 bg-neon-purple/15 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-neon-purple/25">⛶ Fullscreen</button>
                 <a href={detailsUrl(now.id)} target="_blank" rel="noopener noreferrer" className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-white/65 hover:bg-white/10">Open ↗</a>
                 <button type="button" onClick={() => setNow(null)} className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-white/55 hover:bg-white/10">✕ Close</button>
               </div>
             </div>
             <iframe
+              ref={iframeRef}
               key={now.id}
               src={embedUrl(now.id)}
               title={now.title}
-              className="h-[70vh] w-full"
+              className="h-[70vh] w-full bg-black"
               allow="autoplay; fullscreen; gamepad; clipboard-write"
               allowFullScreen
             />
             <p className="px-3 py-1.5 text-[10px] text-white/40">
-              Click the screen and press a key/coin button to start. Emulated by the Internet Archive.
+              Tap ⛶ Fullscreen for the big screen. Click the game and press a key/coin
+              button to start. Emulated by the Internet Archive.
             </p>
           </div>
         )}
