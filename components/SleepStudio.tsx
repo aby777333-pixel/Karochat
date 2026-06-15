@@ -359,6 +359,175 @@ const makeHeartbeat: Maker = (ctx, out) => {
   };
 };
 
+// Bright choral "aah" pad — a soft major chord with gentle vibrato.
+const makeAngelicPad: Maker = (ctx, out) => {
+  const lp = ctx.createBiquadFilter();
+  lp.type = "lowpass";
+  lp.frequency.value = 1700;
+  lp.connect(out);
+  const vib = ctx.createOscillator();
+  vib.frequency.value = 5;
+  const vibG = ctx.createGain();
+  vibG.gain.value = 6;
+  vib.connect(vibG);
+  vib.start();
+  const freqs = [261.63, 329.63, 392.0, 523.25];
+  const oscs = freqs.map((f) => {
+    const o = ctx.createOscillator();
+    o.type = "sine";
+    o.frequency.value = f;
+    const g = ctx.createGain();
+    g.gain.value = 0.09;
+    vibG.connect(o.detune);
+    o.connect(g);
+    g.connect(lp);
+    o.start();
+    return o;
+  });
+  return () => stopNodes(...oscs, vib);
+};
+
+// Dark "mmm" humming choir with a slow breathing swell.
+const makeHummingChoir: Maker = (ctx, out) => {
+  const lp = ctx.createBiquadFilter();
+  lp.type = "lowpass";
+  lp.frequency.value = 700;
+  const amp = ctx.createGain();
+  amp.gain.value = 0.5;
+  lp.connect(amp);
+  amp.connect(out);
+  const breath = ctx.createOscillator();
+  breath.frequency.value = 0.18;
+  const breathG = ctx.createGain();
+  breathG.gain.value = 0.25;
+  breath.connect(breathG);
+  breathG.connect(amp.gain);
+  breath.start();
+  const vib = ctx.createOscillator();
+  vib.frequency.value = 4.5;
+  const vibG = ctx.createGain();
+  vibG.gain.value = 5;
+  vib.connect(vibG);
+  vib.start();
+  const freqs = [146.83, 220.0, 293.66];
+  const oscs = freqs.map((f) => {
+    const o = ctx.createOscillator();
+    o.type = "triangle";
+    o.frequency.value = f;
+    const g = ctx.createGain();
+    g.gain.value = 0.12;
+    vibG.connect(o.detune);
+    o.connect(g);
+    g.connect(lp);
+    o.start();
+    return o;
+  });
+  return () => stopNodes(...oscs, vib, breath);
+};
+
+// Deep space — sub drone + airy filtered sweep + sparse shimmer bells.
+const SPACE_BELLS = [1046.5, 1318.5, 1568, 2093];
+const makeDeepSpace: Maker = (ctx, out) => {
+  const drone = ctx.createOscillator();
+  drone.type = "sine";
+  drone.frequency.value = 55;
+  const dg = ctx.createGain();
+  dg.gain.value = 0.18;
+  drone.connect(dg);
+  dg.connect(out);
+  drone.start();
+  const drone2 = ctx.createOscillator();
+  drone2.type = "sine";
+  drone2.frequency.value = 82.41;
+  const dg2 = ctx.createGain();
+  dg2.gain.value = 0.08;
+  drone2.connect(dg2);
+  dg2.connect(out);
+  drone2.start();
+  const src = noiseSource(ctx, "pink");
+  const bp = ctx.createBiquadFilter();
+  bp.type = "bandpass";
+  bp.frequency.value = 900;
+  bp.Q.value = 2;
+  const ng = ctx.createGain();
+  ng.gain.value = 0.05;
+  const sweep = ctx.createOscillator();
+  sweep.frequency.value = 0.05;
+  const sg = ctx.createGain();
+  sg.gain.value = 700;
+  sweep.connect(sg);
+  sg.connect(bp.frequency);
+  sweep.start();
+  src.connect(bp);
+  bp.connect(ng);
+  ng.connect(out);
+  let stopped = false;
+  let timer: ReturnType<typeof setTimeout>;
+  const shimmer = () => {
+    if (stopped) return;
+    const f = SPACE_BELLS[Math.floor(Math.random() * SPACE_BELLS.length)] ?? 1568;
+    const o = ctx.createOscillator();
+    o.type = "sine";
+    o.frequency.value = f;
+    const g = ctx.createGain();
+    const now = ctx.currentTime;
+    g.gain.setValueAtTime(0, now);
+    g.gain.linearRampToValueAtTime(0.06, now + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 4);
+    o.connect(g);
+    g.connect(out);
+    o.start(now);
+    o.stop(now + 4.2);
+    timer = setTimeout(shimmer, 3000 + Math.random() * 6000);
+  };
+  timer = setTimeout(shimmer, 1500);
+  return () => {
+    stopped = true;
+    clearTimeout(timer);
+    stopNodes(drone, drone2, src, sweep);
+  };
+};
+
+// Whale song over a deep ocean bed.
+const makeWhales: Maker = (ctx, out) => {
+  const src = noiseSource(ctx, "brown");
+  const lp = ctx.createBiquadFilter();
+  lp.type = "lowpass";
+  lp.frequency.value = 300;
+  const g = ctx.createGain();
+  g.gain.value = 0.18;
+  src.connect(lp);
+  lp.connect(g);
+  g.connect(out);
+  let stopped = false;
+  let timer: ReturnType<typeof setTimeout>;
+  const moan = () => {
+    if (stopped) return;
+    const o = ctx.createOscillator();
+    o.type = "sine";
+    const now = ctx.currentTime;
+    const base = 120 + Math.random() * 120;
+    o.frequency.setValueAtTime(base, now);
+    o.frequency.exponentialRampToValueAtTime(base * 0.5, now + 2.5);
+    o.frequency.exponentialRampToValueAtTime(base * 0.8, now + 4);
+    const mg = ctx.createGain();
+    mg.gain.setValueAtTime(0.0001, now);
+    mg.gain.exponentialRampToValueAtTime(0.12, now + 0.8);
+    mg.gain.exponentialRampToValueAtTime(0.0001, now + 4.5);
+    o.connect(mg);
+    mg.connect(out);
+    o.start(now);
+    o.stop(now + 4.6);
+    timer = setTimeout(moan, 5000 + Math.random() * 9000);
+  };
+  timer = setTimeout(moan, 2000);
+  return () => {
+    stopped = true;
+    clearTimeout(timer);
+    stopNodes(src);
+  };
+};
+
 const makeTone =
   (hz: number): Maker =>
   (ctx, out) => {
@@ -412,7 +581,11 @@ const SOUNDS: Item[] = [
   { id: "pink", label: "Pink noise", emoji: "🌸", make: colorNoise("pink"), def: 0.4 },
   { id: "brown", label: "Brown noise", emoji: "🟫", make: colorNoise("brown"), def: 0.4 },
   { id: "bowl", label: "Singing bowl", emoji: "🥣", make: makeBowl, def: 0.5 },
-  { id: "heart", label: "Slow heartbeat", emoji: "🫀", make: makeHeartbeat, def: 0.5 }
+  { id: "heart", label: "Slow heartbeat", emoji: "🫀", make: makeHeartbeat, def: 0.5 },
+  { id: "humming", label: "Humming choir", emoji: "🎙️", make: makeHummingChoir, def: 0.5 },
+  { id: "angelic", label: "Angelic choir", emoji: "👼", make: makeAngelicPad, def: 0.4 },
+  { id: "space", label: "Deep space", emoji: "🌌", make: makeDeepSpace, def: 0.6 },
+  { id: "whales", label: "Whale song", emoji: "🐋", make: makeWhales, def: 0.6 }
 ];
 
 const SOLFEGGIO: Item[] = [
@@ -425,14 +598,20 @@ const SOLFEGGIO: Item[] = [
   { id: "t639", label: "639 Hz", sub: "connection", make: makeTone(639), def: 0.18 },
   { id: "t741", label: "741 Hz", sub: "cleanse · express", make: makeTone(741), def: 0.18 },
   { id: "t852", label: "852 Hz", sub: "intuition", make: makeTone(852), def: 0.18 },
-  { id: "t963", label: "963 Hz", sub: "awakening", make: makeTone(963), def: 0.18 }
+  { id: "t963", label: "963 Hz", sub: "awakening", make: makeTone(963), def: 0.18 },
+  { id: "t40", label: "40 Hz", sub: "gamma · clarity", make: makeTone(40), def: 0.16 },
+  { id: "t111", label: "111 Hz", sub: "deep calm", make: makeTone(111), def: 0.18 },
+  { id: "t136", label: "136.1 Hz", sub: "Om · earth tone", make: makeTone(136.1), def: 0.18 },
+  { id: "t936", label: "936 Hz", sub: "pineal", make: makeTone(936), def: 0.16 }
 ];
 
 const BINAURAL: Item[] = [
   { id: "b-delta", label: "Delta · 2.5 Hz", sub: "deep dreamless sleep", make: makeBinaural(110, 2.5), def: 0.22 },
   { id: "b-theta", label: "Theta · 6 Hz", sub: "meditation · REM", make: makeBinaural(120, 6), def: 0.22 },
   { id: "b-alpha", label: "Alpha · 10 Hz", sub: "calm & relaxed", make: makeBinaural(160, 10), def: 0.22 },
-  { id: "b-schumann", label: "Schumann · 7.83 Hz", sub: "earth resonance", make: makeBinaural(136.1, 7.83), def: 0.22 }
+  { id: "b-schumann", label: "Schumann · 7.83 Hz", sub: "earth resonance", make: makeBinaural(136.1, 7.83), def: 0.22 },
+  { id: "b-deepdelta", label: "Delta · 1 Hz", sub: "deepest sleep", make: makeBinaural(100, 1), def: 0.22 },
+  { id: "b-gamma", label: "Gamma · 40 Hz", sub: "focus & healing", make: makeBinaural(220, 40), def: 0.2 }
 ];
 
 const ALL: Item[] = [...SOUNDS, ...SOLFEGGIO, ...BINAURAL];
@@ -455,7 +634,13 @@ const FREE_SOURCES: { label: string; q: string }[] = [
   { label: "Lo-fi sleep music", q: "lofi sleep music" },
   { label: "Tibetan bowls", q: "tibetan singing bowls meditation" },
   { label: "528 Hz music", q: "528 hz healing music sleep" },
-  { label: "Delta waves", q: "delta waves deep sleep music" }
+  { label: "Delta waves", q: "delta waves deep sleep music" },
+  { label: "Opera for sleep", q: "relaxing opera arias for sleep" },
+  { label: "Humming meditation", q: "humming meditation for sleep" },
+  { label: "Space ambience", q: "deep space ambience for sleep 10 hours" },
+  { label: "963 Hz", q: "963 hz pineal activation meditation" },
+  { label: "Gamma waves", q: "gamma waves focus healing meditation" },
+  { label: "Gregorian chant", q: "gregorian chant for sleep" }
 ];
 
 type Section = "sounds" | "frequencies" | "binaural" | "more";

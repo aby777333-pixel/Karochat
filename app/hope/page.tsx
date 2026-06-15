@@ -4,12 +4,17 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Logo, Wordmark } from "@/components/Brand";
 import { SignOutButton } from "@/components/SignOutButton";
 import { AdRails } from "@/components/AdRails";
-import { LiveTvRadio } from "@/components/LiveTvRadio";
-import { FreeStreamingApps } from "@/components/FreeStreamingApps";
+import { HopeHub } from "./HopeHub";
 
 export const dynamic = "force-dynamic";
 
-export default async function LiveTvPage() {
+export const metadata = {
+  title: "Hope · Karochat",
+  description:
+    "You are not alone. Crisis helplines worldwide, people to talk to, ways to help and ways to give."
+};
+
+export default async function HopePage() {
   const supabase = createSupabaseServerClient();
   const {
     data: { user }
@@ -18,7 +23,7 @@ export default async function LiveTvPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, username, terms_accepted_at")
+    .select("id, username, display_name, terms_accepted_at")
     .eq("id", user.id)
     .maybeSingle();
   if (!profile?.username) redirect("/onboarding");
@@ -43,18 +48,12 @@ export default async function LiveTvPage() {
           </nav>
         </header>
 
-        <section className="surface-glass mt-5 p-4 md:p-5">
-          <h1 className="font-display text-xl font-semibold">📺 Free TV &amp; Radio</h1>
-          <p className="mt-1 text-sm text-white/55">
-            Free, live TV and internet radio from around the world — pick a country
-            and play right here.
-          </p>
-          <div className="mt-4">
-            <LiveTvRadio />
-          </div>
-        </section>
-
-        <FreeStreamingApps />
+        <div className="mt-5">
+          <HopeHub
+            userId={profile.id}
+            userName={profile.display_name || profile.username}
+          />
+        </div>
       </main>
     </AdRails>
   );
