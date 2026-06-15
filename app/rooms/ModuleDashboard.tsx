@@ -63,7 +63,7 @@ const SECTIONS: Section[] = [
       { href: "/sports", label: "Sports", emoji: "⚽", grad: "from-green-300 via-emerald-500 to-teal-700" },
       { href: "/audiobooks", label: "Audiobooks", emoji: "🎧", grad: "from-amber-300 via-orange-400 to-rose-500" },
       { href: "/files", label: "Files & Apps", emoji: "📂", grad: "from-slate-300 via-slate-500 to-slate-700" },
-      { href: "/fun#games", label: "Games", emoji: "🎮", grad: "from-fuchsia-400 via-pink-500 to-rose-600" }
+      { href: "/onlinegames", label: "Online Games", emoji: "🎮", grad: "from-fuchsia-400 via-pink-500 to-rose-600" }
     ]
   },
   // NOTE: The "Infotainment" section is intentionally hidden for now (kept for
@@ -86,7 +86,7 @@ const SECTIONS: Section[] = [
       { href: "/ayurveda", label: "Ayurveda", emoji: "🌿", grad: "from-green-300 via-emerald-500 to-teal-700" },
       { href: "/diet", label: "Diet & Recipes", emoji: "🥗", grad: "from-lime-300 via-amber-400 to-orange-500" },
       { href: "/hope", label: "Hope", emoji: "🫂", grad: "from-sky-300 via-indigo-400 to-violet-600" },
-      { href: "/doctor", label: "Ask a Doctor", emoji: "🩺", grad: "from-rose-300 via-red-400 to-rose-600" },
+      { href: "/fitness", label: "Fitness", emoji: "🏋️", grad: "from-rose-300 via-red-400 to-rose-600" },
       { href: "/breathe", label: "Breathe", emoji: "🌬️", grad: "from-cyan-300 via-sky-400 to-blue-500" },
       { href: "/firstaid", label: "First Aid", emoji: "🚑", grad: "from-red-400 via-rose-500 to-red-700" }
     ]
@@ -99,7 +99,7 @@ const SECTIONS: Section[] = [
       { href: "/videos/new", label: "Post video", emoji: "🎥", grad: "from-sky-300 via-blue-400 to-indigo-600" },
       { href: "/charter", label: "Charter", emoji: "🌍", grad: "from-cyan-300 via-sky-400 to-blue-600" },
       { href: "/suggestions", label: "Suggestions", emoji: "💡", grad: "from-amber-300 via-yellow-400 to-orange-500" },
-      { href: "/students", label: "Students", emoji: "🎓", grad: "from-indigo-300 via-blue-400 to-violet-600" },
+      { href: "/quiz", label: "Trivia", emoji: "🧠", grad: "from-indigo-300 via-blue-400 to-violet-600" },
       { href: "/fun#icebreakers", label: "Icebreakers", emoji: "💬", grad: "from-teal-300 via-emerald-400 to-cyan-500" },
       { href: "/fun#inspire", label: "Inspiration", emoji: "✨", grad: "from-amber-300 via-orange-400 to-pink-500" }
     ]
