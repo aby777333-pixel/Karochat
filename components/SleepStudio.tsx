@@ -1234,7 +1234,13 @@ function MusicChannels() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [now, setNow] = useState<{ name: string; url: string } | null>(null);
+  const playerRef = useRef<HTMLDivElement | null>(null);
   const cat = MUSIC_CATS.find((c) => c.key === catKey) ?? MUSIC_CATS[0]!;
+
+  // When a channel is picked, bring the player into view immediately.
+  useEffect(() => {
+    if (now) playerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [now]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1281,7 +1287,7 @@ function MusicChannels() {
       </div>
 
       {now && (
-        <div className="mt-3">
+        <div ref={playerRef} className="mt-3 scroll-mt-3">
           <div className="mb-1 flex items-center justify-between gap-2">
             <p className="min-w-0 truncate text-sm text-white">🎶 {now.name}</p>
             <button type="button" onClick={() => setNow(null)} className="shrink-0 rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-white/55 hover:bg-white/10">
