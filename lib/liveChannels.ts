@@ -135,3 +135,121 @@ export async function fetchRadio(code: string): Promise<RadioStation[]> {
   // Directory down / nothing returned → known-good stations so radio still works.
   return stations.length ? stations : FALLBACK_RADIO;
 }
+
+// ── Artists & themes radio ───────────────────────────────────────────────────
+// Beyond the per-country browse, a curated set of artist / theme stations
+// (Pink Floyd, Enigma, Kuschelrock, …) searched by name + tag on radio-browser.
+// Each carries a verified always-on https fallback shown first, so the named
+// artist always has a working stream even when the directory is briefly down.
+export type RadioTheme = {
+  code: string; // synthetic key, prefixed "theme:" so it never collides with a country code
+  name: string;
+  flag: string; // an emoji shown in the picker
+  terms: string[]; // radio-browser name searches
+  tags?: string[]; // radio-browser tag searches
+  fallback: RadioStation[];
+};
+
+const T = (name: string, url: string, tags: string, bitrate = 128): RadioStation => ({
+  name,
+  url,
+  favicon: "",
+  bitrate,
+  tags
+});
+
+export const RADIO_THEMES: RadioTheme[] = [
+  {
+    code: "theme:pinkfloyd",
+    name: "Pink Floyd",
+    flag: "🎸",
+    terms: ["pink floyd"],
+    tags: ["pink floyd", "progressive rock"],
+    fallback: [
+      T("Exclusively Pink Floyd", "https://streaming.exclusive.radio/er/pinkfloyd/icecast.audio", "pink floyd, rock"),
+      T("Labgate · Pink Floyd · Yes · Genesis", "https://s2.ssl-stream.com/radio/8160/radio.mp3", "progressive rock")
+    ]
+  },
+  {
+    code: "theme:enigma",
+    name: "Enigma & chillout",
+    flag: "🌙",
+    terms: ["enigma", "enigmatic"],
+    tags: ["enigma", "new age", "chillout"],
+    fallback: [
+      T("Enigmatic · Magnetic Chillout", "https://radio.enigmatic.su:8005/radio", "enigma, chillout", 256),
+      T("Enigmatic Station", "https://listen2.myradio24.com/8226", "enigma, chillout", 256)
+    ]
+  },
+  {
+    code: "theme:kuschelrock",
+    name: "Kuschelrock (soft rock)",
+    flag: "💞",
+    terms: ["kuschelrock"],
+    tags: ["kuschelrock", "soft rock", "lovesongs"],
+    fallback: [
+      T("Radio Regenbogen · Kuschelrock", "https://stream.regenbogen.de/kuschelrock/mp3-128/radiobrowser", "kuschelrock, soft rock"),
+      T("Kuschelrock (laut.fm)", "https://stream.laut.fm/kuschelrock", "kuschelrock, soft rock"),
+      T("RPR1. · Kuschelrock", "https://stream.rpr1.de/kuschelrock/mp3-128/radiobrowser", "kuschelrock, soft rock")
+    ]
+  },
+  {
+    code: "theme:classicrock",
+    name: "Classic rock",
+    flag: "🤘",
+    terms: ["classic rock"],
+    tags: ["classic rock", "rock", "70s", "80s"],
+    fallback: [
+      T("0N · Classic Rock", "https://0n-classicrock.radionetz.de/0n-classicrock.mp3", "classic rock"),
+      T("RdMix · Classic Rock 70s 80s 90s", "https://cast1.torontocast.com:4610/stream", "classic rock")
+    ]
+  },
+  {
+    code: "theme:softrock",
+    name: "Soft rock & love songs",
+    flag: "❤️",
+    terms: ["soft rock", "love songs"],
+    tags: ["soft rock", "lovesongs", "ballads"],
+    fallback: [
+      T("Kuschelrock (laut.fm)", "https://stream.laut.fm/kuschelrock", "soft rock, lovesongs"),
+      T("RPR1. · Kuschelrock", "https://stream.rpr1.de/kuschelrock/mp3-128/radiobrowser", "soft rock, lovesongs")
+    ]
+  }
+];
+
+export function isRadioTheme(code: string): boolean {
+  return code.startsWith("theme:");
+}
+
+export async function fetchRadioTheme(code: string): Promise<RadioStation[]> {
+  const theme = RADIO_THEMES.find((t) => t.code === code);
+  if (!theme) return FALLBACK_RADIO;
+  const paths = [
+    ...theme.terms.map((t) => `/json/stations/search?name=${encodeURIComponent(t)}&hidebroken=true&order=clickcount&reverse=true&limit=60`),
+    ...(theme.tags ?? []).map((t) => `/json/stations/search?tag=${encodeURIComponent(t)}&hidebroken=true&order=clickcount&reverse=true&limit=60`)
+  ];
+  const lists = await Promise.all(paths.map((p) => rbFetch(p)));
+  const seen = new Set<string>();
+  // Verified https fallback first (always playable), then directory finds.
+  const out: RadioStation[] = [];
+  for (const s of theme.fallback) {
+    if (seen.has(s.url)) continue;
+    seen.add(s.url);
+    out.push(s);
+  }
+  for (const arr of lists) {
+    for (const s of arr ?? []) {
+      const url = (s.url_resolved || s.url || "") as string;
+      if (!url || seen.has(url)) continue;
+      seen.add(url);
+      out.push({
+        name: (s.name ?? "Station").trim() || "Station",
+        url,
+        favicon: (s.favicon || "") as string,
+        bitrate: (s.bitrate || 0) as number,
+        tags: (s.tags || "") as string
+      });
+    }
+  }
+  return out.slice(0, 80);
+}

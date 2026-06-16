@@ -9,8 +9,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   COUNTRIES,
+  RADIO_THEMES,
   fetchRadio,
+  fetchRadioTheme,
   fetchTv,
+  isRadioTheme,
   type RadioStation,
   type TvChannel
 } from "@/lib/liveChannels";
@@ -44,7 +47,7 @@ export function LiveTvRadio() {
           const list = await fetchTv(code);
           if (!cancelled) setTv(list);
         } else {
-          const list = await fetchRadio(code);
+          const list = isRadioTheme(code) ? await fetchRadioTheme(code) : await fetchRadio(code);
           if (!cancelled) setRadio(list);
         }
       } catch {
@@ -66,6 +69,9 @@ export function LiveTvRadio() {
   }, [list, q]);
 
   const country = COUNTRIES.find((c) => c.code === code);
+  const theme = RADIO_THEMES.find((t) => t.code === code);
+  // Friendly label for the current selection, used in loading/empty messages.
+  const sourceLabel = theme?.name ?? country?.name ?? "this selection";
 
   return (
     <div className="space-y-4">
@@ -118,7 +124,11 @@ export function LiveTvRadio() {
           </button>
           <button
             type="button"
-            onClick={() => setMode("tv")}
+            onClick={() => {
+              setMode("tv");
+              // Themes are radio-only; fall back to a country so TV has a valid code.
+              if (isRadioTheme(code)) setCode("us");
+            }}
             className={
               "rounded-lg px-3 py-1.5 transition " +
               (mode === "tv" ? "bg-neon-blue/20 text-neon-blue" : "text-white/65 hover:bg-white/10")
@@ -132,11 +142,22 @@ export function LiveTvRadio() {
           onChange={(e) => setCode(e.target.value)}
           className="rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white/85 outline-none focus:border-neon-blue/60"
         >
-          {COUNTRIES.map((c) => (
-            <option key={c.code} value={c.code}>
-              {c.flag} {c.name}
-            </option>
-          ))}
+          {mode === "radio" && (
+            <optgroup label="🎙️ Artists & themes">
+              {RADIO_THEMES.map((t) => (
+                <option key={t.code} value={t.code}>
+                  {t.flag} {t.name}
+                </option>
+              ))}
+            </optgroup>
+          )}
+          <optgroup label="🌍 Countries">
+            {COUNTRIES.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.flag} {c.name}
+              </option>
+            ))}
+          </optgroup>
         </select>
         <input
           value={q}
@@ -151,12 +172,12 @@ export function LiveTvRadio() {
       {loading ? (
         <p className="px-1 py-6 text-center text-sm text-white/50">
           <span className="mr-2 animate-pulseDot">●</span>Loading {mode === "tv" ? "TV" : "radio"}{" "}
-          channels for {country?.name}…
+          channels for {sourceLabel}…
         </p>
       ) : filtered.length === 0 ? (
         <p className="px-1 py-6 text-center text-sm text-white/50">
-          No {mode === "tv" ? "TV" : "radio"} channels found for {country?.name}. Try another
-          country.
+          No {mode === "tv" ? "TV" : "radio"} channels found for {sourceLabel}. Try another
+          {theme ? " artist or country." : " country."}
         </p>
       ) : (
         <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
