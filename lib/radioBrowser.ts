@@ -19,6 +19,23 @@ const RB_BASES = [
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 export async function rbFetch(path: string): Promise<any[]> {
+  // In the browser, go through our same-origin server proxy (/api/rb). It
+  // fetches radio-browser server-to-server across several mirrors with retry,
+  // which sidesteps browser CORS / regional blocks that otherwise leave the
+  // station lists empty. Only fall back to calling the mirrors directly if the
+  // proxy itself is unreachable (and for any non-browser caller).
+  if (typeof window !== "undefined") {
+    try {
+      const res = await fetch(`/api/rb?path=${encodeURIComponent(path)}`, { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) return data;
+      }
+    } catch {
+      // proxy unreachable — fall through to direct mirrors
+    }
+  }
+
   for (let i = 0; i < RB_BASES.length; i++) {
     const base = RB_BASES[i];
     if (!base) continue;
