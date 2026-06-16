@@ -778,7 +778,13 @@ export function SleepStudio({ userId }: { userId?: string } = {}) {
   const [timerMin, setTimerMin] = useState(0);
   const [timerEnd, setTimerEnd] = useState<number | null>(null);
   const [remaining, setRemaining] = useState<number>(0);
+  // The streaming Music channel and the Loop player own their own <audio>
+  // elements in child components. They report whether they're playing (so
+  // "Stop all" knows to enable) and listen to `stopSignal` to stop themselves.
+  const [extPlaying, setExtPlaying] = useState<{ music: boolean; loop: boolean }>({ music: false, loop: false });
+  const [stopSignal, setStopSignal] = useState(0);
 
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const ctxRef = useRef<AudioContext | null>(null);
   const masterRef = useRef<GainNode | null>(null);
   const layersRef = useRef<Map<string, { stop: () => void; gain: GainNode }>>(new Map());
@@ -825,9 +831,33 @@ export function SleepStudio({ userId }: { userId?: string } = {}) {
   }, []);
 
   const stopAll = useCallback(() => {
+    // 1) synth soundscape/frequency/binaural layers
     for (const id of Array.from(layersRef.current.keys())) stopLayer(id);
     setActive(new Set());
+    // 2) tell the Music channel + Loop player children to stop (clears their
+    //    <audio>), and reflect that immediately so the button disables.
+    setStopSignal((s) => s + 1);
+    setExtPlaying({ music: false, loop: false });
+    // 3) belt-and-suspenders: synchronously pause any media still mounted under
+    //    this studio so sound stops the instant the button is pressed.
+    try {
+      rootRef.current
+        ?.querySelectorAll<HTMLMediaElement>("audio, video")
+        .forEach((el) => {
+          try {
+            el.pause();
+          } catch {
+            // ignore
+          }
+        });
+    } catch {
+      // ignore
+    }
   }, [stopLayer]);
+
+  // Stable callbacks for children to report their play state upward.
+  const onMusicPlaying = useCallback((p: boolean) => setExtPlaying((s) => ({ ...s, music: p })), []);
+  const onLoopPlaying = useCallback((p: boolean) => setExtPlaying((s) => ({ ...s, loop: p })), []);
 
   const toggle = useCallback(
     (id: string) => {
@@ -948,11 +978,13 @@ export function SleepStudio({ userId }: { userId?: string } = {}) {
   }
 
   const playingCount = active.size;
+  // Total audible sources = synth layers + streaming music + loop player.
+  const activeTotal = playingCount + (extPlaying.music ? 1 : 0) + (extPlaying.loop ? 1 : 0);
   const remMin = Math.floor(remaining / 60000);
   const remSec = Math.floor((remaining % 60000) / 1000);
 
   return (
-    <div className="space-y-5">
+    <div ref={rootRef} className="space-y-5">
       {/* Hero + master controls */}
       <section className="surface-glass tint-purple p-5">
         <h1 className="font-display text-xl font-semibold">😴 Sleep &amp; Relaxation</h1>
@@ -1002,10 +1034,10 @@ export function SleepStudio({ userId }: { userId?: string } = {}) {
           <button
             type="button"
             onClick={stopAll}
-            disabled={playingCount === 0}
+            disabled={activeTotal === 0}
             className="ml-auto rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/80 transition hover:bg-white/10 disabled:opacity-40"
           >
-            ■ Stop all {playingCount > 0 ? `(${playingCount})` : ""}
+            ■ Stop all {activeTotal > 0 ? `(${activeTotal})` : ""}
           </button>
         </div>
       </section>
@@ -1097,11 +1129,13 @@ export function SleepStudio({ userId }: { userId?: string } = {}) {
         </section>
       )}
 
-      {section === "music" && <MusicChannels userId={userId} />}
+      {section === "music" && (
+        <MusicChannels userId={userId} stopSignal={stopSignal} onPlayingChange={onMusicPlaying} />
+      )}
 
       {section === "more" && (
         <section className="space-y-4">
-          <LoopPlayer />
+          <LoopPlayer stopSignal={stopSignal} onPlayingChange={onLoopPlaying} />
           <div className="surface-glass p-4">
             <p className="text-xs text-white/55">
               More free sleep &amp; nature sounds and music — opens a search of free
@@ -1236,7 +1270,13 @@ function FreqRow({
 
 // A tiny standalone looping player for any audio link or local file. Independent
 // of the Web-Audio graph — just an <audio loop> element.
-function LoopPlayer() {
+function LoopPlayer({
+  stopSignal = 0,
+  onPlayingChange
+}: {
+  stopSignal?: number;
+  onPlayingChange?: (playing: boolean) => void;
+} = {}) {
   const [url, setUrl] = useState("");
   const [src, setSrc] = useState<string | null>(null);
   const [title, setTitle] = useState<string>("");
@@ -1247,6 +1287,27 @@ function LoopPlayer() {
       if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
     };
   }, []);
+
+  // "Stop all" from the hero — drop the loaded source so the <audio> unmounts.
+  useEffect(() => {
+    if (stopSignal > 0) {
+      setSrc(null);
+      setTitle("");
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = null;
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stopSignal]);
+
+  // Report play state up (and "stopped" on unmount) for the hero's "Stop all".
+  useEffect(() => {
+    onPlayingChange?.(!!src);
+  }, [src, onPlayingChange]);
+  useEffect(() => {
+    return () => onPlayingChange?.(false);
+  }, [onPlayingChange]);
 
   function loadUrl() {
     const u = url.trim();
@@ -1315,7 +1376,15 @@ function LoopPlayer() {
 // Hollywood, world & more. Live streams from radio-browser (with always-on
 // curated fallbacks), plus the user's own uploaded tracks. Played under a
 // psychedelic equalizer, independent of the synth soundscapes above.
-function MusicChannels({ userId }: { userId?: string }) {
+function MusicChannels({
+  userId,
+  stopSignal = 0,
+  onPlayingChange
+}: {
+  userId?: string;
+  stopSignal?: number;
+  onPlayingChange?: (playing: boolean) => void;
+}) {
   const [catKey, setCatKey] = useState(MUSIC_CATS[0]!.key);
   const [stations, setStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState(false);
@@ -1332,6 +1401,21 @@ function MusicChannels({ userId }: { userId?: string }) {
   useEffect(() => {
     if (now) playerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [now]);
+
+  // "Stop all" from the hero increments stopSignal — clear the current station.
+  useEffect(() => {
+    if (stopSignal > 0) setNow(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stopSignal]);
+
+  // Report play state up so the hero's "Stop all" enables/disables correctly,
+  // and report "stopped" when this tab unmounts (which also stops the audio).
+  useEffect(() => {
+    onPlayingChange?.(!!now);
+  }, [now, onPlayingChange]);
+  useEffect(() => {
+    return () => onPlayingChange?.(false);
+  }, [onPlayingChange]);
 
   useEffect(() => {
     let cancelled = false;
