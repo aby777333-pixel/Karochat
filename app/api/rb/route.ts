@@ -72,8 +72,12 @@ export async function GET(req: NextRequest) {
               status: 200,
               headers: {
                 "content-type": "application/json",
-                // Cache at the CDN a few minutes — the directory changes slowly.
-                "cache-control": "public, s-maxage=300, stale-while-revalidate=600"
+                // MUST NOT be CDN-cached: Netlify's edge cache keys this route by
+                // pathname only (ignoring the query), so any public/s-maxage cache
+                // serves the first query's result for EVERY country/tag. Keep it
+                // per-request fresh — the mirror fetch already has retry/fallback.
+                "cache-control": "no-store, must-revalidate",
+                "netlify-cdn-cache-control": "no-store"
               }
             });
           }
