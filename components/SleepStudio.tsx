@@ -707,7 +707,17 @@ const MUSIC_CATS: MusicCat[] = [
   { key: "santoor", label: "Santoor & flute", emoji: "🎶", tags: ["santoor", "bansuri", "flute", "indian classical"], fallback: [ST.rpWorld, ST.synphaera] },
   { key: "bollywood", label: "Bollywood", emoji: "🎬", tags: ["bollywood", "hindi", "filmi", "desi", "indian pop"], fallback: [ST.rpWorld, ST.lush] },
   { key: "hollywood", label: "Hollywood & film scores", emoji: "🎞️", tags: ["soundtrack", "film score", "cinematic", "epic", "orchestral", "movie"], fallback: [ST.wcpe, ST.venice, ST.rpEclectic] },
-  { key: "regional", label: "Indian regional", emoji: "🇮🇳", tags: ["tamil", "telugu", "punjabi", "bengali", "marathi", "gujarati", "kannada", "malayalam", "bhajan", "devotional"], fallback: [ST.rpWorld, ST.lush] },
+  // Indian regional — every state / language family covered so artists from all
+  // states surface (radio-browser tag search; an empty tag simply returns
+  // nothing and is harmless). Browsers cap ~6 concurrent requests per origin, so
+  // the longer list self-throttles rather than flooding the proxy.
+  { key: "regional", label: "Indian regional", emoji: "🇮🇳", tags: [
+    "hindi", "tamil", "telugu", "kannada", "malayalam", "bengali", "marathi",
+    "gujarati", "punjabi", "bhojpuri", "odia", "oriya", "assamese", "rajasthani",
+    "haryanvi", "maithili", "chhattisgarhi", "konkani", "kashmiri", "manipuri",
+    "nepali", "tulu", "garhwali", "sambalpuri", "urdu", "folk", "devotional",
+    "bhajan", "ghazal", "qawwali", "sufi"
+  ], fallback: [ST.rpWorld, ST.lush] },
   { key: "soundtrack", label: "Film songs & themes", emoji: "🎭", tags: ["bollywood", "soundtrack", "filmmusic", "film", "cinematic", "movie"], fallback: [ST.rpEclectic, ST.wcpe] },
   { key: "gregorian", label: "Gregorian & choral", emoji: "🕯️", tags: ["gregorian", "chant", "choral", "sacred"], fallback: [ST.wcpe, ST.venice] },
   { key: "solfeggio", label: "Solfeggio & meditation", emoji: "🧘", tags: ["meditation", "healing", "solfeggio"], fallback: [ST.drone, ST.synphaera, ST.deepspace] },
@@ -740,7 +750,9 @@ async function fetchByTags(cat: MusicCat): Promise<Station[]> {
   }
   // Directory down / nothing for this tag set → curated always-on streams so the
   // panel is never empty (mirrors the TV & Radio FALLBACK_RADIO behaviour).
-  return out.length ? out.slice(0, 80) : cat.fallback ?? GENERIC_FALLBACK;
+  // Indian regional spans many languages/states, so show a deeper list there.
+  const cap = cat.key === "regional" ? 200 : 80;
+  return out.length ? out.slice(0, cap) : cat.fallback ?? GENERIC_FALLBACK;
 }
 
 // User uploads, backed by the existing public `tracks` table + `music` bucket
