@@ -158,7 +158,16 @@ const T = (name: string, url: string, tags: string, bitrate = 128): RadioStation
   tags
 });
 
+// Helper for the common one-artist station on exclusive.radio (verified always-on,
+// https + CORS-friendly). Slugs are lowercase, no spaces.
+const ER = (name: string, slug: string, tags: string): RadioStation =>
+  T(name, `https://streaming.exclusive.radio/er/${slug}/icecast.audio`, tags);
+// Helper for laut.fm genre stations (verified always-on, https).
+const LF = (name: string, slug: string, tags: string): RadioStation =>
+  T(name, `https://stream.laut.fm/${slug}`, tags);
+
 export const RADIO_THEMES: RadioTheme[] = [
+  // ── Artists & bands ────────────────────────────────────────────────────────
   {
     code: "theme:pinkfloyd",
     name: "Pink Floyd",
@@ -166,10 +175,115 @@ export const RADIO_THEMES: RadioTheme[] = [
     terms: ["pink floyd"],
     tags: ["pink floyd", "progressive rock"],
     fallback: [
-      T("Exclusively Pink Floyd", "https://streaming.exclusive.radio/er/pinkfloyd/icecast.audio", "pink floyd, rock"),
+      ER("Exclusively Pink Floyd", "pinkfloyd", "pink floyd, rock"),
       T("Labgate · Pink Floyd · Yes · Genesis", "https://s2.ssl-stream.com/radio/8160/radio.mp3", "progressive rock")
     ]
   },
+  {
+    code: "theme:abba",
+    name: "ABBA",
+    flag: "💃",
+    terms: ["abba"],
+    tags: ["abba", "pop", "70s", "disco"],
+    fallback: [ER("Exclusively ABBA", "abba", "abba, pop"), LF("Disco (laut.fm)", "disco", "disco")]
+  },
+  {
+    code: "theme:beegees",
+    name: "Bee Gees",
+    flag: "🕺",
+    terms: ["bee gees", "beegees"],
+    tags: ["bee gees", "disco", "70s", "pop"],
+    fallback: [ER("Exclusively Bee Gees", "beegees", "bee gees, disco"), LF("Disco (laut.fm)", "disco", "disco")]
+  },
+  {
+    code: "theme:boneym",
+    name: "Boney M.",
+    flag: "✨",
+    terms: ["boney m", "boney m."],
+    tags: ["boney m", "disco", "eurodisco", "70s"],
+    fallback: [LF("Disco (laut.fm)", "disco", "disco, eurodisco"), LF("80s Hits (laut.fm)", "80er", "80s, disco")]
+  },
+  {
+    code: "theme:queen",
+    name: "Queen",
+    flag: "👑",
+    terms: ["queen"],
+    tags: ["queen", "rock", "classic rock"],
+    fallback: [ER("Exclusively Queen", "queen", "queen, rock")]
+  },
+  {
+    code: "theme:beatles",
+    name: "The Beatles",
+    flag: "🪲",
+    terms: ["beatles", "the beatles"],
+    tags: ["beatles", "60s", "classic rock"],
+    fallback: [ER("Exclusively The Beatles", "beatles", "beatles, rock")]
+  },
+  {
+    code: "theme:elvis",
+    name: "Elvis Presley",
+    flag: "🎤",
+    terms: ["elvis", "elvis presley"],
+    tags: ["elvis", "rock and roll", "50s", "oldies"],
+    fallback: [ER("Exclusively Elvis", "elvispresley", "elvis, rock and roll")]
+  },
+  {
+    code: "theme:michaeljackson",
+    name: "Michael Jackson",
+    flag: "🕴️",
+    terms: ["michael jackson"],
+    tags: ["michael jackson", "pop", "soul", "80s"],
+    fallback: [ER("Exclusively Michael Jackson", "michaeljackson", "michael jackson, pop")]
+  },
+  {
+    code: "theme:madonna",
+    name: "Madonna",
+    flag: "💫",
+    terms: ["madonna"],
+    tags: ["madonna", "pop", "80s", "dance"],
+    fallback: [ER("Exclusively Madonna", "madonna", "madonna, pop")]
+  },
+  {
+    code: "theme:eltonjohn",
+    name: "Elton John",
+    flag: "🎹",
+    terms: ["elton john"],
+    tags: ["elton john", "pop", "classic rock"],
+    fallback: [ER("Exclusively Elton John", "eltonjohn", "elton john, pop")]
+  },
+  {
+    code: "theme:rollingstones",
+    name: "The Rolling Stones",
+    flag: "👅",
+    terms: ["rolling stones"],
+    tags: ["rolling stones", "classic rock", "rock"],
+    fallback: [ER("Exclusively Rolling Stones", "rollingstones", "rolling stones, rock")]
+  },
+  {
+    code: "theme:ledzeppelin",
+    name: "Led Zeppelin",
+    flag: "🎶",
+    terms: ["led zeppelin"],
+    tags: ["led zeppelin", "classic rock", "hard rock"],
+    fallback: [ER("Exclusively Led Zeppelin", "ledzeppelin", "led zeppelin, rock")]
+  },
+  {
+    code: "theme:u2",
+    name: "U2",
+    flag: "🎸",
+    terms: ["u2"],
+    tags: ["u2", "rock", "80s"],
+    fallback: [ER("Exclusively U2", "u2", "u2, rock")]
+  },
+  {
+    code: "theme:eagles",
+    name: "Eagles",
+    flag: "🦅",
+    terms: ["eagles"],
+    tags: ["eagles", "classic rock", "soft rock"],
+    fallback: [ER("Exclusively Eagles", "eagles", "eagles, rock")]
+  },
+  // ── Genres & moods ─────────────────────────────────────────────────────────
   {
     code: "theme:enigma",
     name: "Enigma & chillout",
@@ -189,7 +303,7 @@ export const RADIO_THEMES: RadioTheme[] = [
     tags: ["kuschelrock", "soft rock", "lovesongs"],
     fallback: [
       T("Radio Regenbogen · Kuschelrock", "https://stream.regenbogen.de/kuschelrock/mp3-128/radiobrowser", "kuschelrock, soft rock"),
-      T("Kuschelrock (laut.fm)", "https://stream.laut.fm/kuschelrock", "kuschelrock, soft rock"),
+      LF("Kuschelrock (laut.fm)", "kuschelrock", "kuschelrock, soft rock"),
       T("RPR1. · Kuschelrock", "https://stream.rpr1.de/kuschelrock/mp3-128/radiobrowser", "kuschelrock, soft rock")
     ]
   },
@@ -211,9 +325,113 @@ export const RADIO_THEMES: RadioTheme[] = [
     terms: ["soft rock", "love songs"],
     tags: ["soft rock", "lovesongs", "ballads"],
     fallback: [
-      T("Kuschelrock (laut.fm)", "https://stream.laut.fm/kuschelrock", "soft rock, lovesongs"),
+      LF("Kuschelrock (laut.fm)", "kuschelrock", "soft rock, lovesongs"),
       T("RPR1. · Kuschelrock", "https://stream.rpr1.de/kuschelrock/mp3-128/radiobrowser", "soft rock, lovesongs")
     ]
+  },
+  {
+    code: "theme:disco",
+    name: "Disco & funk",
+    flag: "🪩",
+    terms: ["disco", "funk"],
+    tags: ["disco", "funk", "70s", "soul"],
+    fallback: [LF("Disco (laut.fm)", "disco", "disco, funk")]
+  },
+  {
+    code: "theme:eurodance",
+    name: "Eurodance",
+    flag: "🎉",
+    terms: ["eurodance"],
+    tags: ["eurodance", "90s", "dance"],
+    fallback: [LF("Eurodance (laut.fm)", "eurodance", "eurodance, 90s")]
+  },
+  {
+    code: "theme:trance",
+    name: "Trance",
+    flag: "🌀",
+    terms: ["trance"],
+    tags: ["trance", "psytrance", "progressive trance"],
+    fallback: [LF("Trance (laut.fm)", "trance", "trance"), T("SomaFM · Beat Blender", "https://ice1.somafm.com/beatblender-128-mp3", "downtempo")]
+  },
+  {
+    code: "theme:techno",
+    name: "Techno",
+    flag: "🔊",
+    terms: ["techno"],
+    tags: ["techno", "tech house", "minimal"],
+    fallback: [LF("Techno (laut.fm)", "techno", "techno"), T("0N · Techno", "https://0n-techno.radionetz.de/0n-techno.mp3", "techno")]
+  },
+  {
+    code: "theme:house",
+    name: "House & deep house",
+    flag: "🏠",
+    terms: ["house", "deep house"],
+    tags: ["house", "deep house", "electronic"],
+    fallback: [LF("House (laut.fm)", "house", "house, deep house")]
+  },
+  {
+    code: "theme:80s",
+    name: "80s hits",
+    flag: "📼",
+    terms: ["80s", "80er"],
+    tags: ["80s", "pop", "new wave"],
+    fallback: [LF("80s Hits (laut.fm)", "80er", "80s, pop")]
+  },
+  {
+    code: "theme:90s",
+    name: "90s hits",
+    flag: "💿",
+    terms: ["90s", "90er"],
+    tags: ["90s", "pop", "dance"],
+    fallback: [LF("90s Hits (laut.fm)", "90er", "90s, pop")]
+  },
+  {
+    code: "theme:oldies",
+    name: "Oldies (50s–60s)",
+    flag: "🎙️",
+    terms: ["oldies"],
+    tags: ["oldies", "50s", "60s", "rock and roll"],
+    fallback: [LF("Oldies (laut.fm)", "oldies", "oldies")]
+  },
+  {
+    code: "theme:reggae",
+    name: "Reggae",
+    flag: "🌴",
+    terms: ["reggae"],
+    tags: ["reggae", "ska", "dancehall"],
+    fallback: [LF("Reggae (laut.fm)", "reggae", "reggae")]
+  },
+  {
+    code: "theme:jazz",
+    name: "Jazz",
+    flag: "🎷",
+    terms: ["jazz"],
+    tags: ["jazz", "smooth jazz", "swing"],
+    fallback: [LF("Jazz (laut.fm)", "jazz", "jazz"), T("SomaFM · Sonic Universe", "https://ice1.somafm.com/sonicuniverse-128-mp3", "jazz")]
+  },
+  {
+    code: "theme:blues",
+    name: "Blues",
+    flag: "🎺",
+    terms: ["blues"],
+    tags: ["blues", "rhythm and blues", "soul"],
+    fallback: [LF("Blues (laut.fm)", "blues", "blues")]
+  },
+  {
+    code: "theme:country",
+    name: "Country",
+    flag: "🤠",
+    terms: ["country"],
+    tags: ["country", "americana", "folk"],
+    fallback: [LF("Country (laut.fm)", "country", "country")]
+  },
+  {
+    code: "theme:lounge",
+    name: "Lounge & chillout",
+    flag: "🍸",
+    terms: ["lounge", "chillout"],
+    tags: ["lounge", "chillout", "downtempo"],
+    fallback: [LF("Lounge (laut.fm)", "lounge", "lounge"), T("SomaFM · Secret Agent", "https://ice1.somafm.com/secretagent-128-mp3", "lounge")]
   }
 ];
 

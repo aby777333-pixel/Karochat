@@ -8,6 +8,7 @@
 // passing kind="short" | "video".
 
 import { useCallback, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type CommentRow = {
@@ -46,6 +47,7 @@ export function CommentSection({
   initialCount: number;
 }) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [comments, setComments] = useState<CommentRow[] | null>(null);
   const [count, setCount] = useState(initialCount);
@@ -53,6 +55,30 @@ export function CommentSection({
   const [loading, setLoading] = useState(false);
   const [posting, setPosting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // While we open a 1-to-1 DM with a commenter (id of the author being opened).
+  const [dmOpening, setDmOpening] = useState<string | null>(null);
+
+  // Tapping a commenter's name opens (or reuses) a private DM room with them —
+  // same path the rest of the app uses (get_or_create_dm → /rooms/{id}). Own
+  // comments and guests (who have no inbox) are not openable.
+  const openDm = useCallback(
+    async (authorId: string) => {
+      if (!authorId || authorId === currentUserId || dmOpening) return;
+      setDmOpening(authorId);
+      setErr(null);
+      const { data, error } = await supabase.rpc("get_or_create_dm", {
+        p_target_user_id: authorId
+      });
+      if (error || !data) {
+        setDmOpening(null);
+        setErr(error?.message ?? "Couldn't open a private chat with this person.");
+        return;
+      }
+      router.push(`/rooms/${data}`);
+      router.refresh();
+    },
+    [supabase, router, currentUserId, dmOpening]
+  );
 
   const view = kind === "short" ? "short_comments_with_author" : "video_comments_with_author";
   const table = kind === "short" ? "short_comments" : "video_comments";
@@ -170,11 +196,26 @@ export function CommentSection({
             <ul className="space-y-2">
               {comments.map((c) => {
                 const name = c.author_display_name ?? c.author_username ?? "Someone";
+                // A name is tappable (→ private DM) unless it's the viewer's own
+                // comment or a guest (guests can't receive DMs).
+                const canDm = c.author_id !== currentUserId && !c.author_is_guest;
                 return (
                   <li key={c.id} className="rounded-xl border border-white/5 bg-white/5 px-3 py-2">
                     <div className="flex items-center justify-between gap-2">
                       <p className="min-w-0 truncate text-xs">
-                        <span className="text-white/85">{name}</span>
+                        {canDm ? (
+                          <button
+                            type="button"
+                            onClick={() => void openDm(c.author_id)}
+                            disabled={dmOpening === c.author_id}
+                            title={`Message ${name} privately`}
+                            className="rounded text-neon-blue underline decoration-dotted underline-offset-2 hover:text-neon-blue/80 disabled:opacity-60"
+                          >
+                            {dmOpening === c.author_id ? "Opening…" : name}
+                          </button>
+                        ) : (
+                          <span className="text-white/85">{name}</span>
+                        )}
                         {c.author_is_guest && (
                           <span className="ml-1 rounded-sm bg-white/10 px-1 text-[9px] uppercase tracking-widest text-white/45">
                             guest

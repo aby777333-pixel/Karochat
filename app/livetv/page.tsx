@@ -26,7 +26,7 @@ export default async function LiveTvPage() {
 
   return (
     <AdRails>
-      <main className="mx-auto flex min-h-[100dvh] max-w-3xl flex-col px-1 py-5 md:py-7">
+      <main className="mx-auto flex min-h-[100dvh] w-full max-w-3xl flex-col overflow-x-hidden px-1 py-5 md:py-7">
         <header className="surface-glass flex items-center justify-between gap-3 px-4 py-3">
           <Link href="/rooms" className="flex items-center gap-2">
             <Logo className="h-6 w-6" />

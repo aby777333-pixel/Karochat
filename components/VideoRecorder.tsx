@@ -13,6 +13,25 @@ const MAX_CAPTION = 300;
 const LENGTHS = [15, 30, 60] as const;
 type MaxSec = (typeof LENGTHS)[number];
 
+// Enhance filters & special effects. `css` is a CSS/Canvas filter string applied
+// both to the live preview (instant) and baked into the recorded video via a
+// canvas pipeline. "none" keeps the original, unfiltered direct-stream path.
+type VideoFilter = { key: string; label: string; emoji: string; css: string };
+const FILTERS: VideoFilter[] = [
+  { key: "none", label: "None", emoji: "🚫", css: "none" },
+  { key: "vivid", label: "Vivid", emoji: "🌈", css: "saturate(1.6) contrast(1.12)" },
+  { key: "warm", label: "Warm", emoji: "🔥", css: "sepia(0.3) saturate(1.4) brightness(1.05)" },
+  { key: "cool", label: "Cool", emoji: "❄️", css: "saturate(1.1) hue-rotate(-12deg) brightness(1.05) contrast(1.05)" },
+  { key: "bw", label: "B&W", emoji: "⚫", css: "grayscale(1) contrast(1.15)" },
+  { key: "sepia", label: "Sepia", emoji: "🟤", css: "sepia(0.85) contrast(1.05)" },
+  { key: "vintage", label: "Vintage", emoji: "📼", css: "sepia(0.45) saturate(1.3) contrast(0.92) brightness(1.05)" },
+  { key: "bright", label: "Bright", emoji: "☀️", css: "brightness(1.25) saturate(1.15)" },
+  { key: "dreamy", label: "Dreamy", emoji: "🌸", css: "brightness(1.12) saturate(1.25) blur(0.6px)" },
+  { key: "neon", label: "Neon", emoji: "💜", css: "saturate(2) hue-rotate(25deg) contrast(1.2)" },
+  { key: "noir", label: "Noir", emoji: "🎬", css: "grayscale(1) brightness(0.95) contrast(1.5)" },
+  { key: "invert", label: "Invert", emoji: "🔮", css: "invert(1) hue-rotate(180deg)" }
+];
+
 type Status =
   | "idle"
   | "permission"
@@ -52,6 +71,7 @@ export function VideoRecorder({
   const [maxSec, setMaxSec] = useState<MaxSec>(60);
   const [audioOn, setAudioOn] = useState(true);
   const [countdown, setCountdown] = useState(0);
+  const [filterKey, setFilterKey] = useState("none");
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -59,8 +79,25 @@ export function VideoRecorder({
   const startRef = useRef(0);
   const blobRef = useRef<Blob | null>(null);
   const liveVideoRef = useRef<HTMLVideoElement>(null);
+  // Canvas pipeline used only when a filter is active (to bake it into the file).
+  const effectStreamRef = useRef<MediaStream | null>(null);
+  const rafRef = useRef(0);
+
+  const cssFilter = FILTERS.find((f) => f.key === filterKey)?.css ?? "none";
+
+  // Tear down the canvas draw loop + the canvas-captured stream (the audio tracks
+  // it shares with the camera stream are stopped separately by cleanupStream).
+  function cleanupEffect() {
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = 0;
+    }
+    effectStreamRef.current?.getVideoTracks().forEach((t) => t.stop());
+    effectStreamRef.current = null;
+  }
 
   function cleanupStream() {
+    cleanupEffect();
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
   }
@@ -155,16 +192,58 @@ export function VideoRecorder({
     setStatus("countdown");
   }
 
+  // When a filter is active, draw the live camera onto a canvas with the filter
+  // applied and record the canvas' captured stream (+ the camera's audio) so the
+  // effect is baked into the saved file. Returns null if canvas capture isn't
+  // available, so the caller falls back to the raw stream.
+  function buildFilteredStream(camera: MediaStream): MediaStream | null {
+    const video = liveVideoRef.current;
+    if (!video || cssFilter === "none") return null;
+    if (typeof (HTMLCanvasElement.prototype as any).captureStream !== "function") return null;
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    const w = video.videoWidth || 720;
+    const h = video.videoHeight || 1280;
+    canvas.width = w;
+    canvas.height = h;
+    const draw = () => {
+      try {
+        ctx.filter = cssFilter;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      } catch {
+        // ignore transient draw errors (e.g. video not yet ready)
+      }
+      rafRef.current = requestAnimationFrame(draw);
+    };
+    draw();
+    let out: MediaStream;
+    try {
+      out = (canvas as any).captureStream(30) as MediaStream;
+    } catch {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = 0;
+      return null;
+    }
+    // Carry the microphone audio over to the canvas stream.
+    camera.getAudioTracks().forEach((t) => out.addTrack(t));
+    effectStreamRef.current = out;
+    return out;
+  }
+
   function beginRecording() {
     const stream = streamRef.current;
     if (!stream) return;
+    // Bake the filter in via canvas when one is chosen; otherwise record the raw
+    // camera stream exactly as before (no behaviour change for "None").
+    const recordStream = buildFilteredStream(stream) ?? stream;
     const mime =
       MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus") ? "video/webm;codecs=vp9,opus"
       : MediaRecorder.isTypeSupported("video/webm;codecs=vp8,opus") ? "video/webm;codecs=vp8,opus"
       : MediaRecorder.isTypeSupported("video/webm") ? "video/webm"
       : MediaRecorder.isTypeSupported("video/mp4") ? "video/mp4"
       : "";
-    const mr = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+    const mr = new MediaRecorder(recordStream, mime ? { mimeType: mime } : undefined);
     chunksRef.current = [];
     mr.ondataavailable = (ev) => {
       if (ev.data && ev.data.size > 0) chunksRef.current.push(ev.data);
@@ -271,7 +350,10 @@ export function VideoRecorder({
             muted
             playsInline
             className="max-h-[40vh] w-full rounded-lg bg-black"
-            style={facing === "user" ? { transform: "scaleX(-1)" } : undefined}
+            style={{
+              ...(facing === "user" ? { transform: "scaleX(-1)" } : {}),
+              ...(cssFilter !== "none" ? { filter: cssFilter } : {})
+            }}
           />
           {status === "countdown" && countdown > 0 && (
             <div className="pointer-events-none absolute inset-0 grid place-items-center rounded-lg bg-black/40">
@@ -313,6 +395,30 @@ export function VideoRecorder({
               >
                 {audioOn ? "🔊 Mic on" : "🔇 Muted"}
               </button>
+            </div>
+            <div className="mb-2">
+              <span className="mb-1 block text-[10px] uppercase tracking-widest text-white/40">
+                ✨ Filters &amp; effects
+              </span>
+              <div className="-mx-0.5 flex gap-1 overflow-x-auto pb-1">
+                {FILTERS.map((f) => (
+                  <button
+                    key={f.key}
+                    type="button"
+                    onClick={() => setFilterKey(f.key)}
+                    aria-pressed={filterKey === f.key}
+                    title={f.label}
+                    className={
+                      "shrink-0 rounded-md border px-2 py-1 text-[11px] transition " +
+                      (filterKey === f.key
+                        ? "border-neon-purple/60 bg-neon-purple/20 text-white"
+                        : "border-white/10 bg-white/5 text-white/65 hover:bg-white/10")
+                    }
+                  >
+                    {f.emoji} {f.label}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="mb-2 flex items-center gap-1.5">
               <span className="text-[10px] uppercase tracking-widest text-white/40">

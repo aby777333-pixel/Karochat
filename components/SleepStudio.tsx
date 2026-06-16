@@ -1014,7 +1014,7 @@ export function SleepStudio({ userId }: { userId?: string } = {}) {
   const remSec = Math.floor((remaining % 60000) / 1000);
 
   return (
-    <div ref={rootRef} className="space-y-5">
+    <div ref={rootRef} className="w-full min-w-0 space-y-5">
       {/* Hero + master controls */}
       <section className="surface-glass tint-purple p-5">
         <h1 className="font-display text-xl font-semibold">😴 Sleep &amp; Relaxation</h1>

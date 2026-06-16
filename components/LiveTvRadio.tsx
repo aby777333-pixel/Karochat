@@ -23,7 +23,12 @@ type Now = { name: string; url: string; kind: Mode } | null;
 
 export function LiveTvRadio() {
   const [mode, setMode] = useState<Mode>("radio");
-  const [code, setCode] = useState("us");
+  // Country and Artist/theme are now two independent dropdowns. `countryCode` is
+  // always a valid country; `themeCode` is "" (= browse the country) or a theme
+  // key. In radio mode a chosen theme takes precedence; TV always uses the
+  // country (themes are radio-only).
+  const [countryCode, setCountryCode] = useState("us");
+  const [themeCode, setThemeCode] = useState("");
   const [tv, setTv] = useState<TvChannel[]>([]);
   const [radio, setRadio] = useState<RadioStation[]>([]);
   const [loading, setLoading] = useState(false);
@@ -31,6 +36,9 @@ export function LiveTvRadio() {
   const [now, setNow] = useState<Now>(null);
   const [q, setQ] = useState("");
   const playerRef = useRef<HTMLDivElement | null>(null);
+
+  // The active source feeding the fetch: a theme (radio only) overrides country.
+  const source = mode === "radio" && themeCode ? themeCode : countryCode;
 
   // When a channel is picked, bring the player into view immediately.
   useEffect(() => {
@@ -44,10 +52,10 @@ export function LiveTvRadio() {
     (async () => {
       try {
         if (mode === "tv") {
-          const list = await fetchTv(code);
+          const list = await fetchTv(countryCode);
           if (!cancelled) setTv(list);
         } else {
-          const list = isRadioTheme(code) ? await fetchRadioTheme(code) : await fetchRadio(code);
+          const list = isRadioTheme(source) ? await fetchRadioTheme(source) : await fetchRadio(source);
           if (!cancelled) setRadio(list);
         }
       } catch {
@@ -59,7 +67,7 @@ export function LiveTvRadio() {
     return () => {
       cancelled = true;
     };
-  }, [mode, code]);
+  }, [mode, source, countryCode]);
 
   const list = mode === "tv" ? tv : radio;
   const filtered = useMemo(() => {
@@ -68,8 +76,8 @@ export function LiveTvRadio() {
     return (list as { name: string }[]).filter((c) => c.name.toLowerCase().includes(term));
   }, [list, q]);
 
-  const country = COUNTRIES.find((c) => c.code === code);
-  const theme = RADIO_THEMES.find((t) => t.code === code);
+  const country = COUNTRIES.find((c) => c.code === countryCode);
+  const theme = RADIO_THEMES.find((t) => t.code === source);
   // Friendly label for the current selection, used in loading/empty messages.
   const sourceLabel = theme?.name ?? country?.name ?? "this selection";
 
@@ -124,11 +132,7 @@ export function LiveTvRadio() {
           </button>
           <button
             type="button"
-            onClick={() => {
-              setMode("tv");
-              // Themes are radio-only; fall back to a country so TV has a valid code.
-              if (isRadioTheme(code)) setCode("us");
-            }}
+            onClick={() => setMode("tv")}
             className={
               "rounded-lg px-3 py-1.5 transition " +
               (mode === "tv" ? "bg-neon-blue/20 text-neon-blue" : "text-white/65 hover:bg-white/10")
@@ -137,20 +141,17 @@ export function LiveTvRadio() {
             📺 TV
           </button>
         </div>
+        {/* Country dropdown — always shown. Choosing a country browses that
+            country (and clears any active Artists & themes selection). */}
         <select
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          className="rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white/85 outline-none focus:border-neon-blue/60"
+          value={countryCode}
+          onChange={(e) => {
+            setCountryCode(e.target.value);
+            setThemeCode("");
+          }}
+          aria-label="Country"
+          className="min-w-0 max-w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white/85 outline-none focus:border-neon-blue/60"
         >
-          {mode === "radio" && (
-            <optgroup label="🎙️ Artists & themes">
-              {RADIO_THEMES.map((t) => (
-                <option key={t.code} value={t.code}>
-                  {t.flag} {t.name}
-                </option>
-              ))}
-            </optgroup>
-          )}
           <optgroup label="🌍 Countries">
             {COUNTRIES.map((c) => (
               <option key={c.code} value={c.code}>
@@ -159,6 +160,25 @@ export function LiveTvRadio() {
             ))}
           </optgroup>
         </select>
+        {/* Artists & themes — separate dropdown, radio only. "" = browse the
+            selected country instead of a curated artist/genre. */}
+        {mode === "radio" && (
+          <select
+            value={themeCode}
+            onChange={(e) => setThemeCode(e.target.value)}
+            aria-label="Artists & themes"
+            className="min-w-0 max-w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white/85 outline-none focus:border-neon-purple/60"
+          >
+            <option value="">🎙️ Artists &amp; themes…</option>
+            <optgroup label="🎙️ Artists &amp; themes">
+              {RADIO_THEMES.map((t) => (
+                <option key={t.code} value={t.code}>
+                  {t.flag} {t.name}
+                </option>
+              ))}
+            </optgroup>
+          </select>
+        )}
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
