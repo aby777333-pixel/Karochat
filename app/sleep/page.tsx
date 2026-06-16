@@ -43,7 +43,7 @@ export default async function SleepPage() {
         </header>
 
         <div className="mt-5">
-          <SleepStudio />
+          <SleepStudio userId={user.id} />
         </div>
       </main>
     </AdRails>

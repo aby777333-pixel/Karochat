@@ -11,6 +11,7 @@
 
 const RB_BASES = [
   "https://de1.api.radio-browser.info",
+  "https://de2.api.radio-browser.info",
   "https://all.api.radio-browser.info",
   "https://de1.api.radio-browser.info"
 ];

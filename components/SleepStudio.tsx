@@ -23,6 +23,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { rbFetch } from "@/lib/radioBrowser";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 // ── Web-Audio sound generators ───────────────────────────────────────────────
 // Every generator takes the AudioContext + the node it should feed (a per-layer
@@ -646,21 +647,77 @@ const FREE_SOURCES: { label: string; q: string }[] = [
 
 type Section = "sounds" | "frequencies" | "binaural" | "music" | "more";
 
-// ── Music channels (radio-browser streams) ──────────────────────────────────
+// ── Music channels (radio-browser streams + Karochat uploads) ───────────────
 type Station = { name: string; url: string; favicon: string; bitrate: number; tags: string };
-type MusicCat = { key: string; label: string; emoji: string; tags: string[] };
-const MUSIC_CATS: MusicCat[] = [
-  { key: "western", label: "Western classical", emoji: "🎻", tags: ["classical"] },
-  { key: "indian", label: "Indian classical", emoji: "🪕", tags: ["indian classical", "carnatic", "hindustani", "raga"] },
-  { key: "gregorian", label: "Gregorian & choral", emoji: "🕯️", tags: ["gregorian", "chant", "choral", "sacred"] },
-  { key: "soundtrack", label: "Film songs & themes", emoji: "🎬", tags: ["bollywood", "soundtrack", "filmmusic", "film", "cinematic", "movie"] },
-  { key: "solfeggio", label: "Solfeggio & meditation", emoji: "🧘", tags: ["meditation", "healing", "solfeggio"] },
-  { key: "ambient", label: "Ambient & sleep", emoji: "🌌", tags: ["ambient", "sleep", "relaxation"] }
+// `kind` marks the two special categories backed by Supabase `tracks` (user
+// uploads) rather than the radio-browser directory. Everything else is a live
+// streaming category with a curated `fallback` used when the directory is down.
+type MusicCat = {
+  key: string;
+  label: string;
+  emoji: string;
+  tags: string[];
+  fallback?: Station[];
+  kind?: "mine" | "community";
+};
+
+// Verified always-on streams (https + CORS-friendly, all return 200/206 audio)
+// so a category is NEVER empty even when the radio-browser directory briefly
+// returns "no available server". Same proven approach as the TV & Radio
+// FALLBACK_RADIO in lib/liveChannels.ts. Each was checked live before shipping.
+const F = (name: string, url: string, tags: string, bitrate = 128): Station => ({
+  name,
+  url,
+  favicon: "",
+  bitrate,
+  tags
+});
+const ST = {
+  wcpe: F("WCPE · The Classical Station", "https://audio-mp3.ibiblio.org/wcpe.mp3", "classical"),
+  venice: F("Venice Classic Radio", "https://uk2.streamingpulse.com/ssl/vcr1", "classical, baroque"),
+  rpMain: F("Radio Paradise · Main Mix", "https://stream.radioparadise.com/aac-320", "eclectic", 320),
+  rpEclectic: F("Radio Paradise · Eclectic", "https://stream.radioparadise.com/eclectic-320", "eclectic", 320),
+  rpMellow: F("Radio Paradise · Mellow Mix", "https://stream.radioparadise.com/mellow-320", "mellow", 320),
+  rpWorld: F("Radio Paradise · World/Etc", "https://stream.radioparadise.com/world-etc-320", "world", 320),
+  groove: F("SomaFM · Groove Salad", "https://ice1.somafm.com/groovesalad-128-mp3", "chillout, ambient"),
+  drone: F("SomaFM · Drone Zone", "https://ice1.somafm.com/dronezone-128-mp3", "ambient"),
+  deepspace: F("SomaFM · Deep Space One", "https://ice1.somafm.com/deepspaceone-128-mp3", "ambient, space"),
+  spacestation: F("SomaFM · Space Station Soma", "https://ice1.somafm.com/spacestation-128-mp3", "ambient, space"),
+  synphaera: F("SomaFM · Synphaera", "https://ice1.somafm.com/synphaera-128-mp3", "ambient"),
+  mission: F("SomaFM · Mission Control", "https://ice1.somafm.com/missioncontrol-128-mp3", "ambient"),
+  n5md: F("SomaFM · n5MD", "https://ice1.somafm.com/n5md-128-mp3", "ambient, experimental"),
+  fluid: F("SomaFM · Fluid", "https://ice1.somafm.com/fluid-128-mp3", "chillhop, instrumental"),
+  sonic: F("SomaFM · Sonic Universe", "https://ice1.somafm.com/sonicuniverse-128-mp3", "jazz, instrumental"),
+  lush: F("SomaFM · Lush", "https://ice1.somafm.com/lush-128-mp3", "vocal")
+};
+// Last-resort relaxing mix shown if a category has neither directory results nor
+// its own fallback — guarantees the panel always has something playable.
+const GENERIC_FALLBACK: Station[] = [
+  ST.wcpe, ST.venice, ST.rpEclectic, ST.rpWorld, ST.groove, ST.drone, ST.fluid, ST.sonic
 ];
 
-async function fetchByTags(tags: string[]): Promise<Station[]> {
+const MUSIC_CATS: MusicCat[] = [
+  { key: "western", label: "Western classical", emoji: "🎻", tags: ["classical", "orchestral", "symphony", "baroque", "opera"], fallback: [ST.wcpe, ST.venice, ST.rpEclectic] },
+  { key: "indian", label: "Indian classical", emoji: "🪕", tags: ["indian classical", "carnatic", "hindustani", "raga"], fallback: [ST.rpWorld, ST.wcpe, ST.fluid] },
+  { key: "instrumental", label: "Instrumental", emoji: "🎼", tags: ["instrumental", "instrumental music", "acoustic"], fallback: [ST.fluid, ST.sonic, ST.wcpe] },
+  { key: "piano", label: "Piano", emoji: "🎹", tags: ["piano", "solo piano", "piano music"], fallback: [ST.wcpe, ST.fluid, ST.venice] },
+  { key: "violin", label: "Violin & strings", emoji: "🎻", tags: ["violin", "strings", "cello", "string quartet"], fallback: [ST.wcpe, ST.venice, ST.rpEclectic] },
+  { key: "sitar", label: "Sitar", emoji: "🪕", tags: ["sitar", "indian classical", "raga", "hindustani"], fallback: [ST.rpWorld, ST.fluid] },
+  { key: "santoor", label: "Santoor & flute", emoji: "🎶", tags: ["santoor", "bansuri", "flute", "indian classical"], fallback: [ST.rpWorld, ST.synphaera] },
+  { key: "bollywood", label: "Bollywood", emoji: "🎬", tags: ["bollywood", "hindi", "filmi", "desi", "indian pop"], fallback: [ST.rpWorld, ST.lush] },
+  { key: "hollywood", label: "Hollywood & film scores", emoji: "🎞️", tags: ["soundtrack", "film score", "cinematic", "epic", "orchestral", "movie"], fallback: [ST.wcpe, ST.venice, ST.rpEclectic] },
+  { key: "regional", label: "Indian regional", emoji: "🇮🇳", tags: ["tamil", "telugu", "punjabi", "bengali", "marathi", "gujarati", "kannada", "malayalam", "bhajan", "devotional"], fallback: [ST.rpWorld, ST.lush] },
+  { key: "soundtrack", label: "Film songs & themes", emoji: "🎭", tags: ["bollywood", "soundtrack", "filmmusic", "film", "cinematic", "movie"], fallback: [ST.rpEclectic, ST.wcpe] },
+  { key: "gregorian", label: "Gregorian & choral", emoji: "🕯️", tags: ["gregorian", "chant", "choral", "sacred"], fallback: [ST.wcpe, ST.venice] },
+  { key: "solfeggio", label: "Solfeggio & meditation", emoji: "🧘", tags: ["meditation", "healing", "solfeggio"], fallback: [ST.drone, ST.synphaera, ST.deepspace] },
+  { key: "ambient", label: "Ambient & sleep", emoji: "🌌", tags: ["ambient", "sleep", "relaxation"], fallback: [ST.drone, ST.deepspace, ST.spacestation, ST.n5md] },
+  { key: "mine", label: "My uploads", emoji: "🎙️", tags: [], kind: "mine" },
+  { key: "community", label: "Community", emoji: "🌍", tags: [], kind: "community" }
+];
+
+async function fetchByTags(cat: MusicCat): Promise<Station[]> {
   const lists = await Promise.all(
-    tags.map((t) =>
+    cat.tags.map((t) =>
       rbFetch(`/json/stations/search?tag=${encodeURIComponent(t)}&hidebroken=true&order=clickcount&reverse=true&limit=80`)
     )
   );
@@ -680,11 +737,39 @@ async function fetchByTags(tags: string[]): Promise<Station[]> {
       });
     }
   }
-  return out.slice(0, 80);
+  // Directory down / nothing for this tag set → curated always-on streams so the
+  // panel is never empty (mirrors the TV & Radio FALLBACK_RADIO behaviour).
+  return out.length ? out.slice(0, 80) : cat.fallback ?? GENERIC_FALLBACK;
+}
+
+// User uploads, backed by the existing public `tracks` table + `music` bucket
+// (shared with Infotainment). RLS already restricts rows to public OR owner, so
+// "mine" returns the signed-in user's own (public + private) and "community"
+// returns everyone's public tracks.
+async function fetchTracks(kind: "mine" | "community", userId?: string): Promise<Station[]> {
+  if (kind === "mine" && !userId) return [];
+  const supabase = createSupabaseBrowserClient();
+  let q = supabase
+    .from("tracks")
+    .select("title, artist, audio_url, cover_url, is_public, owner_id, created_at")
+    .order("created_at", { ascending: false })
+    .limit(100);
+  q = kind === "mine" ? q.eq("owner_id", userId!) : q.eq("is_public", true);
+  const { data, error } = await q;
+  if (error || !data) return [];
+  return data
+    .filter((t: any) => !!t.audio_url)
+    .map((t: any) => ({
+      name: (t.title || "Untitled").trim() || "Untitled",
+      url: t.audio_url as string,
+      favicon: (t.cover_url || "") as string,
+      bitrate: 0,
+      tags: (t.artist || (t.is_public ? "public upload" : "private upload")) as string
+    }));
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
-export function SleepStudio() {
+export function SleepStudio({ userId }: { userId?: string } = {}) {
   const [section, setSection] = useState<Section>("sounds");
   const [active, setActive] = useState<Set<string>>(new Set());
   const [vols, setVols] = useState<Record<string, number>>({});
@@ -1011,7 +1096,7 @@ export function SleepStudio() {
         </section>
       )}
 
-      {section === "music" && <MusicChannels />}
+      {section === "music" && <MusicChannels userId={userId} />}
 
       {section === "more" && (
         <section className="space-y-4">
@@ -1225,17 +1310,22 @@ function LoopPlayer() {
   );
 }
 
-// ── Music channels — Western & Indian classical, solfeggio/meditation, ambient.
-// Live streams from radio-browser, played under a psychedelic equalizer. These
-// are separate streaming channels (independent of the synth soundscapes above).
-function MusicChannels() {
+// ── Music channels — classical, instrumental, piano, sitar, Bollywood,
+// Hollywood, world & more. Live streams from radio-browser (with always-on
+// curated fallbacks), plus the user's own uploaded tracks. Played under a
+// psychedelic equalizer, independent of the synth soundscapes above.
+function MusicChannels({ userId }: { userId?: string }) {
   const [catKey, setCatKey] = useState(MUSIC_CATS[0]!.key);
   const [stations, setStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [now, setNow] = useState<{ name: string; url: string } | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [showUpload, setShowUpload] = useState(false);
   const playerRef = useRef<HTMLDivElement | null>(null);
-  const cat = MUSIC_CATS.find((c) => c.key === catKey) ?? MUSIC_CATS[0]!;
+  // "My uploads" is only meaningful when signed in (it always is on /sleep).
+  const cats = useMemo(() => MUSIC_CATS.filter((c) => c.kind !== "mine" || !!userId), [userId]);
+  const cat = cats.find((c) => c.key === catKey) ?? cats[0]!;
 
   // When a channel is picked, bring the player into view immediately.
   useEffect(() => {
@@ -1248,7 +1338,7 @@ function MusicChannels() {
     setErr(null);
     (async () => {
       try {
-        const list = await fetchByTags(cat.tags);
+        const list = cat.kind ? await fetchTracks(cat.kind, userId) : await fetchByTags(cat);
         if (!cancelled) setStations(list);
       } catch {
         if (!cancelled) setErr("Couldn't load channels — check your connection.");
@@ -1259,24 +1349,59 @@ function MusicChannels() {
     return () => {
       cancelled = true;
     };
-  }, [cat]);
+  }, [cat, userId, reloadKey]);
+
+  const emptyMsg =
+    cat.kind === "mine"
+      ? "You haven't uploaded any tracks yet. Tap “Upload a track” to add your own music."
+      : cat.kind === "community"
+      ? "No public community tracks yet. Upload one and mark it public to share it here."
+      : "No channels found right now. Try another category.";
 
   return (
     <section className="surface-glass p-4">
-      <h2 className="font-display text-lg font-semibold">🎵 Music channels</h2>
-      <p className="mt-0.5 text-[11px] text-white/50">
-        Relaxing live stations — Western &amp; Indian classical, solfeggio &amp;
-        meditation, and ambient. Plays on its own (separate from the soundscapes).
-      </p>
-      <div className="mt-2 flex flex-wrap gap-1.5">
-        {MUSIC_CATS.map((c) => (
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h2 className="font-display text-lg font-semibold">🎵 Music channels</h2>
+          <p className="mt-0.5 text-[11px] text-white/50">
+            Relaxing live stations + your own uploads — classical, instrumental,
+            piano, sitar, santoor, Bollywood, Hollywood, world &amp; more. Plays on
+            its own (separate from the soundscapes).
+          </p>
+        </div>
+        {userId && (
+          <button
+            type="button"
+            onClick={() => setShowUpload((v) => !v)}
+            className="shrink-0 rounded-lg border border-neon-mint/40 bg-neon-mint/10 px-2.5 py-1.5 text-xs text-white transition hover:bg-neon-mint/20"
+          >
+            ⬆️ Upload a track
+          </button>
+        )}
+      </div>
+
+      {showUpload && userId && (
+        <div className="mt-3">
+          <SleepUpload
+            userId={userId}
+            onDone={() => {
+              setShowUpload(false);
+              setCatKey("mine");
+              setReloadKey((k) => k + 1);
+            }}
+          />
+        </div>
+      )}
+
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {cats.map((c) => (
           <button
             key={c.key}
             type="button"
             onClick={() => setCatKey(c.key)}
             className={
               "rounded-lg border px-2.5 py-1.5 text-xs transition " +
-              (c.key === catKey
+              (c.key === cat.key
                 ? "border-neon-purple/50 bg-neon-purple/20 text-white"
                 : "border-white/10 bg-black/20 text-white/75 hover:bg-white/5")
             }
@@ -1304,7 +1429,7 @@ function MusicChannels() {
           <span className="mr-2 animate-pulseDot">●</span>Loading {cat.label.toLowerCase()}…
         </p>
       ) : stations.length === 0 ? (
-        <p className="px-1 py-6 text-center text-sm text-white/50">No channels found right now. Try another category.</p>
+        <p className="px-1 py-6 text-center text-sm text-white/50">{emptyMsg}</p>
       ) : (
         <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
           {stations.map((s, i) => {
@@ -1337,10 +1462,152 @@ function MusicChannels() {
         </ul>
       )}
       <p className="mt-3 text-[10px] leading-relaxed text-white/35">
-        Stations are provided by the radio-browser community directory. Karochat
-        doesn&apos;t host these streams; availability can vary.
+        {cat.kind
+          ? "Your uploads stay private unless you mark them public. Public tracks are shared with the Karochat community. You can manage them anytime."
+          : "Live stations are provided by the radio-browser community directory; Karochat doesn’t host these streams and availability can vary. Curated stations play if the directory is briefly unavailable."}
       </p>
     </section>
+  );
+}
+
+// Compact inline uploader for the Sleep music tab. Mirrors the proven
+// MusicUpload flow (upload into the per-user folder of the public `music`
+// bucket, then insert a `tracks` row) but stays on the page and refreshes the
+// "My uploads" list instead of navigating away. Defaults to private.
+function SleepUpload({ userId, onDone }: { userId: string; onDone: () => void }) {
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [title, setTitle] = useState("");
+  const [artist, setArtist] = useState("");
+  const [isPublic, setIsPublic] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const MAX_BYTES = 40 * 1024 * 1024;
+  const ACCEPT =
+    "audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/ogg,audio/webm,audio/aac,audio/mp4,audio/x-m4a,audio/flac,.mp3,.wav,.m4a,.ogg,.flac,.aac";
+
+  function pick(e: React.ChangeEvent<HTMLInputElement>) {
+    setError(null);
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.size > MAX_BYTES) {
+      setError("That file is over 40 MB. Try a compressed MP3.");
+      e.target.value = "";
+      return;
+    }
+    setFile(f);
+    if (!title) setTitle(f.name.replace(/\.[^.]+$/, ""));
+  }
+
+  async function submit() {
+    if (!file || busy) return;
+    if (!title.trim()) {
+      setError("Give your track a title.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const ext = (file.name.split(".").pop() ?? "mp3").toLowerCase();
+      const path = `${userId}/${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("music")
+        .upload(path, file, { contentType: file.type || "audio/mpeg", upsert: false });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from("music").getPublicUrl(path);
+      const { error: insertErr } = await supabase.from("tracks").insert({
+        owner_id: userId,
+        audio_url: pub.publicUrl,
+        title: title.trim(),
+        artist: artist.trim() || null,
+        is_public: isPublic
+      });
+      if (insertErr) throw insertErr;
+      onDone();
+    } catch (e: any) {
+      setError(e?.message ?? "Upload failed.");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-black/30 p-3">
+      {!file ? (
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          className="flex w-full flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-white/15 bg-black/20 px-4 py-6 text-center text-white/60 transition hover:border-neon-mint/40 hover:bg-white/5"
+        >
+          <span aria-hidden className="text-2xl">🎵</span>
+          <span className="text-sm font-medium text-white/85">Pick an audio file</span>
+          <span className="text-[11px] text-white/40">mp3 / wav / m4a / ogg / flac · up to 40 MB</span>
+        </button>
+      ) : (
+        <div className="flex items-center justify-between gap-2 text-xs text-white/65">
+          <span className="truncate" title={file.name}>
+            🎵 {file.name}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setFile(null);
+              if (fileRef.current) fileRef.current.value = "";
+            }}
+            className="shrink-0 rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] uppercase tracking-widest text-white/60 hover:bg-white/10"
+          >
+            change
+          </button>
+        </div>
+      )}
+      <input ref={fileRef} type="file" accept={ACCEPT} className="hidden" onChange={pick} />
+
+      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          maxLength={120}
+          placeholder="Track title"
+          className="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none placeholder:text-white/30 focus:border-neon-mint/60"
+        />
+        <input
+          value={artist}
+          onChange={(e) => setArtist(e.target.value)}
+          maxLength={120}
+          placeholder="Artist (optional)"
+          className="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none placeholder:text-white/30 focus:border-neon-mint/60"
+        />
+      </div>
+
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <label
+          className={`flex cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition ${
+            !isPublic ? "border-neon-mint/60 bg-neon-mint/10 text-white" : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
+          }`}
+        >
+          <input type="radio" name="slvis" checked={!isPublic} onChange={() => setIsPublic(false)} className="accent-neon-mint" />
+          🔒 Private
+        </label>
+        <label
+          className={`flex cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition ${
+            isPublic ? "border-neon-mint/60 bg-neon-mint/10 text-white" : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
+          }`}
+        >
+          <input type="radio" name="slvis" checked={isPublic} onChange={() => setIsPublic(true)} className="accent-neon-mint" />
+          🌍 Public
+        </label>
+        <button
+          type="button"
+          onClick={() => void submit()}
+          disabled={!file || busy}
+          className="ml-auto rounded-lg border border-neon-mint/50 bg-neon-mint/15 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-neon-mint/25 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {busy ? "Uploading…" : "Upload track"}
+        </button>
+      </div>
+
+      {error && <p className="mt-2 rounded-md bg-neon-red/10 px-2 py-1 text-xs text-neon-red">{error}</p>}
+    </div>
   );
 }
 
