@@ -32,7 +32,9 @@ export async function rbFetch(path: string): Promise<any[]> {
       // endpoint and returned the global top stations (countries/tags ignored).
       // base64url uses only [A-Za-z0-9_-], so no layer can mis-parse it.
       const q = btoa(path).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-      const res = await fetch(`/api/rb?q=${q}`, { cache: "no-store" });
+      // q rides as a PATH segment so Netlify's edge cache (keyed by pathname)
+      // varies per query — see app/api/rb/[q]/route.ts.
+      const res = await fetch(`/api/rb/${q}`, { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) return data;
