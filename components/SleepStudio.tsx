@@ -752,7 +752,7 @@ async function fetchTracks(kind: "mine" | "community", userId?: string): Promise
   const supabase = createSupabaseBrowserClient();
   let q = supabase
     .from("tracks")
-    .select("title, artist, audio_url, cover_url, is_public, owner_id, created_at")
+    .select("title, artist, playlist, audio_url, cover_url, is_public, owner_id, created_at")
     .order("created_at", { ascending: false })
     .limit(100);
   q = kind === "mine" ? q.eq("owner_id", userId!) : q.eq("is_public", true);
@@ -760,13 +760,43 @@ async function fetchTracks(kind: "mine" | "community", userId?: string): Promise
   if (error || !data) return [];
   return data
     .filter((t: any) => !!t.audio_url)
-    .map((t: any) => ({
-      name: (t.title || "Untitled").trim() || "Untitled",
-      url: t.audio_url as string,
-      favicon: (t.cover_url || "") as string,
-      bitrate: 0,
-      tags: (t.artist || (t.is_public ? "public upload" : "private upload")) as string
-    }));
+    .map((t: any) => {
+      // Subtitle = "Playlist · Artist" (joined with " · ", no commas, so the
+      // list's split(",")[0] shows it whole). Falls back to a visibility label.
+      const meta = [(t.playlist || "").trim(), (t.artist || "").trim()].filter(Boolean).join(" · ");
+      return {
+        name: (t.title || "Untitled").trim() || "Untitled",
+        url: t.audio_url as string,
+        favicon: (t.cover_url || "") as string,
+        bitrate: 0,
+        tags: (meta || (t.is_public ? "public upload" : "private upload")) as string
+      };
+    });
+}
+
+// Distinct playlist names the user has already used — powers the upload field's
+// autocomplete so they can re-use a playlist instead of retyping it.
+async function fetchMyPlaylists(userId?: string): Promise<string[]> {
+  if (!userId) return [];
+  const supabase = createSupabaseBrowserClient();
+  const { data, error } = await supabase
+    .from("tracks")
+    .select("playlist, created_at")
+    .eq("owner_id", userId)
+    .not("playlist", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(200);
+  if (error || !data) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const r of data as any[]) {
+    const p = (r.playlist || "").trim();
+    if (p && !seen.has(p)) {
+      seen.add(p);
+      out.push(p);
+    }
+  }
+  return out.slice(0, 30);
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -1392,10 +1422,28 @@ function MusicChannels({
   const [now, setNow] = useState<{ name: string; url: string } | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [showUpload, setShowUpload] = useState(false);
+  const [myPlaylists, setMyPlaylists] = useState<string[]>([]);
   const playerRef = useRef<HTMLDivElement | null>(null);
   // "My uploads" is only meaningful when signed in (it always is on /sleep).
   const cats = useMemo(() => MUSIC_CATS.filter((c) => c.kind !== "mine" || !!userId), [userId]);
   const cat = cats.find((c) => c.key === catKey) ?? cats[0]!;
+
+  // Keep the user's existing playlist names handy for the upload autocomplete.
+  useEffect(() => {
+    let cancelled = false;
+    if (!userId) {
+      setMyPlaylists([]);
+      return;
+    }
+    fetchMyPlaylists(userId)
+      .then((p) => {
+        if (!cancelled) setMyPlaylists(p);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, reloadKey]);
 
   // When a channel is picked, bring the player into view immediately.
   useEffect(() => {
@@ -1469,6 +1517,7 @@ function MusicChannels({
         <div className="mt-3">
           <SleepUpload
             userId={userId}
+            existingPlaylists={myPlaylists}
             onDone={() => {
               setShowUpload(false);
               setCatKey("mine");
@@ -1559,12 +1608,21 @@ function MusicChannels({
 // MusicUpload flow (upload into the per-user folder of the public `music`
 // bucket, then insert a `tracks` row) but stays on the page and refreshes the
 // "My uploads" list instead of navigating away. Defaults to private.
-function SleepUpload({ userId, onDone }: { userId: string; onDone: () => void }) {
+function SleepUpload({
+  userId,
+  existingPlaylists = [],
+  onDone
+}: {
+  userId: string;
+  existingPlaylists?: string[];
+  onDone: () => void;
+}) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const fileRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
   const [artist, setArtist] = useState("");
+  const [playlist, setPlaylist] = useState("");
   const [isPublic, setIsPublic] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1596,9 +1654,15 @@ function SleepUpload({ userId, onDone }: { userId: string; onDone: () => void })
     try {
       const ext = (file.name.split(".").pop() ?? "mp3").toLowerCase();
       const path = `${userId}/${crypto.randomUUID()}.${ext}`;
+      // supabase-js wraps the file in FormData, where the multipart part's type
+      // comes from the Blob's own `.type` (e.g. WhatsApp's misleading
+      // "video/mpeg") — not the contentType option. Re-wrap with a real audio
+      // type so the audio-only bucket accepts it.
+      const safeType = audioContentType(file);
+      const body = file.type === safeType ? file : new File([file], file.name, { type: safeType });
       const { error: upErr } = await supabase.storage
         .from("music")
-        .upload(path, file, { contentType: audioContentType(file), upsert: false });
+        .upload(path, body, { contentType: safeType, upsert: false });
       if (upErr) throw upErr;
       const { data: pub } = supabase.storage.from("music").getPublicUrl(path);
       const { error: insertErr } = await supabase.from("tracks").insert({
@@ -1606,6 +1670,7 @@ function SleepUpload({ userId, onDone }: { userId: string; onDone: () => void })
         audio_url: pub.publicUrl,
         title: title.trim(),
         artist: artist.trim() || null,
+        playlist: playlist.trim() || null,
         is_public: isPublic
       });
       if (insertErr) throw insertErr;
@@ -1663,6 +1728,20 @@ function SleepUpload({ userId, onDone }: { userId: string; onDone: () => void })
           className="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none placeholder:text-white/30 focus:border-neon-mint/60"
         />
       </div>
+
+      <input
+        value={playlist}
+        onChange={(e) => setPlaylist(e.target.value)}
+        maxLength={80}
+        list="sleep-playlist-options"
+        placeholder="Playlist name (optional) — e.g. Bollywood classics"
+        className="mt-2 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none placeholder:text-white/30 focus:border-neon-mint/60"
+      />
+      <datalist id="sleep-playlist-options">
+        {existingPlaylists.map((p) => (
+          <option key={p} value={p} />
+        ))}
+      </datalist>
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <label

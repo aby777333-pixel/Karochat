@@ -60,10 +60,16 @@ export function MusicUpload({
     try {
       const ext = (file.name.split(".").pop() ?? "mp3").toLowerCase();
       const path = `${currentUserId}/${crypto.randomUUID()}.${ext}`;
+      // supabase-js uploads the file via FormData, where the part's content type
+      // is the Blob's own `.type` (e.g. WhatsApp's misleading "video/mpeg") and
+      // NOT the contentType option — re-wrap with a real audio type so the
+      // audio-only bucket accepts it.
+      const safeType = audioContentType(file);
+      const body = file.type === safeType ? file : new File([file], file.name, { type: safeType });
       const { error: upErr } = await supabase.storage
         .from("music")
-        .upload(path, file, {
-          contentType: audioContentType(file),
+        .upload(path, body, {
+          contentType: safeType,
           upsert: false
         });
       if (upErr) throw upErr;
