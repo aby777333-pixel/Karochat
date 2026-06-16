@@ -36,19 +36,22 @@ const SECTIONS: Section[] = [
       { href: "/rooms?create=1", label: "New room", emoji: "➕", grad: "from-sky-300 via-blue-500 to-indigo-600" }
     ]
   },
-  {
-    title: "Smart tools",
-    tiles: [
-      { href: "/organizer", label: "Organizer", emoji: "🗂️", grad: "from-amber-300 via-orange-400 to-rose-500" },
-      { href: "/tools#translate", label: "Translate", emoji: "🌐", grad: "from-sky-300 via-blue-400 to-indigo-600" },
-      { href: "/tools#worldclock", label: "World Clock", emoji: "🕐", grad: "from-slate-300 via-slate-500 to-slate-700" },
-      { href: "/tools#weather", label: "Weather", emoji: "⛅", grad: "from-cyan-300 via-sky-400 to-blue-500" },
-      { href: "/tools#dictionary", label: "Dictionary", emoji: "📖", grad: "from-violet-400 via-purple-500 to-fuchsia-600" },
-      { href: "/tools#convert", label: "Converter", emoji: "🔄", grad: "from-emerald-300 via-teal-400 to-cyan-500" },
-      { href: "/tools#qr", label: "QR Code", emoji: "🔳", grad: "from-zinc-300 via-zinc-500 to-zinc-700" },
-      { href: "/tools#calc", label: "Calculator", emoji: "🧮", grad: "from-amber-300 via-orange-400 to-red-500" }
-    ]
-  },
+  // NOTE: The "Smart tools" section is intentionally hidden for now (kept for
+  // later re-enable). The /organizer and /tools routes still work if visited
+  // directly. To bring it back, restore this section object:
+  // {
+  //   title: "Smart tools",
+  //   tiles: [
+  //     { href: "/organizer", label: "Organizer", emoji: "🗂️", grad: "from-amber-300 via-orange-400 to-rose-500" },
+  //     { href: "/tools#translate", label: "Translate", emoji: "🌐", grad: "from-sky-300 via-blue-400 to-indigo-600" },
+  //     { href: "/tools#worldclock", label: "World Clock", emoji: "🕐", grad: "from-slate-300 via-slate-500 to-slate-700" },
+  //     { href: "/tools#weather", label: "Weather", emoji: "⛅", grad: "from-cyan-300 via-sky-400 to-blue-500" },
+  //     { href: "/tools#dictionary", label: "Dictionary", emoji: "📖", grad: "from-violet-400 via-purple-500 to-fuchsia-600" },
+  //     { href: "/tools#convert", label: "Converter", emoji: "🔄", grad: "from-emerald-300 via-teal-400 to-cyan-500" },
+  //     { href: "/tools#qr", label: "QR Code", emoji: "🔳", grad: "from-zinc-300 via-zinc-500 to-zinc-700" },
+  //     { href: "/tools#calc", label: "Calculator", emoji: "🧮", grad: "from-amber-300 via-orange-400 to-red-500" }
+  //   ]
+  // },
   {
     title: "Library, media & entertainment",
     tiles: [
@@ -97,11 +100,15 @@ const SECTIONS: Section[] = [
       { href: "/stories/new", label: "Add story", emoji: "✨", grad: "from-fuchsia-400 via-purple-500 to-indigo-600" },
       { href: "/shorts/new", label: "Post short", emoji: "📹", grad: "from-orange-300 via-red-400 to-rose-600" },
       { href: "/videos/new", label: "Post video", emoji: "🎥", grad: "from-sky-300 via-blue-400 to-indigo-600" },
-      { href: "/charter", label: "Charter", emoji: "🌍", grad: "from-cyan-300 via-sky-400 to-blue-600" },
-      { href: "/suggestions", label: "Suggestions", emoji: "💡", grad: "from-amber-300 via-yellow-400 to-orange-500" },
-      { href: "/quiz", label: "Trivia", emoji: "🧠", grad: "from-indigo-300 via-blue-400 to-violet-600" },
-      { href: "/fun#icebreakers", label: "Icebreakers", emoji: "💬", grad: "from-teal-300 via-emerald-400 to-cyan-500" },
-      { href: "/fun#inspire", label: "Inspiration", emoji: "✨", grad: "from-amber-300 via-orange-400 to-pink-500" }
+      { href: "/charter", label: "Charter", emoji: "🌍", grad: "from-cyan-300 via-sky-400 to-blue-600" }
+      // NOTE: The "Suggestions", "Trivia", "Icebreakers" and "Inspiration" tiles
+      // are intentionally hidden for now (kept for later re-enable). The
+      // /suggestions, /quiz and /fun routes still work if visited directly.
+      // To bring them back, restore these tiles (re-add the comma after Charter):
+      // { href: "/suggestions", label: "Suggestions", emoji: "💡", grad: "from-amber-300 via-yellow-400 to-orange-500" },
+      // { href: "/quiz", label: "Trivia", emoji: "🧠", grad: "from-indigo-300 via-blue-400 to-violet-600" },
+      // { href: "/fun#icebreakers", label: "Icebreakers", emoji: "💬", grad: "from-teal-300 via-emerald-400 to-cyan-500" },
+      // { href: "/fun#inspire", label: "Inspiration", emoji: "✨", grad: "from-amber-300 via-orange-400 to-pink-500" }
     ]
   },
   {
