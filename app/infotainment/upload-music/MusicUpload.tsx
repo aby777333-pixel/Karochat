@@ -7,11 +7,12 @@
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { audioContentType } from "@/lib/audioMime";
 import { Button } from "@/components/Button";
 
 const MAX_BYTES = 40 * 1024 * 1024;
 const ACCEPT =
-  "audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/ogg,audio/webm,audio/aac,audio/mp4,audio/x-m4a,audio/flac,.mp3,.wav,.m4a,.ogg,.flac,.aac";
+  "audio/*,audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/ogg,audio/webm,audio/aac,audio/mp4,audio/x-m4a,audio/flac,.mp3,.mpeg,.mpga,.wav,.m4a,.aac,.ogg,.oga,.opus,.flac,.weba,.webm";
 
 export function MusicUpload({
   currentUserId,
@@ -62,7 +63,7 @@ export function MusicUpload({
       const { error: upErr } = await supabase.storage
         .from("music")
         .upload(path, file, {
-          contentType: file.type || "audio/mpeg",
+          contentType: audioContentType(file),
           upsert: false
         });
       if (upErr) throw upErr;

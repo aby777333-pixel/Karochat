@@ -24,6 +24,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { rbFetch } from "@/lib/radioBrowser";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { audioContentType } from "@/lib/audioMime";
 
 // ── Web-Audio sound generators ───────────────────────────────────────────────
 // Every generator takes the AudioContext + the node it should feed (a per-layer
@@ -1485,7 +1486,7 @@ function SleepUpload({ userId, onDone }: { userId: string; onDone: () => void })
   const [error, setError] = useState<string | null>(null);
   const MAX_BYTES = 40 * 1024 * 1024;
   const ACCEPT =
-    "audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/ogg,audio/webm,audio/aac,audio/mp4,audio/x-m4a,audio/flac,.mp3,.wav,.m4a,.ogg,.flac,.aac";
+    "audio/*,audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/ogg,audio/webm,audio/aac,audio/mp4,audio/x-m4a,audio/flac,.mp3,.mpeg,.mpga,.wav,.m4a,.aac,.ogg,.oga,.opus,.flac,.weba,.webm";
 
   function pick(e: React.ChangeEvent<HTMLInputElement>) {
     setError(null);
@@ -1513,7 +1514,7 @@ function SleepUpload({ userId, onDone }: { userId: string; onDone: () => void })
       const path = `${userId}/${crypto.randomUUID()}.${ext}`;
       const { error: upErr } = await supabase.storage
         .from("music")
-        .upload(path, file, { contentType: file.type || "audio/mpeg", upsert: false });
+        .upload(path, file, { contentType: audioContentType(file), upsert: false });
       if (upErr) throw upErr;
       const { data: pub } = supabase.storage.from("music").getPublicUrl(path);
       const { error: insertErr } = await supabase.from("tracks").insert({
