@@ -1,19 +1,29 @@
 "use client";
 
-// Karochat — PWA install prompt (Wave 22).
+// Karochat — PWA install prompt (Wave 22, refreshed).
 //
 // Offers an "Install" option on web (desktop + Android via the native
 // beforeinstallprompt flow) and a Share → Add to Home Screen hint on iOS
 // Safari. Hidden when already installed or running inside the native shell.
-// The ☰ menu can re-trigger it any time via the "karo:install" event.
-// Registers a minimal service worker so the app is installable.
+//
+// The install event (beforeinstallprompt) can fire BEFORE this component mounts,
+// so a tiny beforeInteractive script in the root layout captures it into
+// window.__karoBIP and re-broadcasts "karo:bip". We read that on mount so the
+// deferred prompt is never missed — letting both the landing banner and the ☰
+// menu "Install app" trigger a real one-tap install.
+//
+// Dismissing the banner now only SNOOZES it (24h) instead of hiding it forever,
+// so the install offer keeps appearing on landing until the app is installed.
 // Purely additive — renders null in most states, never throws.
 
 import { useEffect, useRef, useState } from "react";
 import { Logo } from "@/components/Brand";
 import { isNative } from "@/lib/native/capacitor";
 
-const DISMISS_KEY = "karochat:install-dismissed";
+const SNOOZE_KEY = "karochat:install-snooze"; // timestamp (ms) of last dismiss
+const INSTALLED_KEY = "karochat:installed"; // set once the app is installed
+const LEGACY_DISMISS_KEY = "karochat:install-dismissed"; // old permanent flag
+const SNOOZE_MS = 24 * 60 * 60 * 1000;
 
 export function InstallPrompt() {
   const deferredRef = useRef<any>(null);
@@ -30,12 +40,36 @@ export function InstallPrompt() {
       (navigator as any).standalone === true;
     if (standalone) return;
 
-    let dismissed = false;
+    // Already installed earlier → don't pester.
+    let installed = false;
     try {
-      dismissed = !!window.localStorage.getItem(DISMISS_KEY);
+      installed = !!window.localStorage.getItem(INSTALLED_KEY);
     } catch {
       /* ignore */
     }
+    if (installed) return;
+
+    // Migrate the old permanent dismiss to a one-time snooze so previously
+    // dismissed users see the offer again (the requested behaviour), once.
+    try {
+      if (window.localStorage.getItem(LEGACY_DISMISS_KEY)) {
+        window.localStorage.removeItem(LEGACY_DISMISS_KEY);
+      }
+    } catch {
+      /* ignore */
+    }
+
+    const snoozed = () => {
+      try {
+        const ts = Number(window.localStorage.getItem(SNOOZE_KEY) || 0);
+        return ts > 0 && Date.now() - ts < SNOOZE_MS;
+      } catch {
+        return false;
+      }
+    };
+    const showIfAllowed = () => {
+      if (!snoozed()) setVisible(true);
+    };
 
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
@@ -47,24 +81,40 @@ export function InstallPrompt() {
       (navigator.platform === "MacIntel" && (navigator as any).maxTouchPoints > 1);
     const isSafari = /safari/i.test(ua) && !/crios|fxios|edgios|android/i.test(ua);
 
+    // Pick up an install event captured before this component mounted.
+    const adopt = () => {
+      const e = (window as any).__karoBIP;
+      if (e) {
+        deferredRef.current = e;
+        setHasPrompt(true);
+        showIfAllowed();
+      }
+    };
+    adopt();
+
     const onBIP = (e: any) => {
-      e.preventDefault();
+      e.preventDefault?.();
       deferredRef.current = e;
+      (window as any).__karoBIP = e;
       setHasPrompt(true);
-      if (!dismissed) setVisible(true);
+      showIfAllowed();
     };
     const onInstalled = () => {
       setVisible(false);
       deferredRef.current = null;
+      (window as any).__karoBIP = null;
       setHasPrompt(false);
       try {
-        window.localStorage.setItem(DISMISS_KEY, "1");
+        window.localStorage.setItem(INSTALLED_KEY, "1");
       } catch {
         /* ignore */
       }
     };
-    // ☰ menu "Install app" → fire native dialog now, or show banner/hint.
+    // ☰ menu "Install app" → fire the native dialog now (real install), or, where
+    // the browser can't (iOS / unsupported), surface the guidance banner. Always
+    // shows regardless of snooze, since the user explicitly asked to install.
     const onMenuInstall = () => {
+      adopt();
       if (deferredRef.current) {
         void doInstall();
         return;
@@ -74,11 +124,15 @@ export function InstallPrompt() {
     };
 
     window.addEventListener("beforeinstallprompt", onBIP);
+    window.addEventListener("karo:bip", adopt);
     window.addEventListener("appinstalled", onInstalled);
+    window.addEventListener("karo:appinstalled", onInstalled);
     window.addEventListener("karo:install", onMenuInstall);
 
+    // iOS Safari can't fire beforeinstallprompt — offer the Add-to-Home hint on
+    // landing (unless snoozed).
     let t: any;
-    if (isIOS && isSafari && !dismissed) {
+    if (isIOS && isSafari && !snoozed()) {
       t = setTimeout(() => {
         setIosHint(true);
         setVisible(true);
@@ -88,7 +142,9 @@ export function InstallPrompt() {
     return () => {
       if (t) clearTimeout(t);
       window.removeEventListener("beforeinstallprompt", onBIP);
+      window.removeEventListener("karo:bip", adopt);
       window.removeEventListener("appinstalled", onInstalled);
+      window.removeEventListener("karo:appinstalled", onInstalled);
       window.removeEventListener("karo:install", onMenuInstall);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -97,7 +153,7 @@ export function InstallPrompt() {
   function dismiss() {
     setVisible(false);
     try {
-      window.localStorage.setItem(DISMISS_KEY, "1");
+      window.localStorage.setItem(SNOOZE_KEY, String(Date.now()));
     } catch {
       /* ignore */
     }
@@ -108,11 +164,19 @@ export function InstallPrompt() {
     if (!d) return;
     try {
       d.prompt();
-      await d.userChoice;
+      const choice = await d.userChoice;
+      if (choice?.outcome === "accepted") {
+        try {
+          window.localStorage.setItem(INSTALLED_KEY, "1");
+        } catch {
+          /* ignore */
+        }
+      }
     } catch {
       /* ignore */
     }
     deferredRef.current = null;
+    (window as any).__karoBIP = null;
     setHasPrompt(false);
     setVisible(false);
   }
