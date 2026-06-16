@@ -22,12 +22,32 @@ const MIRRORS = [
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 export async function GET(req: NextRequest) {
-  const path = req.nextUrl.searchParams.get("path") ?? "";
+  const params = req.nextUrl.searchParams;
+  // `ep` carries only the pathname (new client); `path` is the legacy single
+  // param that some cached clients may still send. Build the radio-browser query
+  // from every other param so country/tag/limit filters are never lost.
+  const raw = params.get("ep") ?? params.get("path") ?? "";
+  const endpoint = raw.split("?")[0] ?? "";
   // Only allow radio-browser's read-only /json/ endpoints (no SSRF to arbitrary
   // hosts/paths). Everything we call is /json/stations/... or /json/servers.
-  if (!path.startsWith("/json/")) {
+  if (!endpoint.startsWith("/json/")) {
     return Response.json([], { status: 400 });
   }
+  const forward = new URLSearchParams();
+  // Any query embedded in a legacy `path`/`ep` value (when it wasn't mangled).
+  const embeddedIdx = raw.indexOf("?");
+  if (embeddedIdx >= 0) {
+    for (const [k, v] of new URLSearchParams(raw.slice(embeddedIdx + 1))) {
+      forward.append(k, v);
+    }
+  }
+  // The real filters, ridden as the proxy's own top-level params.
+  for (const [k, v] of params) {
+    if (k === "ep" || k === "path") continue;
+    forward.append(k, v);
+  }
+  const qs = forward.toString();
+  const path = endpoint + (qs ? `?${qs}` : "");
   for (let i = 0; i < MIRRORS.length; i++) {
     try {
       const res = await fetch(MIRRORS[i] + path, {

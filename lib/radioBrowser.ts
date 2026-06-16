@@ -26,7 +26,17 @@ export async function rbFetch(path: string): Promise<any[]> {
   // proxy itself is unreachable (and for any non-browser caller).
   if (typeof window !== "undefined") {
     try {
-      const res = await fetch(`/api/rb?path=${encodeURIComponent(path)}`, { cache: "no-store" });
+      // Pass the endpoint and the radio-browser query params SEPARATELY. Packing
+      // the whole "/json/...?tag=x&limit=y" into one encoded ?path= param made the
+      // nested query get dropped on Netlify's runtime, so every call hit the bare
+      // endpoint and returned the global top stations (countries/tags ignored).
+      // `ep` carries only the pathname; the real filters ride as the proxy's own
+      // query params, which survive intact.
+      const qIdx = path.indexOf("?");
+      const ep = qIdx >= 0 ? path.slice(0, qIdx) : path;
+      const query = qIdx >= 0 ? path.slice(qIdx + 1) : "";
+      const proxyUrl = `/api/rb?ep=${encodeURIComponent(ep)}${query ? `&${query}` : ""}`;
+      const res = await fetch(proxyUrl, { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) return data;
