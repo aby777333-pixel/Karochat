@@ -18,8 +18,10 @@
 
 import type { CapacitorConfig } from "@capacitor/cli";
 
+// Production lives at karochat.co (the auto-deploying droplet). The mobile
+// shell loads it directly, so every web update reflects in the app too.
 const DEFAULT_SERVER_URL =
-  process.env.CAP_SERVER_URL ?? "https://magical-heliotrope-e4d7df.netlify.app";
+  process.env.CAP_SERVER_URL ?? "https://karochat.co";
 
 const config: CapacitorConfig = {
   appId: "com.karochat.app",
@@ -52,6 +54,8 @@ const config: CapacitorConfig = {
     // Allow navigation to these external auth/OAuth domains without the
     // WebView treating them as outbound links. Add domains as needed.
     allowNavigation: [
+      "karochat.co",
+      "www.karochat.co",
       "magical-heliotrope-e4d7df.netlify.app",
       "*.netlify.app",
       "*.supabase.co",
