@@ -32,9 +32,11 @@ jobs:
           script_stop: true
           script: |
             set -e
-            # Make node/npm/pm2 available in a non-login SSH shell.
-            [ -s "$HOME/.nvm/nvm.sh" ] && . "$HOME/.nvm/nvm.sh"
-            command -v node >/dev/null 2>&1 || export PATH="/usr/local/bin:/usr/bin:$PATH"
+            # Make node/npm/pm2 available in a non-login SSH shell. Use `if`
+            # (not `&&`) so a missing nvm doesn't trip `set -e` on this droplet,
+            # which uses a system Node install.
+            export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:$PATH"
+            if [ -s "$HOME/.nvm/nvm.sh" ]; then . "$HOME/.nvm/nvm.sh"; fi
 
             # Locate the Karochat repo on the droplet (no hard-coded path).
             APP=$(dirname "$(grep -rlF '"name": "karochat"' /var/www /root /home /srv /opt 2>/dev/null --include=package.json | grep -v /node_modules/ | head -1)")
