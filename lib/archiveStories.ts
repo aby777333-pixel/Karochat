@@ -13,6 +13,10 @@ export type ArchiveItem = {
   mediatype: string;
   year?: string;
   language?: string;
+  // Which free library the item came from. "archive" (default) plays via the
+  // archive.org embed/metadata player; "wikimedia" plays mediaUrl natively.
+  source?: "archive" | "wikimedia";
+  mediaUrl?: string;
 };
 
 // `query` is the default catalog (used for "Any" and English — curated English
@@ -299,6 +303,54 @@ export async function fetchArchive(
       year: pick(d.year),
       language: pick(d.language)
     }));
+}
+
+// Wikimedia Commons — free & Creative-Commons video/audio. Keyless and
+// CORS-enabled (origin=*). Returns the same ArchiveItem shape but with a direct
+// `mediaUrl` the hub plays natively (no archive.org embed). Best driven by the
+// search box; the genre label is used as a fallback search term.
+export async function fetchWikimedia(
+  search: string,
+  kind: "video" | "audio",
+  rows = 40
+): Promise<ArchiveItem[]> {
+  const term = search.trim() || (kind === "video" ? "documentary" : "music");
+  const q = `${term} filetype:${kind}`;
+  const params =
+    "action=query&format=json&origin=*&generator=search&gsrnamespace=6" +
+    `&gsrsearch=${encodeURIComponent(q)}&gsrlimit=${rows}` +
+    "&prop=imageinfo&iiprop=url%7Cmediatype%7Cextmetadata";
+  let res: Response;
+  try {
+    res = await fetch(`https://commons.wikimedia.org/w/api.php?${params}`, {
+      cache: "no-store"
+    });
+  } catch {
+    return [];
+  }
+  if (!res.ok) return [];
+  const data = (await res.json()) as any;
+  const pages: any[] = data?.query?.pages ? Object.values(data.query.pages) : [];
+  const out: ArchiveItem[] = [];
+  for (const p of pages) {
+    const info = p?.imageinfo?.[0];
+    if (!info?.url) continue;
+    const mt = String(info.mediatype || "").toUpperCase();
+    const artist = info?.extmetadata?.Artist?.value;
+    out.push({
+      id: "wm-" + String(p.pageid ?? info.url),
+      title: String(p.title || "")
+        .replace(/^File:/, "")
+        .replace(/\.[^.]+$/, ""),
+      creator: artist
+        ? String(artist).replace(/<[^>]+>/g, "").trim().slice(0, 60) || undefined
+        : undefined,
+      mediatype: mt === "VIDEO" ? "movies" : "audio",
+      source: "wikimedia",
+      mediaUrl: String(info.url)
+    });
+  }
+  return out;
 }
 
 export function embedUrl(id: string): string {

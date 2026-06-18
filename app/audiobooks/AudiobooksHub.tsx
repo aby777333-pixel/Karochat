@@ -14,13 +14,20 @@ import {
   GROUPS,
   LANGUAGES,
   fetchArchive,
+  fetchWikimedia,
   embedUrl,
   detailsUrl,
   type ArchiveItem
 } from "@/lib/archiveStories";
 import { ContentDisclaimer } from "@/components/ContentDisclaimer";
 
-type Now = { id: string; title: string; isVideo: boolean } | null;
+type Now = {
+  id: string;
+  title: string;
+  isVideo: boolean;
+  source?: "archive" | "wikimedia";
+  mediaUrl?: string;
+} | null;
 
 export function AudiobooksHub({
   userId,
@@ -32,6 +39,7 @@ export function AudiobooksHub({
   const [groupKey, setGroupKey] = useState(GROUPS[0]?.key ?? "audiobooks");
   const [catKey, setCatKey] = useState(GROUPS[0]?.categories[0]?.key ?? "ab-fiction");
   const [language, setLanguage] = useState("Any");
+  const [source, setSource] = useState<"archive" | "wikimedia">("archive");
   const [search, setSearch] = useState("");
   const [submitted, setSubmitted] = useState(0); // bump to trigger a fetch
   const [items, setItems] = useState<ArchiveItem[]>([]);
@@ -69,9 +77,18 @@ export function AudiobooksHub({
         // collections (LibriVox, old-time radio, feature films) hold almost
         // nothing, so search the broader catalog instead. "Any"/"English" keep
         // the original curated query untouched.
-        const specific = language !== "Any" && language !== "English";
-        const base = specific && cat.i18nQuery ? cat.i18nQuery : cat.query;
-        const list = await fetchArchive(base, language, search);
+        let list: ArchiveItem[];
+        if (source === "wikimedia") {
+          // Wikimedia is keyword-driven: use the search box, falling back to the
+          // genre label. Audio for audiobook/music genres, video otherwise.
+          const kind: "video" | "audio" =
+            group.key === "audiobooks" || /audio|music/.test(cat.key) ? "audio" : "video";
+          list = await fetchWikimedia(search || cat.label, kind);
+        } else {
+          const specific = language !== "Any" && language !== "English";
+          const base = specific && cat.i18nQuery ? cat.i18nQuery : cat.query;
+          list = await fetchArchive(base, language, search);
+        }
         if (!cancelled) setItems(list);
       } catch {
         if (!cancelled) setErr("Couldn't reach the free library. Check your connection and retry.");
@@ -84,7 +101,7 @@ export function AudiobooksHub({
     };
     // search only re-runs on submit (submitted), not on every keystroke
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cat, language, submitted]);
+  }, [cat, group, language, source, submitted]);
 
   return (
     <div className="space-y-5">
@@ -134,10 +151,26 @@ export function AudiobooksHub({
           ))}
         </div>
 
-        {/* Search + language */}
+        {/* Source + search + language */}
         <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="flex rounded-xl border border-white/10 bg-black/30 p-0.5 text-xs">
+            {(["archive", "wikimedia"] as const).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setSource(s)}
+                className={
+                  "rounded-lg px-2.5 py-1.5 font-medium transition " +
+                  (source === s ? "bg-neon-purple/30 text-white" : "text-white/55 hover:text-white/80")
+                }
+              >
+                {s === "archive" ? "Archive.org" : "Wikimedia"}
+              </button>
+            ))}
+          </div>
           <select
             value={language}
+            disabled={source === "wikimedia"}
             onChange={(e) => setLanguage(e.target.value)}
             className="rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white/85 outline-none focus:border-neon-purple/60"
           >
@@ -192,7 +225,25 @@ export function AudiobooksHub({
               </button>
             </div>
           </div>
-          {now.isVideo ? (
+          {now.source === "wikimedia" && now.mediaUrl ? (
+            now.isVideo ? (
+              // eslint-disable-next-line jsx-a11y/media-has-caption
+              <video
+                key={now.id}
+                src={now.mediaUrl}
+                controls
+                autoPlay
+                playsInline
+                className="max-h-[28rem] w-full rounded-xl border border-white/10 bg-black"
+              />
+            ) : (
+              <div className="rounded-xl border border-white/10 bg-black/60 p-3">
+                <p className="mb-2 truncate text-sm text-white/85">{now.title}</p>
+                {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                <audio key={now.id} src={now.mediaUrl} controls autoPlay className="w-full" />
+              </div>
+            )
+          ) : now.isVideo ? (
             <div className="overflow-hidden rounded-xl border border-white/10 bg-black">
               <iframe
                 key={now.id}
@@ -229,7 +280,15 @@ export function AudiobooksHub({
                 <li key={it.id}>
                   <button
                     type="button"
-                    onClick={() => setNow({ id: it.id, title: it.title, isVideo })}
+                    onClick={() =>
+                      setNow({
+                        id: it.id,
+                        title: it.title,
+                        isVideo,
+                        source: it.source,
+                        mediaUrl: it.mediaUrl
+                      })
+                    }
                     className={
                       "flex w-full items-start gap-2 rounded-xl border px-3 py-2 text-left transition " +
                       (active
