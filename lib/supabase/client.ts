@@ -29,6 +29,13 @@ function toProxy(url: string): string {
   return window.location.origin + "/sb-proxy" + url.slice(SUPABASE_URL.length);
 }
 
+// Supabase APIs only ever return JSON/binary — never an HTML document. So a
+// `text/html` response means the network intercepted the call and served a
+// block page / captive portal instead of forwarding it. Treat that as blocked.
+function looksIntercepted(res: Response): boolean {
+  return (res.headers.get("content-type") || "").toLowerCase().includes("text/html");
+}
+
 async function resilientFetch(
   input: RequestInfo | URL,
   init?: RequestInit
@@ -61,7 +68,14 @@ async function resilientFetch(
   }, DIRECT_TIMEOUT_MS);
 
   try {
-    return await fetch(input as any, { ...init, signal: ctrl.signal });
+    const res = await fetch(input as any, { ...init, signal: ctrl.signal });
+    // The call "succeeded" but a captive portal / ISP returned an HTML block
+    // page instead of the real Supabase response → retry via the proxy.
+    if (looksIntercepted(res)) {
+      directBlocked = true;
+      return fetch(proxyUrl, init);
+    }
+    return res;
   } catch (err) {
     // Caller cancelled (not our timeout) → propagate, don't fall back.
     if (caller?.aborted && !timedOut) throw err;
