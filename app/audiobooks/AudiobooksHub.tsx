@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
-  CATEGORIES,
+  GROUPS,
   LANGUAGES,
   fetchArchive,
   embedUrl,
@@ -29,7 +29,8 @@ export function AudiobooksHub({
   userId: string;
   userName: string;
 }) {
-  const [catKey, setCatKey] = useState(CATEGORIES[0]?.key ?? "audiobooks");
+  const [groupKey, setGroupKey] = useState(GROUPS[0]?.key ?? "audiobooks");
+  const [catKey, setCatKey] = useState(GROUPS[0]?.categories[0]?.key ?? "ab-fiction");
   const [language, setLanguage] = useState("Any");
   const [search, setSearch] = useState("");
   const [submitted, setSubmitted] = useState(0); // bump to trigger a fetch
@@ -39,7 +40,19 @@ export function AudiobooksHub({
   const [now, setNow] = useState<Now>(null);
   const playerRef = useRef<HTMLElement | null>(null);
 
-  const cat = useMemo(() => CATEGORIES.find((c) => c.key === catKey) ?? CATEGORIES[0]!, [catKey]);
+  const group = useMemo(() => GROUPS.find((g) => g.key === groupKey) ?? GROUPS[0]!, [groupKey]);
+  const cat = useMemo(
+    () => group.categories.find((c) => c.key === catKey) ?? group.categories[0]!,
+    [group, catKey]
+  );
+
+  // Switch primary group → jump to its first genre.
+  function pickGroup(gKey: string) {
+    const g = GROUPS.find((x) => x.key === gKey);
+    if (!g) return;
+    setGroupKey(gKey);
+    setCatKey(g.categories[0]!.key);
+  }
 
   // When an item is picked, bring the player into view immediately.
   useEffect(() => {
@@ -78,14 +91,33 @@ export function AudiobooksHub({
       <section className="surface-glass tint-purple p-5">
         <h1 className="font-display text-xl font-semibold">🎧 Audiobooks &amp; Stories</h1>
         <p className="mt-1 text-sm text-white/60">
-          Thousands of free audiobooks, stories, old-time radio, poetry and
-          public-domain films — in many languages, from the Internet Archive.
-          Listen &amp; watch right here, or share your own.
+          Thousands of free audiobooks, TV series, films, short films,
+          mythological epics, music and more — in many languages, from the
+          Internet Archive. Listen &amp; watch right here, or share your own.
         </p>
 
-        {/* Category chips */}
+        {/* Primary groups */}
         <div className="mt-4 flex flex-wrap gap-1.5">
-          {CATEGORIES.map((c) => (
+          {GROUPS.map((g) => (
+            <button
+              key={g.key}
+              type="button"
+              onClick={() => pickGroup(g.key)}
+              className={
+                "rounded-lg border px-3 py-1.5 text-xs font-medium transition " +
+                (g.key === groupKey
+                  ? "border-neon-purple/60 bg-neon-purple/25 text-white"
+                  : "border-white/10 bg-black/30 text-white/70 hover:bg-white/5")
+              }
+            >
+              {g.emoji} {g.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Genres within the selected group */}
+        <div className="mt-2 flex flex-wrap gap-1.5 border-t border-white/5 pt-3">
+          {group.categories.map((c) => (
             <button
               key={c.key}
               type="button"
