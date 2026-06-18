@@ -34,7 +34,7 @@ export const CATEGORIES: ArchiveCategory[] = [
   { key: "stories", label: "Stories & tales", emoji: "📖", query: "mediatype:(audio) AND subject:(stories OR folklore OR fairy)", i18nQuery: "mediatype:(audio) AND subject:(story OR stories OR folklore OR fairy OR tale OR fiction OR novel)" },
   { key: "kids", label: "Children's", emoji: "🧸", query: "collection:(librivoxaudio) AND subject:(children)", i18nQuery: "mediatype:(audio) AND subject:(children OR kids OR juvenile OR story OR folk OR nursery OR moral)" },
   { key: "poetry", label: "Poetry", emoji: "🪶", query: "collection:(librivoxaudio) AND subject:(poetry)", i18nQuery: "mediatype:(audio) AND subject:(poetry OR poem OR poems OR verse OR kavithai OR kavitha OR kavita OR ghazal)" },
-  { key: "radio", label: "Old-time radio", emoji: "📻", query: "collection:(oldtimeradio)" },
+  { key: "radio", label: "Old-time radio", emoji: "📻", query: "collection:(oldtimeradio)", i18nQuery: 'mediatype:(audio) AND subject:(radio OR broadcast OR "radio drama" OR "radio play" OR "radio serial" OR nataka OR natak OR drama OR serial)' },
   { key: "films", label: "Free films", emoji: "🎬", query: "mediatype:(movies) AND collection:(feature_films)", i18nQuery: "mediatype:(movies)" },
   { key: "shorts", label: "Short films", emoji: "🎞️", query: "mediatype:(movies) AND collection:(short_films)", i18nQuery: "mediatype:(movies)" },
   { key: "music", label: "Music", emoji: "🎵", query: "mediatype:(audio) AND collection:(opensource_audio)", i18nQuery: "mediatype:(audio)" }
