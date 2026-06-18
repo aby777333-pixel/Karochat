@@ -49,7 +49,11 @@ export type ArchiveGroup = {
 // `i18nQuery` drops the collection lock so other languages return content.
 const ab = (terms: string) => ({
   query: `mediatype:(audio) AND (collection:(librivoxaudio) OR subject:(audiobook)) AND subject:(${terms})`,
-  i18nQuery: `mediatype:(audio) AND subject:(${terms})`
+  // Non-English audio on archive.org is rarely tagged with English genre
+  // subjects, so a `subject:(…)` filter collapses the count (e.g. Hindi Fiction
+  // 15949 → 135). For a specific language we show the whole audio catalog in
+  // that language and let the language filter do the work — far more content.
+  i18nQuery: `mediatype:(audio)`
 });
 const tv = (terms: string) => ({
   query: `mediatype:(movies) AND (collection:(classic_tv) OR subject:("tv series" OR television OR sitcom OR teleserial)) AND subject:(${terms})`,
