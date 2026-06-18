@@ -75,21 +75,96 @@ const stopNodes = (...nodes: Array<{ stop?: () => void } | null>) =>
     }
   });
 
+// One short white-noise buffer per AudioContext, reused for every brief
+// filtered-noise transient below (raindrops, fire crackle, ocean foam, …) so we
+// don't allocate a fresh buffer on each tick. Pitch-jittered per hit so repeats
+// never sound identical.
+const noiseCache = new WeakMap<AudioContext, AudioBuffer>();
+function sharedNoise(ctx: AudioContext): AudioBuffer {
+  let b = noiseCache.get(ctx);
+  if (!b) {
+    const len = Math.floor(ctx.sampleRate * 0.5);
+    b = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = b.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    noiseCache.set(ctx, b);
+  }
+  return b;
+}
+// A short, self-stopping burst of band-shaped noise — the building block for
+// natural transients. Fire-and-forget: it tears its own nodes down after `dur`.
+function noiseHit(
+  ctx: AudioContext,
+  out: AudioNode,
+  o: { type?: BiquadFilterType; freq: number; q?: number; amp: number; attack?: number; dur: number }
+) {
+  const src = ctx.createBufferSource();
+  src.buffer = sharedNoise(ctx);
+  src.loop = true;
+  src.playbackRate.value = 0.7 + Math.random() * 0.6;
+  const f = ctx.createBiquadFilter();
+  f.type = o.type ?? "bandpass";
+  f.frequency.value = o.freq;
+  f.Q.value = o.q ?? 1;
+  const g = ctx.createGain();
+  const now = ctx.currentTime;
+  const atk = o.attack ?? 0.003;
+  g.gain.setValueAtTime(0.0001, now);
+  g.gain.exponentialRampToValueAtTime(o.amp, now + atk);
+  g.gain.exponentialRampToValueAtTime(0.0001, now + atk + o.dur);
+  src.connect(f);
+  f.connect(g);
+  g.connect(out);
+  src.start(now);
+  src.stop(now + atk + o.dur + 0.05);
+}
+
 const makeRain: Maker = (ctx, out) => {
+  // Steady downpour bed — pink noise shaped to a wet hiss, gently breathing so
+  // the rain swells and eases instead of sitting flat.
   const src = noiseSource(ctx, "pink");
   const hp = ctx.createBiquadFilter();
   hp.type = "highpass";
-  hp.frequency.value = 500;
+  hp.frequency.value = 380;
   const lp = ctx.createBiquadFilter();
   lp.type = "lowpass";
-  lp.frequency.value = 6500;
+  lp.frequency.value = 6800;
   const g = ctx.createGain();
-  g.gain.value = 0.6;
+  g.gain.value = 0.42;
   src.connect(hp);
   hp.connect(lp);
   lp.connect(g);
   g.connect(out);
-  return () => stopNodes(src);
+  const breath = ctx.createOscillator();
+  breath.frequency.value = 0.16;
+  const bg = ctx.createGain();
+  bg.gain.value = 0.08;
+  breath.connect(bg);
+  bg.connect(g.gain);
+  breath.start();
+  // Close droplet patter sprinkled over the bed.
+  let stopped = false;
+  let timer: ReturnType<typeof setTimeout>;
+  const drop = () => {
+    if (stopped) return;
+    const n = 1 + (Math.random() < 0.4 ? 1 : 0);
+    for (let i = 0; i < n; i++) {
+      noiseHit(ctx, out, {
+        type: "bandpass",
+        freq: 2400 + Math.random() * 3600,
+        q: 1.1,
+        amp: 0.04 + Math.random() * 0.06,
+        dur: 0.03 + Math.random() * 0.06
+      });
+    }
+    timer = setTimeout(drop, 35 + Math.random() * 120);
+  };
+  timer = setTimeout(drop, 120);
+  return () => {
+    stopped = true;
+    clearTimeout(timer);
+    stopNodes(src, breath);
+  };
 };
 
 const makeThunder: Maker = (ctx, out) => {
@@ -98,19 +173,36 @@ const makeThunder: Maker = (ctx, out) => {
   let timer: ReturnType<typeof setTimeout>;
   const rumble = () => {
     if (stopped) return;
+    const now = ctx.currentTime;
+    const close = Math.random() < 0.45;
+    // Sharp crack for nearby strikes.
+    if (close) {
+      noiseHit(ctx, out, {
+        type: "bandpass",
+        freq: 900 + Math.random() * 1500,
+        q: 0.8,
+        amp: 0.35 + Math.random() * 0.25,
+        attack: 0.004,
+        dur: 0.22 + Math.random() * 0.2
+      });
+    }
+    // Long low rumble that "rolls away" — the noise pitch drifts down over time.
     const src = noiseSource(ctx, "brown");
+    src.playbackRate.setValueAtTime(close ? 1.25 : 0.9, now);
+    src.playbackRate.exponentialRampToValueAtTime(0.6, now + 4);
     const lp = ctx.createBiquadFilter();
     lp.type = "lowpass";
-    lp.frequency.value = 180;
+    lp.frequency.value = close ? 220 : 140;
     const g = ctx.createGain();
-    const now = ctx.currentTime;
+    const peak = (close ? 0.7 : 0.4) + Math.random() * 0.3;
+    const len = 3 + Math.random() * 3;
     g.gain.setValueAtTime(0.0001, now);
-    g.gain.exponentialRampToValueAtTime(0.5 + Math.random() * 0.5, now + 0.4 + Math.random() * 0.6);
-    g.gain.exponentialRampToValueAtTime(0.0001, now + 2.6 + Math.random() * 2);
+    g.gain.exponentialRampToValueAtTime(peak, now + 0.3 + Math.random() * 0.5);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + len);
     src.connect(lp);
     lp.connect(g);
     g.connect(out);
-    setTimeout(() => stopNodes(src), 5200);
+    setTimeout(() => stopNodes(src), (len + 0.4) * 1000);
     timer = setTimeout(rumble, 9000 + Math.random() * 17000);
   };
   timer = setTimeout(rumble, 4000 + Math.random() * 6000);
@@ -122,44 +214,101 @@ const makeThunder: Maker = (ctx, out) => {
 };
 
 const makeOcean: Maker = (ctx, out) => {
+  // Deep constant sea bed.
   const src = noiseSource(ctx, "brown");
   const lp = ctx.createBiquadFilter();
   lp.type = "lowpass";
-  lp.frequency.value = 550;
-  const g = ctx.createGain();
-  g.gain.value = 0.18;
-  const lfo = ctx.createOscillator();
-  lfo.frequency.value = 0.09;
-  const lg = ctx.createGain();
-  lg.gain.value = 0.5;
-  lfo.connect(lg);
-  lg.connect(g.gain);
-  lfo.start();
+  lp.frequency.value = 500;
+  const bed = ctx.createGain();
+  bed.gain.value = 0.12;
   src.connect(lp);
-  lp.connect(g);
-  g.connect(out);
-  return () => stopNodes(src, lfo);
+  lp.connect(bed);
+  bed.connect(out);
+  // Individual waves: each swells, breaks, and tops off with foam hiss — far
+  // more lifelike than a single fixed-rate LFO.
+  let stopped = false;
+  let timer: ReturnType<typeof setTimeout>;
+  const wave = () => {
+    if (stopped) return;
+    const now = ctx.currentTime;
+    const dur = 5 + Math.random() * 4;
+    const rise = dur * 0.45;
+    const ws = noiseSource(ctx, "pink");
+    const wlp = ctx.createBiquadFilter();
+    wlp.type = "lowpass";
+    wlp.frequency.setValueAtTime(320, now);
+    wlp.frequency.linearRampToValueAtTime(1300, now + rise);
+    wlp.frequency.linearRampToValueAtTime(360, now + dur);
+    const wg = ctx.createGain();
+    wg.gain.setValueAtTime(0.0001, now);
+    wg.gain.linearRampToValueAtTime(0.26, now + rise);
+    wg.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+    ws.connect(wlp);
+    wlp.connect(wg);
+    wg.connect(out);
+    setTimeout(() => stopNodes(ws), (dur + 0.4) * 1000);
+    setTimeout(() => {
+      if (stopped) return;
+      noiseHit(ctx, out, { type: "highpass", freq: 1600, q: 0.7, amp: 0.1, attack: 0.15, dur: 1.3 });
+    }, rise * 1000);
+    // The next wave overlaps the tail of this one.
+    timer = setTimeout(wave, dur * 1000 * (0.62 + Math.random() * 0.2));
+  };
+  timer = setTimeout(wave, 300);
+  return () => {
+    stopped = true;
+    clearTimeout(timer);
+    stopNodes(src);
+  };
 };
 
 const makeStream: Maker = (ctx, out) => {
+  // Flowing-water bed.
   const src = noiseSource(ctx, "white");
   const bp = ctx.createBiquadFilter();
   bp.type = "bandpass";
   bp.frequency.value = 2200;
   bp.Q.value = 0.7;
   const g = ctx.createGain();
-  g.gain.value = 0.18;
+  g.gain.value = 0.14;
   const lfo = ctx.createOscillator();
   lfo.frequency.value = 6;
   const lg = ctx.createGain();
-  lg.gain.value = 0.05;
+  lg.gain.value = 0.04;
   lfo.connect(lg);
   lg.connect(g.gain);
   lfo.start();
   src.connect(bp);
   bp.connect(g);
   g.connect(out);
-  return () => stopNodes(src, lfo);
+  // Gurgles — short sine blips that slide up in pitch, like water over stones.
+  let stopped = false;
+  let timer: ReturnType<typeof setTimeout>;
+  const bubble = () => {
+    if (stopped) return;
+    const o = ctx.createOscillator();
+    o.type = "sine";
+    const now = ctx.currentTime;
+    const f = 600 + Math.random() * 1100;
+    o.frequency.setValueAtTime(f, now);
+    o.frequency.linearRampToValueAtTime(f + 120 + Math.random() * 260, now + 0.06 + Math.random() * 0.07);
+    const bgg = ctx.createGain();
+    const amp = 0.03 + Math.random() * 0.035;
+    bgg.gain.setValueAtTime(0.0001, now);
+    bgg.gain.exponentialRampToValueAtTime(amp, now + 0.006);
+    bgg.gain.exponentialRampToValueAtTime(0.0001, now + 0.09 + Math.random() * 0.08);
+    o.connect(bgg);
+    bgg.connect(out);
+    o.start(now);
+    o.stop(now + 0.22);
+    timer = setTimeout(bubble, 60 + Math.random() * 260);
+  };
+  timer = setTimeout(bubble, 200);
+  return () => {
+    stopped = true;
+    clearTimeout(timer);
+    stopNodes(src, lfo);
+  };
 };
 
 const makeWind: Maker = (ctx, out) => {
@@ -169,112 +318,192 @@ const makeWind: Maker = (ctx, out) => {
   lp.frequency.value = 500;
   lp.Q.value = 4;
   const g = ctx.createGain();
-  g.gain.value = 0.45;
-  const lfo = ctx.createOscillator();
-  lfo.frequency.value = 0.12;
-  const lg = ctx.createGain();
-  lg.gain.value = 320;
-  lfo.connect(lg);
-  lg.connect(lp.frequency);
-  lfo.start();
+  g.gain.value = 0.4;
   src.connect(lp);
   lp.connect(g);
   g.connect(out);
-  return () => stopNodes(src, lfo);
+  // Gusts — one slow LFO swells the volume and opens the filter together so the
+  // wind rises and falls as a single breath.
+  const gust = ctx.createOscillator();
+  gust.frequency.value = 0.09;
+  const gustCut = ctx.createGain();
+  gustCut.gain.value = 360;
+  gust.connect(gustCut);
+  gustCut.connect(lp.frequency);
+  const gustAmp = ctx.createGain();
+  gustAmp.gain.value = 0.18;
+  gust.connect(gustAmp);
+  gustAmp.connect(g.gain);
+  gust.start();
+  // A faint resonant whistle that wanders with a second slow sweep.
+  const wbp = ctx.createBiquadFilter();
+  wbp.type = "bandpass";
+  wbp.frequency.value = 1200;
+  wbp.Q.value = 9;
+  const wg = ctx.createGain();
+  wg.gain.value = 0.06;
+  const wsweep = ctx.createOscillator();
+  wsweep.frequency.value = 0.07;
+  const wsweepG = ctx.createGain();
+  wsweepG.gain.value = 500;
+  wsweep.connect(wsweepG);
+  wsweepG.connect(wbp.frequency);
+  wsweep.start();
+  src.connect(wbp);
+  wbp.connect(wg);
+  wg.connect(out);
+  return () => stopNodes(src, gust, wsweep);
 };
 
 const makeCrickets: Maker = (ctx, out) => {
-  const osc = ctx.createOscillator();
-  osc.type = "triangle";
-  osc.frequency.value = 4500;
-  const osc2 = ctx.createOscillator();
-  osc2.type = "triangle";
-  osc2.frequency.value = 4530;
-  const g = ctx.createGain();
-  g.gain.value = 0;
-  const lfo = ctx.createOscillator();
-  lfo.type = "square";
-  lfo.frequency.value = 13;
-  const lg = ctx.createGain();
-  lg.gain.value = 0.06;
-  lfo.connect(lg);
-  lg.connect(g.gain);
-  osc.connect(g);
-  osc2.connect(g);
-  g.connect(out);
-  osc.start();
-  osc2.start();
-  lfo.start();
-  return () => stopNodes(osc, osc2, lfo);
+  // A few crickets, each a trilled tone gated into chirp-bursts with rests
+  // between — the rhythm that makes real crickets recognisable.
+  let stopped = false;
+  const timers: ReturnType<typeof setTimeout>[] = [];
+  const oscs: OscillatorNode[] = [];
+  const cricket = (freq: number, pan: number, rate: number) => {
+    const o1 = ctx.createOscillator();
+    o1.type = "triangle";
+    o1.frequency.value = freq;
+    const o2 = ctx.createOscillator();
+    o2.type = "triangle";
+    o2.frequency.value = freq * 1.006;
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.value = freq;
+    bp.Q.value = 6;
+    const trill = ctx.createGain(); // pulsed open/closed by a fast LFO
+    trill.gain.value = 0;
+    const fast = ctx.createOscillator();
+    fast.type = "square";
+    fast.frequency.value = rate;
+    const fastG = ctx.createGain();
+    fastG.gain.value = 0.5;
+    fast.connect(fastG);
+    fastG.connect(trill.gain);
+    const chirp = ctx.createGain(); // slow chirp-burst envelope
+    chirp.gain.value = 0;
+    const panner = ctx.createStereoPanner();
+    panner.pan.value = pan;
+    o1.connect(bp);
+    o2.connect(bp);
+    bp.connect(trill);
+    trill.connect(chirp);
+    chirp.connect(panner);
+    panner.connect(out);
+    o1.start();
+    o2.start();
+    fast.start();
+    oscs.push(o1, o2, fast);
+    const burst = () => {
+      if (stopped) return;
+      const now = ctx.currentTime;
+      const len = 0.25 + Math.random() * 0.4;
+      chirp.gain.cancelScheduledValues(now);
+      chirp.gain.setValueAtTime(0.0001, now);
+      chirp.gain.linearRampToValueAtTime(0.09, now + 0.04);
+      chirp.gain.setValueAtTime(0.09, now + len);
+      chirp.gain.exponentialRampToValueAtTime(0.0001, now + len + 0.08);
+      timers.push(setTimeout(burst, (len + 0.4 + Math.random() * 1.8) * 1000));
+    };
+    timers.push(setTimeout(burst, Math.random() * 1500));
+  };
+  cricket(4600, -0.4, 28);
+  cricket(5050, 0.5, 33);
+  cricket(4350, 0.1, 24);
+  return () => {
+    stopped = true;
+    timers.forEach(clearTimeout);
+    stopNodes(...oscs);
+  };
 };
 
 const makeFire: Maker = (ctx, out) => {
+  // Glowing ember bed with a slow flicker.
   const src = noiseSource(ctx, "brown");
   const lp = ctx.createBiquadFilter();
   lp.type = "lowpass";
   lp.frequency.value = 900;
   const g = ctx.createGain();
-  g.gain.value = 0.5;
+  g.gain.value = 0.45;
+  const flick = ctx.createOscillator();
+  flick.frequency.value = 0.5;
+  const flickG = ctx.createGain();
+  flickG.gain.value = 0.08;
+  flick.connect(flickG);
+  flickG.connect(g.gain);
+  flick.start();
   src.connect(lp);
   lp.connect(g);
   g.connect(out);
+  // Crackle = short filtered-noise bursts (woody, not the old square beep);
+  // occasional bigger "spit" pops keep it from feeling uniform.
   let stopped = false;
   let timer: ReturnType<typeof setTimeout>;
-  const pop = () => {
+  const crackle = () => {
     if (stopped) return;
-    const o = ctx.createOscillator();
-    o.type = "square";
-    o.frequency.value = 600 + Math.random() * 1400;
-    const pg = ctx.createGain();
-    const now = ctx.currentTime;
-    pg.gain.setValueAtTime(0.0001, now);
-    pg.gain.exponentialRampToValueAtTime(0.05 + Math.random() * 0.08, now + 0.005);
-    pg.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
-    o.connect(pg);
-    pg.connect(out);
-    o.start(now);
-    o.stop(now + 0.06);
-    timer = setTimeout(pop, 50 + Math.random() * 420);
+    const big = Math.random() < 0.12;
+    noiseHit(ctx, out, {
+      type: "bandpass",
+      freq: big ? 500 + Math.random() * 700 : 1200 + Math.random() * 2200,
+      q: 1.6,
+      amp: big ? 0.12 + Math.random() * 0.1 : 0.04 + Math.random() * 0.06,
+      dur: big ? 0.08 + Math.random() * 0.12 : 0.015 + Math.random() * 0.04
+    });
+    timer = setTimeout(crackle, 40 + Math.random() * 320);
   };
-  timer = setTimeout(pop, 200);
+  timer = setTimeout(crackle, 200);
   return () => {
     stopped = true;
     clearTimeout(timer);
-    stopNodes(src);
+    stopNodes(src, flick);
   };
 };
 
+// C-major pentatonic so any combination of chimes sounds consonant; the
+// inharmonic partial ratios are those of a struck metal rod/tube, which is what
+// gives wind chimes their bright metallic ring.
 const CHIME_SCALE = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5];
+const CHIME_PARTIALS: [number, number][] = [
+  [1, 1],
+  [2.76, 0.5],
+  [5.4, 0.25],
+  [8.93, 0.12]
+];
 const makeChimes: Maker = (ctx, out) => {
   let stopped = false;
   let timer: ReturnType<typeof setTimeout>;
-  const ring = () => {
-    if (stopped) return;
-    const f = CHIME_SCALE[Math.floor(Math.random() * CHIME_SCALE.length)] ?? 660;
-    const osc = ctx.createOscillator();
-    osc.type = "sine";
-    osc.frequency.value = f;
-    const o2 = ctx.createOscillator();
-    o2.type = "sine";
-    o2.frequency.value = f * 2.01;
-    const g = ctx.createGain();
+  const strike = (f: number) => {
     const now = ctx.currentTime;
-    g.gain.setValueAtTime(0, now);
-    g.gain.linearRampToValueAtTime(0.25, now + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.001, now + 3.4);
-    const o2g = ctx.createGain();
-    o2g.gain.value = 0.3;
-    o2.connect(o2g);
-    o2g.connect(g);
-    osc.connect(g);
-    g.connect(out);
-    osc.start(now);
-    o2.start(now);
-    osc.stop(now + 3.5);
-    o2.stop(now + 3.5);
-    timer = setTimeout(ring, 700 + Math.random() * 2800);
+    // Metallic tick at the instant of contact.
+    noiseHit(ctx, out, { type: "bandpass", freq: f * 4, q: 3, amp: 0.05, attack: 0.001, dur: 0.03 });
+    CHIME_PARTIALS.forEach(([ratio, amp], i) => {
+      const o = ctx.createOscillator();
+      o.type = "sine";
+      o.frequency.value = f * ratio;
+      const g = ctx.createGain();
+      const decay = 3.6 / (i + 1); // higher partials fade first
+      g.gain.setValueAtTime(0, now);
+      g.gain.linearRampToValueAtTime(0.22 * amp, now + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0008, now + decay);
+      o.connect(g);
+      g.connect(out);
+      o.start(now);
+      o.stop(now + decay + 0.1);
+    });
   };
-  timer = setTimeout(ring, 300);
+  const gust = () => {
+    if (stopped) return;
+    const n = 1 + Math.floor(Math.random() * 4); // a breeze nudges several chimes
+    for (let i = 0; i < n; i++) {
+      const f = CHIME_SCALE[Math.floor(Math.random() * CHIME_SCALE.length)] ?? 660;
+      timer = setTimeout(() => {
+        if (!stopped) strike(f);
+      }, i * (80 + Math.random() * 180));
+    }
+    timer = setTimeout(gust, 1500 + Math.random() * 3800);
+  };
+  timer = setTimeout(gust, 400);
   return () => {
     stopped = true;
     clearTimeout(timer);
@@ -296,10 +525,19 @@ const makeFan: Maker = (ctx, out) => {
   hum.connect(hg);
   hg.connect(out);
   hum.start();
+  // Blade-pass whir — a gentle amplitude pulse from the spinning blades.
+  const blade = ctx.createOscillator();
+  blade.type = "sine";
+  blade.frequency.value = 11;
+  const bladeG = ctx.createGain();
+  bladeG.gain.value = 0.06;
+  blade.connect(bladeG);
+  bladeG.connect(g.gain);
+  blade.start();
   src.connect(lp);
   lp.connect(g);
   g.connect(out);
-  return () => stopNodes(src, hum);
+  return () => stopNodes(src, hum, blade);
 };
 
 const colorNoise =
@@ -316,18 +554,38 @@ const colorNoise =
 const BOWL_PARTIALS = [1, 2.0, 2.7, 3.7, 5.4];
 const makeBowl: Maker = (ctx, out) => {
   const base = 136.1; // "Om" / earth-year tone
-  const oscs = BOWL_PARTIALS.map((p, i) => {
-    const o = ctx.createOscillator();
-    o.type = "sine";
-    o.frequency.value = base * p;
-    const g = ctx.createGain();
-    g.gain.value = 0.12 / (i + 1);
-    o.connect(g);
-    g.connect(out);
-    o.start();
-    return o;
+  const now = ctx.currentTime;
+  // Shared bus so a slow shimmer can breathe over the whole bowl at once.
+  const bus = ctx.createGain();
+  bus.gain.value = 1;
+  bus.connect(out);
+  // Soft mallet strike at the start.
+  noiseHit(ctx, out, { type: "bandpass", freq: base * 4, q: 2, amp: 0.06, attack: 0.002, dur: 0.18 });
+  const oscs: OscillatorNode[] = [];
+  BOWL_PARTIALS.forEach((p, i) => {
+    // Two slightly detuned oscillators per partial → slow shimmering beats, the
+    // hallmark of a real singing bowl. Higher partials beat a touch faster.
+    [-1, 1].forEach((sign) => {
+      const o = ctx.createOscillator();
+      o.type = "sine";
+      o.frequency.value = base * p * (1 + sign * (0.0015 + i * 0.0006));
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, now);
+      g.gain.exponentialRampToValueAtTime(0.12 / (i + 1), now + 0.06);
+      o.connect(g);
+      g.connect(bus);
+      o.start();
+      oscs.push(o);
+    });
   });
-  return () => stopNodes(...oscs);
+  const shimmer = ctx.createOscillator();
+  shimmer.frequency.value = 0.13;
+  const shimmerG = ctx.createGain();
+  shimmerG.gain.value = 0.05;
+  shimmer.connect(shimmerG);
+  shimmerG.connect(bus.gain);
+  shimmer.start();
+  return () => stopNodes(...oscs, shimmer);
 };
 
 const makeHeartbeat: Maker = (ctx, out) => {
@@ -362,11 +620,17 @@ const makeHeartbeat: Maker = (ctx, out) => {
   };
 };
 
-// Bright choral "aah" pad — a soft major chord with gentle vibrato.
+// Bright choral "aah" pad — a major chord sung by a 3-voice unison per note,
+// shaped by an "aah" formant so it reads as voices rather than plain sines.
 const makeAngelicPad: Maker = (ctx, out) => {
+  const formant = ctx.createBiquadFilter();
+  formant.type = "bandpass";
+  formant.frequency.value = 900; // "aah" vowel peak
+  formant.Q.value = 0.7;
   const lp = ctx.createBiquadFilter();
   lp.type = "lowpass";
-  lp.frequency.value = 1700;
+  lp.frequency.value = 2200;
+  formant.connect(lp);
   lp.connect(out);
   const vib = ctx.createOscillator();
   vib.frequency.value = 5;
@@ -375,34 +639,44 @@ const makeAngelicPad: Maker = (ctx, out) => {
   vib.connect(vibG);
   vib.start();
   const freqs = [261.63, 329.63, 392.0, 523.25];
-  const oscs = freqs.map((f) => {
-    const o = ctx.createOscillator();
-    o.type = "sine";
-    o.frequency.value = f;
-    const g = ctx.createGain();
-    g.gain.value = 0.09;
-    vibG.connect(o.detune);
-    o.connect(g);
-    g.connect(lp);
-    o.start();
-    return o;
+  const oscs: OscillatorNode[] = [vib];
+  freqs.forEach((f) => {
+    [-7, 0, 7].forEach((det) => {
+      const o = ctx.createOscillator();
+      o.type = "sawtooth"; // harmonics for the formant to carve a vowel from
+      o.frequency.value = f;
+      o.detune.value = det; // unison spread → warm, choir-like width
+      const g = ctx.createGain();
+      g.gain.value = 0.025;
+      vibG.connect(o.detune);
+      o.connect(g);
+      g.connect(formant);
+      o.start();
+      oscs.push(o);
+    });
   });
-  return () => stopNodes(...oscs, vib);
+  return () => stopNodes(...oscs);
 };
 
-// Dark "mmm" humming choir with a slow breathing swell.
+// Dark "mmm" humming choir — a 2-voice unison per note through a closed-mouth
+// formant, with a slow breathing swell.
 const makeHummingChoir: Maker = (ctx, out) => {
+  const formant = ctx.createBiquadFilter();
+  formant.type = "bandpass";
+  formant.frequency.value = 320; // "mmm" / closed-mouth peak
+  formant.Q.value = 0.8;
   const lp = ctx.createBiquadFilter();
   lp.type = "lowpass";
-  lp.frequency.value = 700;
+  lp.frequency.value = 600;
   const amp = ctx.createGain();
   amp.gain.value = 0.5;
+  formant.connect(lp);
   lp.connect(amp);
   amp.connect(out);
   const breath = ctx.createOscillator();
-  breath.frequency.value = 0.18;
+  breath.frequency.value = 0.16;
   const breathG = ctx.createGain();
-  breathG.gain.value = 0.25;
+  breathG.gain.value = 0.22;
   breath.connect(breathG);
   breathG.connect(amp.gain);
   breath.start();
@@ -413,19 +687,23 @@ const makeHummingChoir: Maker = (ctx, out) => {
   vib.connect(vibG);
   vib.start();
   const freqs = [146.83, 220.0, 293.66];
-  const oscs = freqs.map((f) => {
-    const o = ctx.createOscillator();
-    o.type = "triangle";
-    o.frequency.value = f;
-    const g = ctx.createGain();
-    g.gain.value = 0.12;
-    vibG.connect(o.detune);
-    o.connect(g);
-    g.connect(lp);
-    o.start();
-    return o;
+  const oscs: OscillatorNode[] = [vib, breath];
+  freqs.forEach((f) => {
+    [-6, 6].forEach((det) => {
+      const o = ctx.createOscillator();
+      o.type = "sawtooth";
+      o.frequency.value = f;
+      o.detune.value = det;
+      const g = ctx.createGain();
+      g.gain.value = 0.06;
+      vibG.connect(o.detune);
+      o.connect(g);
+      g.connect(formant);
+      o.start();
+      oscs.push(o);
+    });
   });
-  return () => stopNodes(...oscs, vib, breath);
+  return () => stopNodes(...oscs);
 };
 
 // Deep space — sub drone + airy filtered sweep + sparse shimmer bells.
@@ -506,21 +784,36 @@ const makeWhales: Maker = (ctx, out) => {
   let timer: ReturnType<typeof setTimeout>;
   const moan = () => {
     if (stopped) return;
-    const o = ctx.createOscillator();
-    o.type = "sine";
     const now = ctx.currentTime;
-    const base = 120 + Math.random() * 120;
-    o.frequency.setValueAtTime(base, now);
-    o.frequency.exponentialRampToValueAtTime(base * 0.5, now + 2.5);
-    o.frequency.exponentialRampToValueAtTime(base * 0.8, now + 4);
-    const mg = ctx.createGain();
-    mg.gain.setValueAtTime(0.0001, now);
-    mg.gain.exponentialRampToValueAtTime(0.12, now + 0.8);
-    mg.gain.exponentialRampToValueAtTime(0.0001, now + 4.5);
-    o.connect(mg);
-    mg.connect(out);
-    o.start(now);
-    o.stop(now + 4.6);
+    const base = 120 + Math.random() * 130;
+    // A slow vibrato gives the call a living, song-like waver.
+    const vib = ctx.createOscillator();
+    vib.frequency.value = 4 + Math.random() * 2;
+    const vibG = ctx.createGain();
+    vibG.gain.value = 8;
+    vib.connect(vibG);
+    vib.start();
+    const voiceG = ctx.createGain();
+    voiceG.gain.setValueAtTime(0.0001, now);
+    voiceG.gain.exponentialRampToValueAtTime(0.13, now + 0.8);
+    voiceG.gain.exponentialRampToValueAtTime(0.0001, now + 4.5);
+    voiceG.connect(out);
+    // Fundamental + a soft octave harmonic, both gliding down and back.
+    [1, 2].forEach((mult, idx) => {
+      const o = ctx.createOscillator();
+      o.type = "sine";
+      o.frequency.setValueAtTime(base * mult, now);
+      o.frequency.exponentialRampToValueAtTime(base * mult * 0.5, now + 2.5);
+      o.frequency.exponentialRampToValueAtTime(base * mult * 0.8, now + 4);
+      vibG.connect(o.detune);
+      const hg = ctx.createGain();
+      hg.gain.value = idx === 0 ? 1 : 0.3;
+      o.connect(hg);
+      hg.connect(voiceG);
+      o.start(now);
+      o.stop(now + 4.6);
+    });
+    setTimeout(() => stopNodes(vib), 4800);
     timer = setTimeout(moan, 5000 + Math.random() * 9000);
   };
   timer = setTimeout(moan, 2000);
