@@ -167,7 +167,9 @@ export const GROUPS: ArchiveGroup[] = [
       { key: "bible-study", label: "Bible Study & Sermons", emoji: "🙏", query: 'subject:(sermon OR sermons OR preaching OR "bible study" OR gospel OR christianity OR scripture OR theology)' },
       { key: "bible-hovind", label: "Kent Hovind", emoji: "🦖", query: 'title:("kent hovind") OR creator:("kent hovind") OR title:(hovind OR "creation seminar")' },
       { key: "bible-debates", label: "Creation & Debates", emoji: "🎙️", query: 'subject:(apologetics OR creationism OR "intelligent design") OR title:("creation seminar" OR "creation vs evolution" OR "great debate" OR "does god exist")' },
-      { key: "bible-music", label: "Gospel & Worship Music", emoji: "🎵", query: 'mediatype:(audio) AND subject:(gospel OR worship OR hymn OR hymns OR "christian music" OR praise)' }
+      { key: "bible-music", label: "Gospel & Worship Music", emoji: "🎵", query: 'mediatype:(audio) AND subject:(gospel OR worship OR hymn OR hymns OR "christian music" OR praise)' },
+      { key: "bible-series", label: "Famous Bible Series", emoji: "📺", query: 'title:("the bible" OR "jesus film" OR "visual bible" OR "ten commandments" OR superbook OR "ben-hur" OR "greatest story ever told" OR "jesus of nazareth" OR "gospel of john" OR "the chosen")' },
+      { key: "bible-preachers", label: "Preachers & Apologists", emoji: "🎤", query: 'creator:("billy graham" OR spurgeon OR "ken ham" OR "william lane craig" OR macarthur OR "paul washer" OR "r.c. sproul" OR "voddie baucham") OR title:("billy graham" OR spurgeon OR "william lane craig" OR "paul washer" OR "answers in genesis" OR "john macarthur" OR "ken ham" OR "ham vs nye")' }
     ]
   },
   {
