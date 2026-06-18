@@ -64,7 +64,7 @@ const SECTIONS: Section[] = [
       { href: "/karaoke", label: "Karaoke", emoji: "🎤", grad: "from-fuchsia-400 via-purple-500 to-indigo-600" },
       { href: "/sleep", label: "Sleep", emoji: "😴", grad: "from-indigo-400 via-purple-600 to-slate-900" },
       { href: "/sports", label: "Sports", emoji: "⚽", grad: "from-green-300 via-emerald-500 to-teal-700" },
-      { href: "/audiobooks", label: "Audiobooks", emoji: "🎧", grad: "from-amber-300 via-orange-400 to-rose-500" },
+      { href: "/audiobooks", label: "Audiobooks & Films", emoji: "🎧", grad: "from-amber-300 via-orange-400 to-rose-500" },
       { href: "/files", label: "Files & Apps", emoji: "📂", grad: "from-slate-300 via-slate-500 to-slate-700" },
       { href: "/onlinegames", label: "Online Games", emoji: "🎮", grad: "from-fuchsia-400 via-pink-500 to-rose-600" }
     ]

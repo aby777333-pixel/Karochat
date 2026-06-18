@@ -89,7 +89,7 @@ export function AudiobooksHub({
   return (
     <div className="space-y-5">
       <section className="surface-glass tint-purple p-5">
-        <h1 className="font-display text-xl font-semibold">🎧 Audiobooks &amp; Stories</h1>
+        <h1 className="font-display text-xl font-semibold">🎧 Audiobooks &amp; Films</h1>
         <p className="mt-1 text-sm text-white/60">
           Thousands of free audiobooks, TV series, films, short films,
           mythological epics, music and more — in many languages, from the
