@@ -201,6 +201,17 @@ export function AudiobooksHub({
             Search
           </button>
         </div>
+
+        {source !== "archive" && (
+          <p className="mt-2 text-[11px] text-white/45">
+            🔍 {source === "openverse" ? "CC Music" : "Wikimedia"} is search-driven —
+            type a term above (e.g.{" "}
+            {source === "openverse"
+              ? "“lofi”, “jazz”, “ambient”"
+              : "“documentary”, “nature”, “history”"}
+            ) and hit Search. The category chips above just seed the search.
+          </p>
+        )}
       </section>
 
       {/* Player */}
