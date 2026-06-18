@@ -83,12 +83,20 @@ export default async function AdminHomePage() {
           <Logo className="h-7 w-7" />
           <Wordmark className="text-lg" />
         </Link>
-        <Link
-          href="/rooms"
-          className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/80 hover:bg-white/10"
-        >
-          ← Rooms
-        </Link>
+        <div className="flex items-center gap-2">
+          <a
+            href="/admin/clients/export"
+            className="rounded-lg border border-neon-mint/30 bg-neon-mint/10 px-3 py-1.5 text-xs text-neon-mint hover:bg-neon-mint/20"
+          >
+            ⬇ Clients (CSV)
+          </a>
+          <Link
+            href="/rooms"
+            className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/80 hover:bg-white/10"
+          >
+            ← Rooms
+          </Link>
+        </div>
       </header>
 
       <section className="surface-glass tint-purple mt-8 p-7 sm:p-9">
