@@ -37,7 +37,15 @@ export const CATEGORIES: ArchiveCategory[] = [
   { key: "radio", label: "Old-time radio", emoji: "📻", query: "collection:(oldtimeradio)", i18nQuery: 'mediatype:(audio) AND subject:(radio OR broadcast OR "radio drama" OR "radio play" OR "radio serial" OR nataka OR natak OR drama OR serial)' },
   { key: "films", label: "Free films", emoji: "🎬", query: "mediatype:(movies) AND collection:(feature_films OR silent_films OR classic_tv)", i18nQuery: "mediatype:(movies) AND -collection:(short_films OR animationandcartoons OR prelinger OR more_animation) AND -subject:(short OR cartoon OR animation)" },
   { key: "shorts", label: "Short films", emoji: "🎞️", query: "mediatype:(movies) AND collection:(short_films OR animationandcartoons OR prelinger OR more_animation OR classic_cartoons)", i18nQuery: 'mediatype:(movies) AND (collection:(short_films OR animationandcartoons OR prelinger OR more_animation) OR subject:(short OR "short film" OR cartoon OR animation OR animated))' },
-  { key: "music", label: "Music", emoji: "🎵", query: "mediatype:(audio) AND collection:(opensource_audio)", i18nQuery: "mediatype:(audio)" }
+  // Subject-based categories work for any language as-is (no collection lock),
+  // so they don't need a separate i18nQuery — the hub reuses `query`.
+  { key: "comedy", label: "Comedy", emoji: "😂", query: 'mediatype:(movies) AND subject:(comedy OR comedian OR "stand-up" OR standup OR sitcom OR humor OR humour)' },
+  { key: "docs", label: "Documentaries", emoji: "🎥", query: "mediatype:(movies) AND subject:(documentary OR documentaries)" },
+  { key: "tv", label: "Classic TV", emoji: "📺", query: "mediatype:(movies) AND collection:(classic_tv)", i18nQuery: 'mediatype:(movies) AND subject:(television OR "tv series" OR serial OR teleserial OR show)' },
+  { key: "news", label: "Newsreels", emoji: "📰", query: "mediatype:(movies) AND (collection:(universal_newsreels) OR subject:(newsreel OR newsreels))", i18nQuery: "mediatype:(movies) AND subject:(newsreel OR newsreels OR news OR historical)" },
+  { key: "lectures", label: "Lectures & talks", emoji: "🎓", query: "(mediatype:(movies) OR mediatype:(audio)) AND subject:(lecture OR lectures OR talk OR talks OR seminar OR speech)" },
+  { key: "music", label: "Music", emoji: "🎵", query: "mediatype:(audio) AND collection:(opensource_audio)", i18nQuery: "mediatype:(audio)" },
+  { key: "concerts", label: "Concerts", emoji: "🎤", query: "collection:(etree)", i18nQuery: 'mediatype:(audio) AND subject:(concert OR "live concert" OR live OR performance)' }
 ];
 
 // Indian languages first (Karochat's core audience), then world languages.
