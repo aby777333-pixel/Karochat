@@ -52,7 +52,13 @@ export function AudiobooksHub({
     setErr(null);
     (async () => {
       try {
-        const list = await fetchArchive(cat.query, language, search);
+        // For a specific non-English language, the curated English-only
+        // collections (LibriVox, old-time radio, feature films) hold almost
+        // nothing, so search the broader catalog instead. "Any"/"English" keep
+        // the original curated query untouched.
+        const specific = language !== "Any" && language !== "English";
+        const base = specific && cat.i18nQuery ? cat.i18nQuery : cat.query;
+        const list = await fetchArchive(base, language, search);
         if (!cancelled) setItems(list);
       } catch {
         if (!cancelled) setErr("Couldn't reach the free library. Check your connection and retry.");
