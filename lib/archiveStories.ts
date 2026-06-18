@@ -157,6 +157,20 @@ export const GROUPS: ArchiveGroup[] = [
     ]
   },
   {
+    key: "bible",
+    label: "Bible & Faith",
+    emoji: "✝️",
+    categories: [
+      { key: "bible-audio", label: "Bible (Audio)", emoji: "📖", query: 'mediatype:(audio) AND title:(bible) AND subject:(bible OR scripture OR audiobible OR "holy bible")', i18nQuery: "mediatype:(audio) AND subject:(bible OR scripture OR gospel)" },
+      { key: "bible-films", label: "Bible Films & Series", emoji: "🎬", query: 'mediatype:(movies) AND title:(bible OR jesus OR gospel OR "ten commandments" OR moses OR "king of kings" OR "superbook")', i18nQuery: "mediatype:(movies) AND subject:(bible OR jesus OR gospel OR christian)" },
+      { key: "bible-jesus", label: "Jesus & Gospel Films", emoji: "✨", query: 'mediatype:(movies) AND title:(jesus OR christ OR gospel OR "passion of" OR nativity OR "jesus of nazareth")' },
+      { key: "bible-study", label: "Bible Study & Sermons", emoji: "🙏", query: 'subject:(sermon OR sermons OR preaching OR "bible study" OR gospel OR christianity OR scripture OR theology)' },
+      { key: "bible-hovind", label: "Kent Hovind", emoji: "🦖", query: 'title:("kent hovind") OR creator:("kent hovind") OR title:(hovind OR "creation seminar")' },
+      { key: "bible-debates", label: "Creation & Debates", emoji: "🎙️", query: 'subject:(apologetics OR creationism OR "intelligent design") OR title:("creation seminar" OR "creation vs evolution" OR "great debate" OR "does god exist")' },
+      { key: "bible-music", label: "Gospel & Worship Music", emoji: "🎵", query: 'mediatype:(audio) AND subject:(gospel OR worship OR hymn OR hymns OR "christian music" OR praise)' }
+    ]
+  },
+  {
     key: "more",
     label: "More",
     emoji: "✨",
