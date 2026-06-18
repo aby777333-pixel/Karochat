@@ -94,6 +94,12 @@ export default async function AdminVerificationsPage() {
         </Link>
         <div className="flex items-center gap-2 text-xs">
           <Link
+            href="/admin"
+            className="rounded-lg border border-neon-purple/30 bg-neon-purple/10 px-3 py-1.5 text-neon-purple hover:bg-neon-purple/20"
+          >
+            ← Admin
+          </Link>
+          <Link
             href="/admin/reports"
             className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-white/80 hover:bg-white/10"
           >

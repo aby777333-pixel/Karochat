@@ -76,6 +76,12 @@ export default async function AdminReportsPage() {
         </Link>
         <div className="flex items-center gap-2">
           <Link
+            href="/admin"
+            className="rounded-lg border border-neon-purple/30 bg-neon-purple/10 px-3 py-1.5 text-xs text-neon-purple hover:bg-neon-purple/20"
+          >
+            ← Admin
+          </Link>
+          <Link
             href="/admin/abuse"
             className="rounded-lg border border-neon-red/30 bg-neon-red/10 px-3 py-1.5 text-xs text-neon-red hover:bg-neon-red/20"
           >
