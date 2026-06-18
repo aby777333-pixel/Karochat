@@ -193,6 +193,8 @@ export const GROUPS: ArchiveGroup[] = [
       { key: "more-sports", label: "Sports", emoji: "🏅", query: "subject:(sports OR cricket OR football OR olympics OR boxing OR athletics)" },
       { key: "more-gaming", label: "Gaming", emoji: "🎮", query: "subject:(gaming OR videogame OR \"video game\" OR gameplay OR esports OR \"let's play\")" },
       { key: "more-nature", label: "Nature & Wildlife", emoji: "🦁", query: "mediatype:(movies) AND subject:(nature OR wildlife OR animals OR ocean OR forest)" },
+      { key: "more-nasa", label: "Space & NASA", emoji: "🚀", query: "mediatype:(movies) AND (collection:(nasa) OR subject:(nasa OR space OR apollo OR astronomy OR mars OR rocket))" },
+      { key: "more-prelinger", label: "Prelinger Archive", emoji: "🎞️", query: "mediatype:(movies) AND collection:(prelinger)" },
       { key: "more-tech", label: "Technology", emoji: "💻", query: "subject:(technology OR computers OR software OR \"artificial intelligence\" OR internet)" },
       { key: "more-retro", label: "Retro & Nostalgia", emoji: "📼", query: "mediatype:(movies) AND collection:(prelinger OR classic_tv) AND year:[1940 TO 1989]" },
       { key: "more-regional", label: "Regional Language", emoji: "🗺️", query: "subject:(regional OR folk OR \"folk music\" OR traditional OR \"lok geet\")" },
