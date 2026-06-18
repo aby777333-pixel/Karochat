@@ -15,6 +15,7 @@ import {
   LANGUAGES,
   fetchArchive,
   fetchWikimedia,
+  fetchOpenverse,
   embedUrl,
   detailsUrl,
   type ArchiveItem
@@ -25,7 +26,7 @@ type Now = {
   id: string;
   title: string;
   isVideo: boolean;
-  source?: "archive" | "wikimedia";
+  source?: "archive" | "wikimedia" | "openverse";
   mediaUrl?: string;
 } | null;
 
@@ -39,7 +40,7 @@ export function AudiobooksHub({
   const [groupKey, setGroupKey] = useState(GROUPS[0]?.key ?? "audiobooks");
   const [catKey, setCatKey] = useState(GROUPS[0]?.categories[0]?.key ?? "ab-fiction");
   const [language, setLanguage] = useState("Any");
-  const [source, setSource] = useState<"archive" | "wikimedia">("archive");
+  const [source, setSource] = useState<"archive" | "wikimedia" | "openverse">("archive");
   const [search, setSearch] = useState("");
   const [submitted, setSubmitted] = useState(0); // bump to trigger a fetch
   const [items, setItems] = useState<ArchiveItem[]>([]);
@@ -78,7 +79,10 @@ export function AudiobooksHub({
         // nothing, so search the broader catalog instead. "Any"/"English" keep
         // the original curated query untouched.
         let list: ArchiveItem[];
-        if (source === "wikimedia") {
+        if (source === "openverse") {
+          // Openverse = CC music (Jamendo/ccMixter/FMA). Keyword-driven.
+          list = await fetchOpenverse(search || cat.label);
+        } else if (source === "wikimedia") {
           // Wikimedia is keyword-driven: use the search box, falling back to the
           // genre label. Audio for audiobook/music genres, video otherwise.
           const kind: "video" | "audio" =
@@ -154,7 +158,7 @@ export function AudiobooksHub({
         {/* Source + search + language */}
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <div className="flex rounded-xl border border-white/10 bg-black/30 p-0.5 text-xs">
-            {(["archive", "wikimedia"] as const).map((s) => (
+            {(["archive", "wikimedia", "openverse"] as const).map((s) => (
               <button
                 key={s}
                 type="button"
@@ -164,7 +168,7 @@ export function AudiobooksHub({
                   (source === s ? "bg-neon-purple/30 text-white" : "text-white/55 hover:text-white/80")
                 }
               >
-                {s === "archive" ? "Archive.org" : "Wikimedia"}
+                {s === "archive" ? "Archive.org" : s === "wikimedia" ? "Wikimedia" : "CC Music"}
               </button>
             ))}
           </div>
@@ -225,7 +229,7 @@ export function AudiobooksHub({
               </button>
             </div>
           </div>
-          {now.source === "wikimedia" && now.mediaUrl ? (
+          {now.mediaUrl ? (
             now.isVideo ? (
               // eslint-disable-next-line jsx-a11y/media-has-caption
               <video

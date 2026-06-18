@@ -14,8 +14,9 @@ export type ArchiveItem = {
   year?: string;
   language?: string;
   // Which free library the item came from. "archive" (default) plays via the
-  // archive.org embed/metadata player; "wikimedia" plays mediaUrl natively.
-  source?: "archive" | "wikimedia";
+  // archive.org embed/metadata player; "wikimedia"/"openverse" carry a direct
+  // `mediaUrl` the hub plays natively.
+  source?: "archive" | "wikimedia" | "openverse";
   mediaUrl?: string;
 };
 
@@ -348,6 +349,39 @@ export async function fetchWikimedia(
       mediatype: mt === "VIDEO" ? "movies" : "audio",
       source: "wikimedia",
       mediaUrl: String(info.url)
+    });
+  }
+  return out;
+}
+
+// Openverse — Creative-Commons audio aggregated from Jamendo, ccMixter, the
+// Free Music Archive and more. Keyless + CORS (`Access-Control-Allow-Origin: *`).
+// Returns native-playable mp3 URLs in `mediaUrl`. Keyword-driven via search.
+export async function fetchOpenverse(search: string, rows = 40): Promise<ArchiveItem[]> {
+  const term = search.trim() || "music";
+  const url =
+    "https://api.openverse.org/v1/audio/" +
+    `?q=${encodeURIComponent(term)}&page_size=${rows}&mature=false`;
+  let res: Response;
+  try {
+    res = await fetch(url, { cache: "no-store" });
+  } catch {
+    return [];
+  }
+  if (!res.ok) return []; // 429 (rate limit) or transient → empty, not a crash
+  const data = (await res.json()) as any;
+  const results: any[] = Array.isArray(data?.results) ? data.results : [];
+  const out: ArchiveItem[] = [];
+  for (const r of results) {
+    const media = r?.url; // direct audio file
+    if (!media || typeof media !== "string") continue;
+    out.push({
+      id: "ov-" + String(r.id ?? media),
+      title: String(r.title || "Untitled"),
+      creator: r.creator ? String(r.creator).slice(0, 60) : r.provider,
+      mediatype: "audio",
+      source: "openverse",
+      mediaUrl: media
     });
   }
   return out;
