@@ -288,17 +288,28 @@ select option:hover {
   }
 }
 
-/* The floating reactions / raise-hand strip sits near the bottom of the call
-   surface (≈ bottom: 4rem). When the in-call "Messages" chat is open its text
-   composer would be covered by that strip — lift the composer above it so the
-   input stays usable. Also give it a solid backdrop so it reads clearly. */
-.lk-call-host .lk-chat-form {
-  margin-bottom: 5rem !important;
-  position: relative;
-  z-index: 20;
-}
+/* In-call "Messages" chat. Lay it out as a proper flex column so the message
+   list scrolls in its own area and the composer is pinned below it — otherwise
+   the newest messages slide BEHIND the input. The whole panel is lifted via
+   padding-bottom (not a margin on the form) so it clears the floating reactions
+   / raise-hand strip (≈ bottom: 4rem) without the form overlapping the list. */
 .lk-call-host .lk-chat {
   background: rgba(10, 11, 15, 0.92);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding-bottom: 4.75rem;
+}
+.lk-call-host .lk-chat-messages {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+.lk-call-host .lk-chat-form {
+  flex: 0 0 auto;
+  margin-bottom: 0 !important;
+  position: relative;
+  z-index: 20;
 }
 
 /* Respect prefers-reduced-motion: kill the loud animations (shake, rise,
