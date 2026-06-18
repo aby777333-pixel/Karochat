@@ -55,17 +55,22 @@ const ab = (terms: string) => ({
   // that language and let the language filter do the work — far more content.
   i18nQuery: `mediatype:(audio)`
 });
+// Non-English movie content on archive.org is rarely tagged with English genre
+// subjects, so a `subject:(…)` filter collapses the count (e.g. Tamil Action
+// 3721 → 1, Malayalam Action 292 → 0). For a specific language we show the full
+// movie catalog in that language and let the language filter do the work.
+// English/Any keep the precise collection+subject `query`.
 const tv = (terms: string) => ({
   query: `mediatype:(movies) AND (collection:(classic_tv) OR subject:("tv series" OR television OR sitcom OR teleserial)) AND subject:(${terms})`,
-  i18nQuery: `mediatype:(movies) AND subject:(television OR "tv series" OR teleserial OR serial OR sitcom) AND subject:(${terms})`
+  i18nQuery: `mediatype:(movies)`
 });
 const film = (terms: string) => ({
   query: `mediatype:(movies) AND collection:(feature_films) AND subject:(${terms})`,
-  i18nQuery: `mediatype:(movies) AND subject:(${terms})`
+  i18nQuery: `mediatype:(movies)`
 });
 const shortf = (terms: string) => ({
   query: `mediatype:(movies) AND collection:(short_films OR animationandcartoons OR prelinger OR more_animation) AND subject:(${terms})`,
-  i18nQuery: `mediatype:(movies) AND subject:(short OR "short film") AND subject:(${terms})`
+  i18nQuery: `mediatype:(movies)`
 });
 
 export const GROUPS: ArchiveGroup[] = [
@@ -100,7 +105,7 @@ export const GROUPS: ArchiveGroup[] = [
       { key: "tv-fantasy", label: "Fantasy", emoji: "🐉", ...tv("fantasy OR magic") },
       { key: "tv-historical", label: "Historical Series", emoji: "🏛️", ...tv("historical OR history OR period OR aitihasik") },
       { key: "tv-family", label: "Family Entertainment", emoji: "👨‍👩‍👧", ...tv("family OR children") },
-      { key: "tv-classic", label: "Classic Television", emoji: "📼", query: "mediatype:(movies) AND collection:(classic_tv)", i18nQuery: "mediatype:(movies) AND subject:(television OR \"tv series\" OR teleserial OR serial)" },
+      { key: "tv-classic", label: "Classic Television", emoji: "📼", query: "mediatype:(movies) AND collection:(classic_tv)", i18nQuery: "mediatype:(movies)" },
       { key: "tv-indian", label: "Classic Indian TV", emoji: "🇮🇳", query: 'title:(buniyaad OR buniyad OR "hum log" OR nukkad OR "dekh bhai dekh" OR "wagle ki duniya" OR "yeh jo hai zindagi" OR "malgudi days" OR "byomkesh bakshi" OR circus OR fauji OR "office office" OR "didi" OR "shrimaan shrimati")' },
       { key: "tv-reality", label: "Reality & Talent Shows", emoji: "🎙️", ...tv("reality OR \"talent show\" OR \"game show\" OR \"reality show\"") },
       { key: "tv-docuseries", label: "Documentary Series", emoji: "🎥", ...tv("documentary OR docuseries OR documentaries") }
