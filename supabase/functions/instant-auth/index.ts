@@ -54,24 +54,11 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 0.5) Admin accounts must verify via email OTP — never the instant /
-    // deterministic-password path. Rotate the password so the email-derived
-    // one can't be used, then tell the client to do OTP.
-    const adminEmail = await admin.rpc("is_admin_email", { p_email: email });
-    if (!adminEmail.error && adminEmail.data === true) {
-      const uid = await admin.rpc("admin_user_id_by_email", { p_email: email });
-      if (uid.data) {
-        try {
-          await admin.auth.admin.updateUserById(uid.data as string, {
-            password: "Ax9!" + crypto.randomUUID() + crypto.randomUUID(),
-            email_confirm: true
-          });
-        } catch (_) {
-          /* ignore */
-        }
-      }
-      return json({ ok: false, code: "admin_otp" }, 200);
-    }
+    // 0.5) Admin accounts: instant access ENABLED at the owner's explicit
+    // request (no email OTP). ⚠️ Security note: the deterministic password is
+    // derived from the email, so this makes the admin account accessible to
+    // anyone who knows the email. Harden with an out-of-band admin passphrase
+    // before any wider launch.
 
     // Non-admin: validate phone + password for the instant path.
     if (phone.replace(/\D/g, "").length < 6) {
