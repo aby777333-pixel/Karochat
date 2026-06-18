@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Logo, SLOGAN, Wordmark } from "@/components/Brand";
+import { InstallButton } from "@/components/InstallButton";
 import { LoginForm } from "./LoginForm";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -24,11 +25,14 @@ export default async function Home() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-6xl flex-col px-6 py-8">
-      <header className="flex items-center">
+      <header className="flex items-center justify-between gap-3">
         <Link href="/" className="flex items-center gap-2">
           <Logo className="h-12 w-12" />
           <Wordmark className="text-3xl" />
         </Link>
+        {/* Explicit install ask — visible on both desktop and mobile, hides
+            itself once installed / standalone / native. */}
+        <InstallButton />
       </header>
 
       <section className="mt-16 grid flex-1 grid-cols-1 items-center gap-10 md:mt-24 md:grid-cols-2">
