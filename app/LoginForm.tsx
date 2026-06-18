@@ -50,6 +50,9 @@ export function LoginForm() {
   const [otp, setOtp] = useState("");
   const [otpStatus, setOtpStatus] = useState<"idle" | "verifying">("idle");
   const [adminOtp, setAdminOtp] = useState(false);
+  // Admin accounts get instant access but must supply an out-of-band passphrase.
+  const [adminSecret, setAdminSecret] = useState("");
+  const [needAdminSecret, setNeedAdminSecret] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -135,10 +138,21 @@ export function LoginForm() {
     //    any signInWithPassword, otherwise an unconfirmed account would make
     //    Supabase try to (re)send a confirmation email and hit the limit.
     const fn = await supabase.functions.invoke("instant-auth", {
-      body: { email: loginEmail, phone: fullPhone, password: pw }
+      body: { email: loginEmail, phone: fullPhone, password: pw, adminSecret }
     });
     const res: any = fn.data;
-    // Admin accounts must verify with an email code (no instant access).
+    // Admin accounts: reveal the passphrase field and (re)prompt.
+    if (res?.code === "admin_secret_required") {
+      setBusy(false);
+      setErrorMsg(
+        needAdminSecret
+          ? "That admin passphrase didn't match. Try again."
+          : "Admin account — enter your admin passphrase to continue."
+      );
+      setNeedAdminSecret(true);
+      return;
+    }
+    // Legacy admin-OTP path (no longer returned by the server; kept harmless).
     if (res?.code === "admin_otp") {
       setAdminOtp(true);
       await sendLink(); // emails a 6-digit code + shows the OTP screen
@@ -335,6 +349,22 @@ export function LoginForm() {
             className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder-white/30 outline-none transition focus:border-neon-blue/60 focus:bg-black/40"
           />
         </div>
+        {needAdminSecret && (
+          <div>
+            <label className="block text-xs uppercase tracking-widest text-neon-purple/70">
+              Admin passphrase
+            </label>
+            <input
+              type="password"
+              autoFocus
+              autoComplete="off"
+              value={adminSecret}
+              onChange={(e) => setAdminSecret(e.target.value)}
+              placeholder="Enter your admin passphrase"
+              className="mt-1 w-full rounded-xl border border-neon-purple/40 bg-black/30 px-4 py-3 text-sm text-white placeholder-white/30 outline-none transition focus:border-neon-purple/70"
+            />
+          </div>
+        )}
         <Button type="submit" disabled={busy} className="w-full">
           {busy ? "Getting you in…" : "Get instant access →"}
         </Button>

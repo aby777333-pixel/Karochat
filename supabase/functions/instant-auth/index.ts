@@ -54,11 +54,17 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 0.5) Admin accounts: instant access ENABLED at the owner's explicit
-    // request (no email OTP). ⚠️ Security note: the deterministic password is
-    // derived from the email, so this makes the admin account accessible to
-    // anyone who knows the email. Harden with an out-of-band admin passphrase
-    // before any wider launch.
+    // 0.5) Admin accounts: instant access (no email OTP), but guarded by an
+    // out-of-band passphrase that is NOT derivable from the email — so knowing
+    // the admin email alone can't get you in. Non-admins are unaffected.
+    const adminEmail = await admin.rpc("is_admin_email", { p_email: email });
+    if (!adminEmail.error && adminEmail.data === true) {
+      const adminSecret = String(body?.adminSecret ?? "");
+      const chk = await admin.rpc("verify_admin_instant_secret", { p_secret: adminSecret });
+      if (chk.error || chk.data !== true) {
+        return json({ ok: false, code: "admin_secret_required" }, 200);
+      }
+    }
 
     // Non-admin: validate phone + password for the instant path.
     if (phone.replace(/\D/g, "").length < 6) {
