@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Logo, Wordmark } from "@/components/Brand";
+import { AdminPassphrase } from "./AdminPassphrase";
 
 export const dynamic = "force-dynamic";
 
@@ -151,6 +152,9 @@ export default async function AdminHomePage() {
           </Link>
         ))}
       </section>
+
+      <h2 className="mt-8 font-display text-lg font-semibold text-white">Security</h2>
+      <AdminPassphrase />
 
       <footer className="mt-8 text-center text-[11px] text-white/30">
         Owner-only · handle member data lawfully.
