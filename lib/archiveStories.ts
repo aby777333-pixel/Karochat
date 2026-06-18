@@ -359,11 +359,13 @@ export async function fetchWikimedia(
 // Openverse — Creative-Commons audio aggregated from Jamendo, ccMixter, the
 // Free Music Archive and more. Keyless + CORS (`Access-Control-Allow-Origin: *`).
 // Returns native-playable mp3 URLs in `mediaUrl`. Keyword-driven via search.
-export async function fetchOpenverse(search: string, rows = 40): Promise<ArchiveItem[]> {
+export async function fetchOpenverse(search: string, rows = 20): Promise<ArchiveItem[]> {
   const term = search.trim() || "music";
+  // Anonymous Openverse requests are capped at page_size 20 (else HTTP 401).
+  const size = Math.min(Math.max(rows, 1), 20);
   const url =
     "https://api.openverse.org/v1/audio/" +
-    `?q=${encodeURIComponent(term)}&page_size=${rows}&mature=false`;
+    `?q=${encodeURIComponent(term)}&page_size=${size}&mature=false`;
   let res: Response;
   try {
     res = await fetch(url, { cache: "no-store" });
