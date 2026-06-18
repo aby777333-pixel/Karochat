@@ -1,0 +1,58 @@
+name: Deploy to droplet
+
+# Karochat ships from the self-hosted nginx droplet that serves karochat.co
+# (NOT Netlify). This workflow makes every push to main go live automatically:
+# it SSHes in, pulls main, rebuilds, and restarts the app via PM2 — the same
+# steps that work by hand. Manual runs are available via "Run workflow".
+#
+# One-time setup (repo secrets): DROPLET_HOST, DROPLET_USER, DROPLET_SSH_KEY.
+# The matching public key must be in the droplet user's ~/.ssh/authorized_keys.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Never let two deploys run at once (they'd fight over git/.next/pm2).
+concurrency:
+  group: deploy-droplet
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH → pull, build, restart
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.DROPLET_SSH_KEY }}
+          command_timeout: 20m
+          script_stop: true
+          script: |
+            set -e
+            # Make node/npm/pm2 available in a non-login SSH shell.
+            [ -s "$HOME/.nvm/nvm.sh" ] && . "$HOME/.nvm/nvm.sh"
+            command -v node >/dev/null 2>&1 || export PATH="/usr/local/bin:/usr/bin:$PATH"
+
+            # Locate the Karochat repo on the droplet (no hard-coded path).
+            APP=$(dirname "$(grep -rlF '"name": "karochat"' /var/www /root /home /srv /opt 2>/dev/null --include=package.json | grep -v /node_modules/ | head -1)")
+            if [ -z "$APP" ] || [ ! -d "$APP/.git" ]; then
+              echo "::error::Karochat git repo not found on droplet"; exit 1
+            fi
+            echo "Deploying $APP as $(whoami)"
+            cd "$APP"
+
+            # Match GitHub main exactly, then rebuild.
+            git fetch origin main
+            git reset --hard origin/main
+            if [ -f package-lock.json ]; then npm ci; else npm install; fi
+            npm run build
+
+            # Restart ONLY Karochat's PM2 process (by cwd, then name) — never
+            # touch other apps sharing this droplet.
+            PROC=$(pm2 jlist | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const a=JSON.parse(s);const here=process.cwd();const m=a.find(p=>p.pm2_env&&p.pm2_env.pm_cwd===here)||a.find(p=>/karo/i.test(p.name));if(m)console.log(m.name)}catch(e){}})')
+            if [ -z "$PROC" ]; then echo "::error::Karochat PM2 process not found"; pm2 list; exit 1; fi
+            pm2 restart "$PROC" --update-env
+            echo "✅ Deployed: $PROC"
