@@ -20,13 +20,17 @@ export async function MoodMatchedRooms() {
   const supabase = createSupabaseServerClient();
   const { data } = await supabase.rpc("find_mood_rooms", { p_limit: 20 });
   // Wave 20 — every student-related category lives in /students; keep
-  // them out of the mood-matched widget on the main lobby. Mirrors the
+  // them out of the mood-matched widget on the main lobby. Adult / 18+
+  // categories ('adult', 'alt-lifestyle') are likewise hidden from the lobby
+  // for now (kept in the DB + /adult hub for later re-enable). Mirrors the
   // catalog filter in app/rooms/page.tsx.
   const rooms = ((data ?? []) as MoodRow[]).filter(
     (r) =>
       !(
         r.category_slug === "students" ||
-        (r.category_slug ?? "").startsWith("students-")
+        (r.category_slug ?? "").startsWith("students-") ||
+        r.category_slug === "adult" ||
+        r.category_slug === "alt-lifestyle"
       )
   );
   if (rooms.length === 0) return null;

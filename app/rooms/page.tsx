@@ -184,11 +184,24 @@ export default async function RoomsPage({
   // 'students-*' category routed through /students too.
   const isStudentCategory = (slug: string) =>
     slug === "students" || slug.startsWith("students-");
+  // Adult / 18+ catalog categories ("Adult & Sex-Positive" and "Alternative
+  // Lifestyle (18+)") are hidden from the main lobby catalog for now (kept in
+  // the DB + the standalone /adult hub for later re-enable). Both carry
+  // is_adult = true, so we hide on that flag — no data is removed and the
+  // /adult experience is untouched. Subcategories don't carry the flag, so we
+  // derive the set of hidden category slugs from the categories list.
+  const adultCategorySlugs = new Set(
+    ((categoriesResp.data ?? []) as Category[])
+      .filter((c) => c.is_adult)
+      .map((c) => c.slug)
+  );
+  const isHiddenCategory = (slug: string) =>
+    isStudentCategory(slug) || adultCategorySlugs.has(slug);
   const categories = ((categoriesResp.data ?? []) as Category[]).filter(
-    (c) => !isStudentCategory(c.slug)
+    (c) => !isHiddenCategory(c.slug)
   );
   const subcategories = ((subcategoriesResp.data ?? []) as Subcategory[]).filter(
-    (s) => !isStudentCategory(s.category_slug)
+    (s) => !isHiddenCategory(s.category_slug)
   );
 
   // Live (un-expired) stories for the top strip. RLS filters out expired.

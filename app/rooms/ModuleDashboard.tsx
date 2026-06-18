@@ -110,13 +110,17 @@ const SECTIONS: Section[] = [
       // { href: "/fun#icebreakers", label: "Icebreakers", emoji: "💬", grad: "from-teal-300 via-emerald-400 to-cyan-500" },
       // { href: "/fun#inspire", label: "Inspiration", emoji: "✨", grad: "from-amber-300 via-orange-400 to-pink-500" }
     ]
-  },
-  {
-    title: "Grown-ups · 18+",
-    tiles: [
-      { href: "/adult", label: "Adult 18+", emoji: "🔞", grad: "from-rose-500 via-red-600 to-rose-900" }
-    ]
   }
+  // NOTE: The "Grown-ups · 18+" section is intentionally hidden for now (kept
+  // for later re-enable). The /adult route still works if visited directly.
+  // To bring it back, restore this section object (re-add the comma after the
+  // "Community" section above):
+  // ,{
+  //   title: "Grown-ups · 18+",
+  //   tiles: [
+  //     { href: "/adult", label: "Adult 18+", emoji: "🔞", grad: "from-rose-500 via-red-600 to-rose-900" }
+  //   ]
+  // }
 ];
 
 function TileLink({ tile }: { tile: Tile }) {
