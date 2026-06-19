@@ -3,11 +3,11 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Logo, Wordmark } from "@/components/Brand";
 import { AdRails } from "@/components/AdRails";
-import { StoryUpload } from "./StoryUpload";
+import { CloseFriendsManager, type FriendRow } from "./CloseFriendsManager";
 
 export const dynamic = "force-dynamic";
 
-export default async function NewStoryPage() {
+export default async function CloseFriendsPage() {
   const supabase = createSupabaseServerClient();
   const {
     data: { user }
@@ -16,11 +16,13 @@ export default async function NewStoryPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, username, display_name, terms_accepted_at")
+    .select("username, terms_accepted_at")
     .eq("id", user.id)
     .maybeSingle();
   if (!profile?.username) redirect("/onboarding");
   if (!profile.terms_accepted_at) redirect("/terms");
+
+  const { data: friends } = await supabase.rpc("list_my_friends_for_close");
 
   return (
     <AdRails>
@@ -39,13 +41,16 @@ export default async function NewStoryPage() {
         </header>
 
         <section className="surface-glass mt-5 p-5">
-          <h1 className="font-display text-xl font-semibold">Post a moment</h1>
+          <h1 className="font-display text-xl font-semibold">
+            <span aria-hidden className="mr-1.5">💚</span>Close Friends
+          </h1>
           <p className="mt-1 text-sm text-white/55">
-            A 24-hour moment — text, image, or video. Choose who sees it —
-            everyone, friends, or your close friends — then it auto-expires.
+            Pick a smaller circle from your friends. Stories you post to “Close
+            Friends” are only visible to the people on this list — they’re never
+            told they were added or removed.
           </p>
           <div className="mt-4">
-            <StoryUpload currentUserId={user.id} />
+            <CloseFriendsManager initialFriends={(friends ?? []) as FriendRow[]} />
           </div>
         </section>
       </main>

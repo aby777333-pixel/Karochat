@@ -204,13 +204,15 @@ export default async function RoomsPage({
     (s) => !isHiddenCategory(s.category_slug)
   );
 
-  // Live (un-expired) stories for the top strip. RLS filters out expired.
+  // Live stories for the ring tray. RLS (audience-aware) governs visibility;
+  // we still filter expiry here so the strip only shows live rings. Fetch a
+  // wider window since the client groups these by author.
   const { data: storiesRaw } = await supabase
     .from("stories_with_author")
     .select("*")
     .gt("expires_at", new Date().toISOString())
     .order("created_at", { ascending: false })
-    .limit(30);
+    .limit(120);
   const liveStories = (storiesRaw ?? []) as StoryRow[];
 
   return (
@@ -337,6 +339,10 @@ export default async function RoomsPage({
             currentUserId={user.id}
             isAdmin={!!(profile as any).is_admin}
           />
+          <div className="mt-1.5 flex items-center justify-end gap-3 px-1 text-[11px] text-white/45">
+            <Link href="/memories" className="hover:text-white/80">🗂️ Memories</Link>
+            <Link href="/close-friends" className="hover:text-white/80">💚 Close friends</Link>
+          </div>
         </DismissibleSection>
 
         <div className="mt-5 grid flex-1 grid-cols-1 gap-5 lg:grid-cols-[1fr_340px]">
