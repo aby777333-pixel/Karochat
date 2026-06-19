@@ -14,6 +14,7 @@ type UserRoom = {
   member_count: number;
   created_at: string;
   is_member: boolean;
+  is_owner: boolean;
 };
 
 const VIS_GLYPH: Record<UserRoom["visibility"], string> = {
@@ -35,6 +36,20 @@ export function UserRoomsBrowser() {
   const [filter, setFilter] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [joining, setJoining] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  async function deleteRoom(room: UserRoom) {
+    if (deleting) return;
+    if (!confirm(`Delete "${room.name}"? This permanently removes the room and its chat for everyone.`)) return;
+    setDeleting(room.id);
+    const { error: e } = await supabase.rpc("delete_room", { p_room_id: room.id });
+    setDeleting(null);
+    if (e) {
+      setError(e.message);
+      return;
+    }
+    setRooms((prev) => (prev ? prev.filter((r) => r.id !== room.id) : prev));
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -164,32 +179,46 @@ export function UserRoomsBrowser() {
                   </p>
                 )}
               </div>
-              {r.is_member ? (
-                <Link
-                  href={`/rooms/${r.id}`}
-                  className={clsx(
-                    "shrink-0 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/80 hover:bg-white/10"
-                  )}
-                >
-                  Enter →
-                </Link>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => void enter(r)}
-                  disabled={joining === r.id}
-                  className={clsx(
-                    "shrink-0 rounded-lg border border-neon-blue/30 bg-neon-blue/10 px-3 py-1.5 text-xs text-neon-blue hover:bg-neon-blue/20",
-                    joining === r.id && "opacity-60"
-                  )}
-                >
-                  {joining === r.id
-                    ? "Joining…"
-                    : r.visibility === "public"
-                    ? "Join →"
-                    : "Request →"}
-                </button>
-              )}
+              <div className="flex shrink-0 items-center gap-1.5">
+                {r.is_member ? (
+                  <Link
+                    href={`/rooms/${r.id}`}
+                    className={clsx(
+                      "shrink-0 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/80 hover:bg-white/10"
+                    )}
+                  >
+                    Enter →
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => void enter(r)}
+                    disabled={joining === r.id}
+                    className={clsx(
+                      "shrink-0 rounded-lg border border-neon-blue/30 bg-neon-blue/10 px-3 py-1.5 text-xs text-neon-blue hover:bg-neon-blue/20",
+                      joining === r.id && "opacity-60"
+                    )}
+                  >
+                    {joining === r.id
+                      ? "Joining…"
+                      : r.visibility === "public"
+                      ? "Join →"
+                      : "Request →"}
+                  </button>
+                )}
+                {r.is_owner && (
+                  <button
+                    type="button"
+                    onClick={() => void deleteRoom(r)}
+                    disabled={deleting === r.id}
+                    className="shrink-0 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-white/45 hover:bg-neon-red/10 hover:text-neon-red disabled:opacity-50"
+                    aria-label={`Delete ${r.name}`}
+                    title="Delete this room"
+                  >
+                    🗑
+                  </button>
+                )}
+              </div>
             </li>
           ))}
         </ul>

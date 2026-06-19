@@ -305,6 +305,22 @@ export default async function RoomPage({
           >
             🎬
           </Link>
+          <Link
+            href={dmPartner ? `/snaps?to=${dmPartner.user_id}` : "/snaps"}
+            className="shrink-0 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-white/80 transition hover:bg-white/10 hover:text-white"
+            title="Send a snap"
+            aria-label="Snaps"
+          >
+            📸
+          </Link>
+          <Link
+            href="/lenses"
+            className="shrink-0 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-white/80 transition hover:bg-white/10 hover:text-white"
+            title="AR lenses camera"
+            aria-label="Lenses"
+          >
+            🤳
+          </Link>
           <NewRoomButton from="room" />
           {!room.is_saved && !room.is_vault && (
             <AddPeopleButton

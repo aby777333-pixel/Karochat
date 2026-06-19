@@ -57,8 +57,11 @@ import {
 } from "@/lib/vaultCrypto";
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
-const MAX_IMAGE_SOURCE_BYTES = 25 * 1024 * 1024; // pre-compression cap
-const MAX_FILE_BYTES = 50 * 1024 * 1024;
+const MAX_IMAGE_SOURCE_BYTES = 50 * 1024 * 1024; // pre-compression cap (images get compressed)
+const MAX_FILE_BYTES = 500 * 1024 * 1024; // chat-files bucket cap (raised in 0111)
+// Videos at or under this play inline; larger ones send as a drive-like
+// download card instead of streaming a huge clip into the chat.
+const INLINE_VIDEO_MAX = 40 * 1024 * 1024;
 const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 const REACTION_PALETTE = ["👍", "❤️", "😂", "😮", "😢", "🔥", "🎉", "🙌"];
 
@@ -194,8 +197,9 @@ function FileCard({
   const name = message.file_name ?? "file";
 
   // Video clips recorded in the composer are carried as file messages; show
-  // them inline with a player instead of a download row.
-  if (message.file_mime?.startsWith("video/")) {
+  // small ones inline with a player. Large videos fall through to the download
+  // card below (a drive-like link) rather than streaming a huge file inline.
+  if (message.file_mime?.startsWith("video/") && (message.file_size ?? 0) <= INLINE_VIDEO_MAX) {
     return (
       <div
         className={clsx(
@@ -1504,7 +1508,7 @@ export function RoomChat({
       return;
     }
     if (file.size > MAX_FILE_BYTES) {
-      setError("File is larger than 50 MB.");
+      setError("File is larger than 500 MB.");
       return;
     }
     setUploading(true);

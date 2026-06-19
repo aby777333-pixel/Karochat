@@ -20,6 +20,7 @@ type UserRoom = {
   member_count: number;
   created_at: string;
   is_member: boolean;
+  is_owner: boolean;
 };
 
 const VIS_GLYPH: Record<UserRoom["visibility"], string> = {
@@ -36,7 +37,21 @@ export function NewUserRooms() {
   const router = useRouter();
   const [rooms, setRooms] = useState<UserRoom[] | null>(null);
   const [joining, setJoining] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const [now, setNow] = useState<number>(0);
+
+  async function deleteRoom(room: UserRoom) {
+    if (deleting) return;
+    if (!confirm(`Delete "${room.name}"? This permanently removes the room and its chat for everyone.`)) return;
+    setDeleting(room.id);
+    const { error } = await supabase.rpc("delete_room", { p_room_id: room.id });
+    setDeleting(null);
+    if (error) {
+      alert(error.message);
+      return;
+    }
+    setRooms((prev) => (prev ? prev.filter((r) => r.id !== room.id) : prev));
+  }
 
   useEffect(() => {
     setNow(Date.now());
@@ -101,13 +116,13 @@ export function NewUserRooms() {
         {rooms.map((r) => {
           const isNew = now > 0 && now - new Date(r.created_at).getTime() < NEW_WINDOW_MS;
           return (
-            <li key={r.id}>
+            <li key={r.id} className="flex items-stretch gap-1.5">
               <button
                 type="button"
                 onClick={() => void enter(r)}
                 disabled={joining === r.id}
                 className={clsx(
-                  "flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-left transition",
+                  "flex w-full flex-1 items-center gap-2 rounded-xl border px-3 py-2 text-left transition",
                   isNew
                     ? "border-neon-amber/40 bg-neon-amber/10 hover:bg-neon-amber/20"
                     : "border-white/10 bg-black/20 hover:bg-white/5",
@@ -159,6 +174,18 @@ export function NewUserRooms() {
                     : "Request →"}
                 </span>
               </button>
+              {r.is_owner && (
+                <button
+                  type="button"
+                  onClick={() => void deleteRoom(r)}
+                  disabled={deleting === r.id}
+                  className="shrink-0 rounded-xl border border-white/10 bg-white/5 px-2.5 text-white/45 transition hover:bg-neon-red/10 hover:text-neon-red disabled:opacity-50"
+                  aria-label={`Delete ${r.name}`}
+                  title="Delete this room"
+                >
+                  🗑
+                </button>
+              )}
             </li>
           );
         })}
