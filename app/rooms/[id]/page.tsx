@@ -19,6 +19,7 @@ import { InviteButton } from "./InviteButton";
 import { RoomRulesPanel } from "./RoomRulesPanel";
 import { RoomThemePicker } from "@/components/RoomThemePicker";
 import { AddPeopleButton } from "@/components/AddPeopleButton";
+import { GroupJoinGate } from "./GroupJoinGate";
 
 export const dynamic = "force-dynamic";
 
@@ -72,7 +73,7 @@ export default async function RoomPage({
 
   const roomResp = await supabase
     .from("rooms")
-    .select("id, name, description, is_public, invite_code, owner_id, is_dm, is_saved, is_vault, rules_markdown, visibility, parent_room_id, recording_started_at, theme")
+    .select("id, name, description, is_public, invite_code, owner_id, is_dm, is_saved, is_vault, rules_markdown, visibility, parent_room_id, recording_started_at, theme, join_policy, avatar_url")
     .eq("id", params.id)
     .maybeSingle();
   const room = roomResp.data as
@@ -91,6 +92,8 @@ export default async function RoomPage({
         parent_room_id: string | null;
         recording_started_at: string | null;
         theme: string | null;
+        join_policy: "open" | "request" | null;
+        avatar_url: string | null;
       }
     | null;
   if (!room) {
@@ -109,6 +112,31 @@ export default async function RoomPage({
     .eq("room_id", room.id)
     .eq("user_id", user.id)
     .maybeSingle();
+
+  // Request-to-join groups: a non-member (who isn't the owner) sees a request
+  // screen instead of auto-joining. Open rooms (the default) skip this entirely.
+  if (
+    !membership &&
+    room.join_policy === "request" &&
+    room.owner_id !== user.id &&
+    (room.is_public || room.visibility === "listed")
+  ) {
+    const { data: myReq } = await supabase
+      .from("room_join_requests")
+      .select("status")
+      .eq("room_id", room.id)
+      .eq("requester_id", user.id)
+      .maybeSingle();
+    return (
+      <GroupJoinGate
+        roomId={room.id}
+        name={room.name}
+        description={room.description}
+        avatarUrl={room.avatar_url}
+        status={((myReq?.status as string | null) ?? null) as "pending" | "rejected" | null}
+      />
+    );
+  }
 
   if (!membership) {
     // Wave 19.5 — Karochat is free: any non-private user room auto-joins.
@@ -212,6 +240,8 @@ export default async function RoomPage({
   }
 
   const isOwner = room.owner_id === user.id;
+  const canManage =
+    !!membership && ["owner", "admin", "moderator"].includes((membership as any).role);
   const presenceState: PresenceState =
     ((profile as any).presence_state as PresenceState | undefined) ?? "online";
 
@@ -299,6 +329,16 @@ export default async function RoomPage({
               initialTheme={room.theme ?? null}
               isOwner={isOwner}
             />
+          )}
+          {!room.is_dm && !room.is_saved && !room.is_vault && canManage && (
+            <Link
+              href={`/rooms/${room.id}/manage`}
+              className="shrink-0 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-white/80 transition hover:bg-white/10 hover:text-white"
+              title="Manage group"
+              aria-label="Manage group"
+            >
+              ⚙️
+            </Link>
           )}
           {!room.is_dm && !room.is_saved && (
             <RoomRulesPanel
