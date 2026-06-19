@@ -432,6 +432,7 @@ export function RoomChat({
   const [showStickers, setShowStickers] = useState(false);
   const [showLines, setShowLines] = useState(false);
   const [showKaraoke, setShowKaraoke] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
   const [dictating, setDictating] = useState(false);
   const [mentionState, setMentionState] = useState<{
     query: string;
@@ -2089,6 +2090,15 @@ export function RoomChat({
         <div className="relative flex flex-col gap-2">
           {/* Row 1 — action buttons ("left tags"). */}
           <div className="flex flex-wrap items-center gap-1 sm:gap-1.5">
+          <button
+            type="button"
+            onClick={() => setToolsOpen(true)}
+            aria-label="Open tools"
+            title="Tools — photos, files, voice, video, snaps, lenses & more"
+            className="grid h-9 w-9 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-xl border border-neon-blue/40 bg-neon-blue/10 text-neon-blue transition hover:bg-neon-blue/20"
+          >
+            🧰
+          </button>
           <div className="relative">
             <button
               type="button"
@@ -2524,6 +2534,63 @@ export function RoomChat({
             onChange={onFile}
           />
           </div>
+          {/* Tools sheet — a labeled grid of every composer tool (with names),
+              the mobile-friendly way to reach them. Each tile fires the same
+              handler the toolbar icon does, so nothing is duplicated in logic. */}
+          {toolsOpen && (
+            <div
+              className="fixed inset-0 z-[70] flex items-end justify-center bg-black/70 p-0 backdrop-blur sm:items-center sm:p-4"
+              onClick={(e) => {
+                if (e.target === e.currentTarget) setToolsOpen(false);
+              }}
+            >
+              <div className="w-full max-w-md rounded-t-2xl border border-white/10 bg-ink-800 p-4 pb-6 sm:rounded-2xl">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="font-display text-base font-semibold">Tools</h3>
+                  <button
+                    type="button"
+                    onClick={() => setToolsOpen(false)}
+                    className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-white/60 hover:bg-white/10"
+                    aria-label="Close tools"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  {[
+                    { icon: "🖼️", label: "Photo", run: () => fileInputRef.current?.click() },
+                    { icon: "📎", label: "File", run: () => fileAnyInputRef.current?.click() },
+                    { icon: "🎥", label: "Video", run: () => setShowVideo(true) },
+                    { icon: "🎙️", label: "Voice note", run: () => setShowVoice(true) },
+                    { icon: "📸", label: "Snap", run: () => router.push("/snaps") },
+                    { icon: "🤳", label: "Lens", run: () => router.push("/lenses") },
+                    { icon: "😊", label: "Emoji", run: () => setShowEmoji(true) },
+                    { icon: "GIF", label: "GIF", run: () => setShowGif(true) },
+                    { icon: "🧩", label: "Stickers", run: () => setShowStickers(true) },
+                    { icon: "💘", label: "Lines", run: () => setShowLines(true) },
+                    { icon: "🎤", label: "Karaoke", run: () => setShowKaraoke(true) },
+                    { icon: "⚡", label: "Nudge", run: () => void sendNudge() },
+                    { icon: "🗣️", label: "Voice type", run: () => toggleDictation() },
+                    { icon: "⏳", label: "Disappear", run: () => setTtlMenuOpen(true) },
+                    { icon: "🏷️", label: "Intent", run: () => setIntentMenuOpen(true) }
+                  ].map((t) => (
+                    <button
+                      key={t.label}
+                      type="button"
+                      onClick={() => {
+                        setToolsOpen(false);
+                        t.run();
+                      }}
+                      className="flex flex-col items-center gap-1 rounded-xl border border-white/10 bg-white/5 px-2 py-3 text-[11px] text-white/80 transition hover:bg-white/10 hover:text-white"
+                    >
+                      <span aria-hidden className="text-xl leading-none">{t.icon}</span>
+                      <span className="text-center leading-tight">{t.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
           {/* Row 2 — the full-width message box + Send, under the tags. */}
           <div className="flex items-end gap-2">
           <textarea
