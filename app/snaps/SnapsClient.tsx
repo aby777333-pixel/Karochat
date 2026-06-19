@@ -553,7 +553,7 @@ function SendSnap({
               // eslint-disable-next-line @next/next/no-img-element
               <img src={previewUrl} alt="" className="mx-auto max-h-[36vh] w-auto rounded-lg" />
             ) : (
-              <video src={previewUrl} controls playsInline className="mx-auto max-h-[36vh] w-auto rounded-lg" />
+              <video src={previewUrl} controls controlsList="nodownload noplaybackrate" playsInline className="mx-auto max-h-[36vh] w-auto rounded-lg" />
             )}
           </div>
         )}

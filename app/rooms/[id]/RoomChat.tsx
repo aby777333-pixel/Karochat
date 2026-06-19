@@ -205,6 +205,7 @@ function FileCard({
       >
         <video
           controls
+          controlsList="nodownload noplaybackrate"
           playsInline
           preload="metadata"
           src={message.file_url!}
@@ -3264,6 +3265,7 @@ function MessageBubble({
               >
                 <audio
                   controls
+                  controlsList="nodownload noplaybackrate"
                   src={m.audio_url}
                   preload="metadata"
                   className="h-9 w-full max-w-[260px]"

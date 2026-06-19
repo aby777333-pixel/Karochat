@@ -260,7 +260,7 @@ export function StoryUpload({ currentUserId }: { currentUserId: string }) {
       )}
       {kind === "video" && previewUrl && (
         <div className="rounded-xl border border-white/10 bg-black/30 p-2">
-          <video src={previewUrl} controls playsInline className="mx-auto max-h-[50vh] w-auto rounded-lg" />
+          <video src={previewUrl} controls controlsList="nodownload noplaybackrate" playsInline className="mx-auto max-h-[50vh] w-auto rounded-lg" />
         </div>
       )}
 

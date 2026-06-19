@@ -151,6 +151,7 @@ export function VideoUpload({ currentUserId }: { currentUserId: string }) {
               <video
                 src={previewUrl}
                 controls
+                controlsList="nodownload noplaybackrate"
                 playsInline
                 className="mx-auto block max-h-[50vh] w-full rounded-lg bg-black"
               />

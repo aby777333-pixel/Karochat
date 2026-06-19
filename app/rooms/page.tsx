@@ -340,16 +340,29 @@ export default async function RoomsPage({
             currentUserId={user.id}
             isAdmin={!!(profile as any).is_admin}
           />
-          <div className="mt-1.5 flex items-center justify-end gap-3 px-1 text-[11px] text-white/45">
+          {/* Horizontally-scrollable feature tabs — every entry stays on-screen
+              on phones (was overflowing/clipping at the edges before). */}
+          <div className="scroll-thin mt-1.5 flex items-stretch gap-2 overflow-x-auto px-1 pb-1">
             <SnapsLobbyEntry currentUserId={user.id} />
-            <Link href="/feed" className="hover:text-white/80">📷 Posts</Link>
-            <Link href="/channels" className="hover:text-white/80">📣 Channels</Link>
-            <Link href="/lenses" className="hover:text-white/80">🤳 Lenses</Link>
-            <Link href="/spotlight" className="hover:text-white/80">✨ Spotlight</Link>
-            <Link href="/streaks" className="hover:text-white/80">🔥 Streaks</Link>
-            <Link href="/map" className="hover:text-white/80">🗺️ Map</Link>
-            <Link href="/memories" className="hover:text-white/80">🗂️ Memories</Link>
-            <Link href="/close-friends" className="hover:text-white/80">💚 Close friends</Link>
+            {[
+              { href: "/feed", icon: "📷", label: "Posts" },
+              { href: "/channels", icon: "📣", label: "Channels" },
+              { href: "/lenses", icon: "🤳", label: "Lenses" },
+              { href: "/spotlight", icon: "✨", label: "Spotlight" },
+              { href: "/streaks", icon: "🔥", label: "Streaks" },
+              { href: "/map", icon: "🗺️", label: "Map" },
+              { href: "/memories", icon: "🗂️", label: "Memories" },
+              { href: "/close-friends", icon: "💚", label: "Close friends" }
+            ].map((t) => (
+              <Link
+                key={t.href}
+                href={t.href}
+                className="flex shrink-0 flex-col items-center gap-0.5 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] text-white/70 transition hover:bg-white/10 hover:text-white"
+              >
+                <span aria-hidden className="text-base leading-none">{t.icon}</span>
+                <span className="whitespace-nowrap">{t.label}</span>
+              </Link>
+            ))}
           </div>
         </DismissibleSection>
 

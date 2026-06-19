@@ -41,12 +41,13 @@ export function SnapsLobbyEntry({ currentUserId }: { currentUserId: string }) {
   return (
     <Link
       href="/snaps"
-      className="inline-flex items-center gap-1 hover:text-white/80"
+      className="relative flex shrink-0 flex-col items-center gap-0.5 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] text-white/70 transition hover:bg-white/10 hover:text-white"
       title="Disappearing photo & video snaps"
     >
-      📸 Snaps
+      <span aria-hidden className="text-base leading-none">📸</span>
+      <span className="whitespace-nowrap">Snaps</span>
       {count > 0 && (
-        <span className="rounded-full bg-neon-mint/20 px-1.5 text-[10px] font-medium text-neon-mint">
+        <span className="absolute -right-1 -top-1 rounded-full bg-neon-mint px-1.5 text-[10px] font-semibold text-ink-900">
           {count}
         </span>
       )}
