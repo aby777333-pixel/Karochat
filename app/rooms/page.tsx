@@ -10,6 +10,7 @@ import { RoomsClient } from "./RoomsClient";
 import { SavedRoomButton } from "./SavedRoomButton";
 import { UserSearch } from "./UserSearch";
 import { StoriesStrip, type StoryRow } from "./StoriesStrip";
+import { SnapsLobbyEntry } from "@/components/SnapsLobbyEntry";
 import { DismissibleSection, RestoreHiddenSections } from "./DismissibleSection";
 import { FriendsAndRequests } from "./FriendsList";
 import { InviteFriendsCard } from "./InviteFriendsCard";
@@ -340,6 +341,7 @@ export default async function RoomsPage({
             isAdmin={!!(profile as any).is_admin}
           />
           <div className="mt-1.5 flex items-center justify-end gap-3 px-1 text-[11px] text-white/45">
+            <SnapsLobbyEntry currentUserId={user.id} />
             <Link href="/memories" className="hover:text-white/80">🗂️ Memories</Link>
             <Link href="/close-friends" className="hover:text-white/80">💚 Close friends</Link>
           </div>
