@@ -64,6 +64,12 @@ export default async function ShortsPage() {
               🎬<span className="hidden md:inline"> Shorts</span>
             </Link>
             <Link
+              href="/spotlight"
+              className="shrink-0 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-white/80 hover:bg-white/10 hover:text-white"
+            >
+              ✨<span className="hidden md:inline"> Spotlight</span>
+            </Link>
+            <Link
               href="/videos"
               className="shrink-0 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-white/80 hover:bg-white/10 hover:text-white"
             >
