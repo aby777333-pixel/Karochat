@@ -75,20 +75,30 @@ export function SnapsClient({
   currentUserId,
   initialInbox,
   initialSent,
-  friends
+  friends,
+  streaks = {},
+  initialRecipientId = null
 }: {
   currentUserId: string;
   initialInbox: InboxSnap[];
   initialSent: SentSnap[];
   friends: SnapFriend[];
+  streaks?: Record<string, number>;
+  initialRecipientId?: string | null;
 }) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const router = useRouter();
   const [tab, setTab] = useState<"inbox" | "sent">("inbox");
   const [inbox, setInbox] = useState<InboxSnap[]>(initialInbox);
   const [sent] = useState<SentSnap[]>(initialSent);
-  const [composing, setComposing] = useState(false);
+  const [composing, setComposing] = useState(
+    () => !!initialRecipientId && friends.some((f) => f.friend_id === initialRecipientId)
+  );
   const [viewing, setViewing] = useState<InboxSnap | null>(null);
+  const presetRecipient = useMemo(
+    () => friends.find((f) => f.friend_id === initialRecipientId) ?? null,
+    [friends, initialRecipientId]
+  );
 
   // Realtime: new snaps land in the inbox without a reload.
   useEffect(() => {
@@ -229,6 +239,8 @@ export function SnapsClient({
       {composing && (
         <SendSnap
           friends={friends}
+          streaks={streaks}
+          presetRecipient={presetRecipient}
           currentUserId={currentUserId}
           onClose={() => setComposing(false)}
           onSent={() => {
@@ -303,11 +315,15 @@ function capturePoster(file: File): Promise<Blob | null> {
 
 function SendSnap({
   friends,
+  streaks,
+  presetRecipient,
   currentUserId,
   onClose,
   onSent
 }: {
   friends: SnapFriend[];
+  streaks: Record<string, number>;
+  presetRecipient: SnapFriend | null;
   currentUserId: string;
   onClose: () => void;
   onSent: () => void;
@@ -315,7 +331,7 @@ function SendSnap({
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const imageRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLInputElement>(null);
-  const [recipient, setRecipient] = useState<SnapFriend | null>(null);
+  const [recipient, setRecipient] = useState<SnapFriend | null>(presetRecipient);
   const [q, setQ] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [mediaKind, setMediaKind] = useState<"photo" | "video">("photo");
@@ -490,6 +506,9 @@ function SendSnap({
                     >
                       <Avatar url={f.avatar_url} name={name} size={8} />
                       <span className="min-w-0 flex-1 truncate text-sm text-white">{name}</span>
+                      {streaks[f.friend_id] ? (
+                        <span className="text-xs text-amber-400">🔥 {streaks[f.friend_id]}</span>
+                      ) : null}
                       {f.is_close && <span className="text-xs">💚</span>}
                     </button>
                   </li>

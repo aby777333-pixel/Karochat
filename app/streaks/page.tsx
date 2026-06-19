@@ -3,20 +3,11 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Logo, Wordmark } from "@/components/Brand";
 import { AdRails } from "@/components/AdRails";
-import {
-  SnapsClient,
-  type InboxSnap,
-  type SentSnap,
-  type SnapFriend
-} from "./SnapsClient";
+import { StreaksClient, type StreakRow } from "./StreaksClient";
 
 export const dynamic = "force-dynamic";
 
-export default async function SnapsPage({
-  searchParams
-}: {
-  searchParams: { to?: string };
-}) {
+export default async function StreaksPage() {
   const supabase = createSupabaseServerClient();
   const {
     data: { user }
@@ -25,25 +16,13 @@ export default async function SnapsPage({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("username, is_guest, terms_accepted_at")
+    .select("username, terms_accepted_at")
     .eq("id", user.id)
     .maybeSingle();
   if (!profile?.username) redirect("/onboarding");
   if (!profile.terms_accepted_at) redirect("/terms");
 
-  const [{ data: inbox }, { data: sent }, { data: friends }, { data: streaks }] =
-    await Promise.all([
-      supabase.rpc("list_inbox_snaps"),
-      supabase.rpc("list_sent_snaps"),
-      supabase.rpc("list_my_friends_for_close"),
-      supabase.rpc("list_my_streaks")
-    ]);
-
-  // friend_id → live streak count, for flames in the recipient picker.
-  const streakMap: Record<string, number> = {};
-  for (const s of (streaks ?? []) as { other_id: string; current_streak: number; is_alive: boolean }[]) {
-    if (s.is_alive) streakMap[s.other_id] = s.current_streak;
-  }
+  const { data: streaks } = await supabase.rpc("list_my_streaks");
 
   return (
     <AdRails>
@@ -54,31 +33,24 @@ export default async function SnapsPage({
             <Wordmark className="text-lg" />
           </Link>
           <Link
-            href="/rooms"
+            href="/snaps"
             className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/80 hover:bg-white/10 hover:text-white"
           >
-            ← Back
+            📸 Snaps
           </Link>
         </header>
 
         <section className="surface-glass mt-5 p-5">
           <h1 className="font-display text-xl font-semibold">
-            <span aria-hidden className="mr-1.5">📸</span>Snaps
+            <span aria-hidden className="mr-1.5">🔥</span>Streaks
           </h1>
           <p className="mt-1 text-sm text-white/55">
-            Disappearing photos &amp; videos for your friends. Opened once (one
-            replay), then they’re gone. We’ll tell the sender if a screenshot is
-            taken.
+            Snap a friend back and forth every day to build a streak. Miss a day
+            and it’s gone — unless you use your one Streak Mercy to bring it
+            back.
           </p>
           <div className="mt-4">
-            <SnapsClient
-              currentUserId={user.id}
-              initialInbox={(inbox ?? []) as InboxSnap[]}
-              initialSent={(sent ?? []) as SentSnap[]}
-              friends={(friends ?? []) as SnapFriend[]}
-              streaks={streakMap}
-              initialRecipientId={searchParams?.to ?? null}
-            />
+            <StreaksClient initialStreaks={(streaks ?? []) as StreakRow[]} />
           </div>
         </section>
       </main>
