@@ -41,7 +41,7 @@ export function CommentSection({
   currentUserId,
   initialCount
 }: {
-  kind: "short" | "video";
+  kind: "short" | "video" | "post";
   parentId: string;
   currentUserId: string;
   initialCount: number;
@@ -80,9 +80,9 @@ export function CommentSection({
     [supabase, router, currentUserId, dmOpening]
   );
 
-  const view = kind === "short" ? "short_comments_with_author" : "video_comments_with_author";
-  const table = kind === "short" ? "short_comments" : "video_comments";
-  const idCol = kind === "short" ? "short_id" : "video_id";
+  const view = `${kind}_comments_with_author`;
+  const table = `${kind}_comments`;
+  const idCol = `${kind}_id`;
 
   const load = useCallback(async () => {
     setLoading(true);

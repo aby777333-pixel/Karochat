@@ -342,6 +342,7 @@ export default async function RoomsPage({
           />
           <div className="mt-1.5 flex items-center justify-end gap-3 px-1 text-[11px] text-white/45">
             <SnapsLobbyEntry currentUserId={user.id} />
+            <Link href="/feed" className="hover:text-white/80">📷 Posts</Link>
             <Link href="/lenses" className="hover:text-white/80">🤳 Lenses</Link>
             <Link href="/spotlight" className="hover:text-white/80">✨ Spotlight</Link>
             <Link href="/streaks" className="hover:text-white/80">🔥 Streaks</Link>
