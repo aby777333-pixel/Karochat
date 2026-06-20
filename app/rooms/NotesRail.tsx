@@ -58,6 +58,11 @@ export function NotesRail({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [opening, setOpening] = useState<string | null>(null);
+  // After a delete we stash the note so it can be retrieved (undo) before the
+  // sheet is closed.
+  const [deletedNote, setDeletedNote] = useState<
+    { body: string; audience: NoteRow["audience_kind"] } | null
+  >(null);
   // The friend note opened in the detail / comments sheet.
   const [viewNote, setViewNote] = useState<NoteRow | null>(null);
 
@@ -69,6 +74,7 @@ export function NotesRail({
 
   function openCompose() {
     setError(null);
+    setDeletedNote(null);
     setBody(myNote?.body ?? "");
     setAudience(myNote?.audience_kind ?? "followers");
     setComposeOpen(true);
@@ -96,11 +102,13 @@ export function NotesRail({
       setError(rpcErr.message || "Could not share your note.");
       return;
     }
+    setDeletedNote(null);
     setComposeOpen(false);
     await refresh();
   }
 
   async function clearNote() {
+    const snapshot = myNote ? { body: myNote.body, audience: myNote.audience_kind } : null;
     setBusy(true);
     setError(null);
     const { error: rpcErr } = await supabase.rpc("clear_my_note");
@@ -109,6 +117,26 @@ export function NotesRail({
       setError(rpcErr.message || "Could not clear your note.");
       return;
     }
+    // Keep the sheet open and offer an undo instead of closing.
+    setDeletedNote(snapshot);
+    setBody("");
+    await refresh();
+  }
+
+  async function retrieveNote() {
+    if (!deletedNote) return;
+    setBusy(true);
+    setError(null);
+    const { error: rpcErr } = await supabase.rpc("set_my_note", {
+      p_body: deletedNote.body.slice(0, 60),
+      p_audience: deletedNote.audience
+    });
+    setBusy(false);
+    if (rpcErr) {
+      setError(rpcErr.message || "Could not retrieve your note.");
+      return;
+    }
+    setDeletedNote(null);
     setComposeOpen(false);
     await refresh();
   }
@@ -193,7 +221,7 @@ export function NotesRail({
 
       {viewNote && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 sm:items-center"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 pb-[calc(4.75rem+env(safe-area-inset-bottom))] sm:items-center sm:pb-3"
           onClick={() => setViewNote(null)}
         >
           <div
@@ -243,7 +271,7 @@ export function NotesRail({
 
       {composeOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 sm:items-center"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 pb-[calc(4.75rem+env(safe-area-inset-bottom))] sm:items-center sm:pb-3"
           onClick={() => !busy && setComposeOpen(false)}
         >
           <div
@@ -284,6 +312,20 @@ export function NotesRail({
 
             {error && <p className="mt-2 text-[11px] text-rose-400">{error}</p>}
 
+            {deletedNote && (
+              <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-[12px] text-white/65">
+                <span>🗑 Note deleted.</span>
+                <button
+                  type="button"
+                  onClick={retrieveNote}
+                  disabled={busy}
+                  className="rounded-lg border border-cyan-400/50 bg-cyan-400/10 px-3 py-1 font-semibold text-cyan-200 hover:bg-cyan-400/20 disabled:opacity-50"
+                >
+                  ↩ Retrieve
+                </button>
+              </div>
+            )}
+
             <div className="mt-4 flex items-center justify-between gap-2">
               {myNote ? (
                 <button
@@ -292,7 +334,7 @@ export function NotesRail({
                   disabled={busy}
                   className="rounded-lg px-3 py-2 text-[12px] text-rose-300/80 hover:text-rose-300 disabled:opacity-50"
                 >
-                  Clear note
+                  🗑 Delete
                 </button>
               ) : (
                 <span />

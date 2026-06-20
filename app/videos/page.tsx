@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Logo, Wordmark } from "@/components/Brand";
 import { SignOutButton } from "@/components/SignOutButton";
+import { TopActionsCluster } from "@/components/TopActionsCluster";
 import { AdRails } from "@/components/AdRails";
 import { VideosFeed, type VideoRow } from "./VideosFeed";
 
@@ -49,33 +50,33 @@ export default async function VideosPage() {
             <Logo className="h-6 w-6" />
             <Wordmark className="text-lg" />
           </Link>
-          <nav className="scroll-thin flex shrink-0 items-center gap-1.5 overflow-x-auto text-xs md:gap-2">
+          <TopActionsCluster label="Menu" className="scroll-thin flex shrink-0 items-center gap-1.5 overflow-x-auto text-xs md:gap-2">
             <Link
               href="/rooms"
               className="shrink-0 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-white/80 hover:bg-white/10 hover:text-white"
             >
-              ← <span className="hidden md:inline">Rooms</span>
+              ← Rooms
             </Link>
             <Link
               href="/shorts"
               className="shrink-0 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-white/80 hover:bg-white/10 hover:text-white"
             >
-              🎬<span className="hidden md:inline"> Shorts</span>
+              🎬 Shorts
             </Link>
             <Link
               href="/videos"
               className="shrink-0 rounded-lg border border-neon-blue/40 bg-neon-blue/10 px-3 py-1.5 text-neon-blue"
             >
-              🎞️<span className="hidden md:inline"> Videos</span>
+              🎞️ Videos
             </Link>
             <Link
               href="/videos/new"
               className="shrink-0 rounded-lg bg-neon-blue px-3 py-1.5 font-medium text-ink-900 shadow-glow-blue hover:bg-neon-blue/90"
             >
-              + <span className="hidden md:inline">Add</span>
+              + Add
             </Link>
             <SignOutButton />
-          </nav>
+          </TopActionsCluster>
         </header>
 
         <VideosFeed

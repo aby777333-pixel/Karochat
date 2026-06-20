@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import clsx from "clsx";
@@ -2740,6 +2741,10 @@ function MessageBubble({
   // On touch devices there's no hover, so the action bar (delete/edit/react…)
   // was unreachable. A tap on the bubble toggles it open on mobile.
   const [showActions, setShowActions] = useState(false);
+  // On mobile the action bar is portaled to <body> and pinned to the screen so
+  // it can never render off the edge of a narrow bubble (e.g. a voice note).
+  const actionsBtnRef = useRef<HTMLButtonElement | null>(null);
+  const [actionsTop, setActionsTop] = useState<number | null>(null);
   const [showAuthorMenu, setShowAuthorMenu] = useState(false);
   const [showShareCard, setShowShareCard] = useState(false);
   const [translating, setTranslating] = useState(false);
@@ -2935,6 +2940,131 @@ function MessageBubble({
       };
   const editedColor = mine ? "rgba(10,10,12,0.6)" : "rgba(245,245,247,0.5)";
 
+  // Open the mobile action bar, anchoring it just below its trigger button.
+  function openActions() {
+    const r = actionsBtnRef.current?.getBoundingClientRect();
+    if (r) {
+      const top = Math.min(Math.max(r.bottom + 6, 8), window.innerHeight - 56);
+      setActionsTop(top);
+    }
+    setShowActions(true);
+  }
+
+  // The action buttons, shared by the desktop (inline, hover) bar and the
+  // mobile (portaled, tap) bar so there's a single source of truth.
+  const actionButtons = (
+    <>
+      <button
+        onClick={() => setShowReactionPicker((s) => !s)}
+        className="rounded px-1.5 py-0.5 text-xs hover:bg-white/10"
+        aria-label="React"
+        title="React"
+      >
+        😊
+      </button>
+      <button
+        onClick={() => onReply(m)}
+        className="rounded px-1.5 py-0.5 text-xs hover:bg-white/10"
+        aria-label="Reply"
+        title="Reply"
+      >
+        ↪
+      </button>
+      <button
+        onClick={() => onOpenThread(m.reply_to_id ?? m.id)}
+        className="rounded px-1.5 py-0.5 text-xs hover:bg-white/10"
+        aria-label="Open thread"
+        title="Open thread"
+      >
+        🧵
+      </button>
+      {m.content && (
+        <button
+          onClick={() => setShowTranslate((s) => !s)}
+          className="rounded px-1.5 py-0.5 text-xs hover:bg-white/10"
+          aria-label="Translate"
+          title="Translate"
+        >
+          🌐
+        </button>
+      )}
+      {m.content && (
+        <button
+          onClick={() => setShowShareCard(true)}
+          className="rounded px-1.5 py-0.5 text-xs hover:bg-white/10"
+          aria-label="Share as card"
+          title="Share as card"
+        >
+          📤
+        </button>
+      )}
+      <button
+        onClick={() => onForward(m)}
+        className="rounded px-1.5 py-0.5 text-xs hover:bg-white/10"
+        aria-label="Forward to another room"
+        title="Forward to another room"
+      >
+        ↗
+      </button>
+      {(mine || isOwner) && (
+        <button
+          onClick={() => (m.pinned_at ? onUnpin(m.id) : onPin(m.id))}
+          className="rounded px-1.5 py-0.5 text-xs hover:bg-white/10"
+          aria-label={m.pinned_at ? "Unpin" : "Pin"}
+          title={m.pinned_at ? "Unpin message" : "Pin message to top"}
+        >
+          {m.pinned_at ? "📍" : "📌"}
+        </button>
+      )}
+      {canEdit && m.content && (
+        <button
+          onClick={() => onStartEdit(m)}
+          className="rounded px-1.5 py-0.5 text-xs hover:bg-white/10"
+          aria-label="Edit"
+          title="Edit"
+        >
+          ✎
+        </button>
+      )}
+      {mine && !m.regretted_at && (
+        <button
+          onClick={() => void onRegret(m.id)}
+          className="rounded px-1.5 py-0.5 text-xs hover:bg-white/10"
+          aria-label="Mark as regretted"
+          title="I wish I'd phrased this differently"
+        >
+          😔
+        </button>
+      )}
+      {!mine && (
+        <button
+          onClick={() =>
+            onReport({
+              kind: "message",
+              id: m.id,
+              preview: (m.content ?? "").slice(0, 80) || "(image / media)"
+            })
+          }
+          className="rounded px-1.5 py-0.5 text-xs text-neon-red/80 hover:bg-neon-red/10 hover:text-neon-red"
+          aria-label="Report"
+          title="Report"
+        >
+          🚩
+        </button>
+      )}
+      {mine && (
+        <button
+          onClick={() => onDelete(m.id)}
+          className="rounded px-1.5 py-0.5 text-xs text-neon-red hover:bg-neon-red/10"
+          aria-label="Delete"
+          title="Delete"
+        >
+          🗑
+        </button>
+      )}
+    </>
+  );
+
   return (
     <div
       ref={(el) => registerRef(m.id, el)}
@@ -3024,8 +3154,9 @@ function MessageBubble({
             Hidden on sm+ where hover handles it. */}
         {!isDeleted && !isEditing && (
           <button
+            ref={actionsBtnRef}
             type="button"
-            onClick={() => setShowActions((s) => !s)}
+            onClick={() => (showActions ? setShowActions(false) : openActions())}
             aria-label="Message actions"
             className={clsx(
               "absolute -top-3 z-20 grid h-6 w-6 place-items-center rounded-full border border-white/10 bg-ink-800/95 text-[11px] text-white/70 shadow sm:hidden",
@@ -3035,126 +3166,38 @@ function MessageBubble({
             ⋯
           </button>
         )}
-        {/* Actions row — shown on hover (desktop) or after a tap (mobile). */}
+        {/* Desktop: hover reveals the action bar inline next to the bubble. */}
         {!isDeleted && !isEditing && (
           <div
             className={clsx(
-              "absolute -top-7 z-10 gap-0.5 rounded-lg border border-white/10 bg-ink-800/95 px-1 py-0.5 shadow-lg backdrop-blur",
-              "pointer-events-none hidden group-hover/bubble:flex group-hover/bubble:pointer-events-auto",
-              showActions && "!flex !pointer-events-auto",
+              "absolute -top-7 z-10 hidden gap-0.5 rounded-lg border border-white/10 bg-ink-800/95 px-1 py-0.5 shadow-lg backdrop-blur sm:flex",
+              "pointer-events-none sm:opacity-0 sm:group-hover/bubble:pointer-events-auto sm:group-hover/bubble:opacity-100",
               mine ? "right-0" : "left-0"
             )}
           >
-            <button
-              onClick={() => setShowReactionPicker((s) => !s)}
-              className="rounded px-1.5 py-0.5 text-xs hover:bg-white/10"
-              aria-label="React"
-              title="React"
-            >
-              😊
-            </button>
-            <button
-              onClick={() => onReply(m)}
-              className="rounded px-1.5 py-0.5 text-xs hover:bg-white/10"
-              aria-label="Reply"
-              title="Reply"
-            >
-              ↪
-            </button>
-            <button
-              onClick={() => onOpenThread(m.reply_to_id ?? m.id)}
-              className="rounded px-1.5 py-0.5 text-xs hover:bg-white/10"
-              aria-label="Open thread"
-              title="Open thread"
-            >
-              🧵
-            </button>
-            {m.content && (
-              <button
-                onClick={() => setShowTranslate((s) => !s)}
-                className="rounded px-1.5 py-0.5 text-xs hover:bg-white/10"
-                aria-label="Translate"
-                title="Translate"
-              >
-                🌐
-              </button>
-            )}
-            {m.content && (
-              <button
-                onClick={() => setShowShareCard(true)}
-                className="rounded px-1.5 py-0.5 text-xs hover:bg-white/10"
-                aria-label="Share as card"
-                title="Share as card"
-              >
-                📤
-              </button>
-            )}
-            <button
-              onClick={() => onForward(m)}
-              className="rounded px-1.5 py-0.5 text-xs hover:bg-white/10"
-              aria-label="Forward to another room"
-              title="Forward to another room"
-            >
-              ↗
-            </button>
-            {(mine || isOwner) && (
-              <button
-                onClick={() => (m.pinned_at ? onUnpin(m.id) : onPin(m.id))}
-                className="rounded px-1.5 py-0.5 text-xs hover:bg-white/10"
-                aria-label={m.pinned_at ? "Unpin" : "Pin"}
-                title={m.pinned_at ? "Unpin message" : "Pin message to top"}
-              >
-                {m.pinned_at ? "📍" : "📌"}
-              </button>
-            )}
-            {canEdit && m.content && (
-              <button
-                onClick={() => onStartEdit(m)}
-                className="rounded px-1.5 py-0.5 text-xs hover:bg-white/10"
-                aria-label="Edit"
-                title="Edit"
-              >
-                ✎
-              </button>
-            )}
-            {mine && !m.regretted_at && (
-              <button
-                onClick={() => void onRegret(m.id)}
-                className="rounded px-1.5 py-0.5 text-xs hover:bg-white/10"
-                aria-label="Mark as regretted"
-                title="I wish I'd phrased this differently"
-              >
-                😔
-              </button>
-            )}
-            {!mine && (
-              <button
-                onClick={() =>
-                  onReport({
-                    kind: "message",
-                    id: m.id,
-                    preview: (m.content ?? "").slice(0, 80) || "(image / media)"
-                  })
-                }
-                className="rounded px-1.5 py-0.5 text-xs text-neon-red/80 hover:bg-neon-red/10 hover:text-neon-red"
-                aria-label="Report"
-                title="Report"
-              >
-                🚩
-              </button>
-            )}
-            {mine && (
-              <button
-                onClick={() => onDelete(m.id)}
-                className="rounded px-1.5 py-0.5 text-xs text-neon-red hover:bg-neon-red/10"
-                aria-label="Delete"
-                title="Delete"
-              >
-                🗑
-              </button>
-            )}
+            {actionButtons}
           </div>
         )}
+        {/* Mobile: a tap portals the bar to <body>, pinned to the screen so it
+            can never spill off the edge of a narrow bubble (e.g. a voice note). */}
+        {!isDeleted && !isEditing && showActions && actionsTop != null &&
+          createPortal(
+            <>
+              <div
+                className="fixed inset-0 z-[120]"
+                onClick={() => setShowActions(false)}
+                aria-hidden
+              />
+              <div
+                onClick={() => setShowActions(false)}
+                style={{ top: actionsTop, left: "50%" }}
+                className="fixed z-[130] flex max-w-[94vw] -translate-x-1/2 flex-wrap items-center justify-center gap-0.5 rounded-lg border border-white/10 bg-ink-800/95 px-1.5 py-1 shadow-2xl backdrop-blur"
+              >
+                {actionButtons}
+              </div>
+            </>,
+            document.body
+          )}
 
         {showReactionPicker && !isDeleted && (
           <div

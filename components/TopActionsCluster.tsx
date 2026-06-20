@@ -1,20 +1,29 @@
 "use client";
 
-// Karochat — clusters the room header's action buttons into a single "⋮"
-// button (top-right) on phones that pops the toolbar DOWN.
+// Karochat — collapses a row of header action buttons into a single button on
+// phones that pops the buttons DOWN as a list. Desktop renders the children
+// inline, unchanged.
 //
-// The header has `backdrop-filter` (.surface-glass), which makes it the
-// containing block for `position: fixed` descendants — so a fixed panel was
-// trapped INSIDE the header's stacking context and the chat card painted over
-// it. Fix: render the pop-down through a PORTAL to <body>, escaping the header
-// entirely, so it's truly in the foreground. Desktop renders inline as before.
+// Mirrors app/rooms/[id]/RoomTopActions.tsx: many of our headers sit on a
+// `.surface-glass` (backdrop-filter) ancestor, which becomes the containing
+// block for `position: fixed` descendants — trapping a pop-down inside the
+// header's stacking context so the page paints over it. Fix: render the
+// pop-down through a PORTAL to <body>, so it's truly in the foreground.
 // Mobile-vs-desktop is an either/or (matchMedia) so children mount in exactly
 // one place — no duplicated stateful buttons.
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-export function RoomTopActions({ children }: { children: React.ReactNode }) {
+export function TopActionsCluster({
+  children,
+  label = "More",
+  className
+}: {
+  children: React.ReactNode;
+  label?: string;
+  className?: string;
+}) {
   const [mounted, setMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [open, setOpen] = useState(false);
@@ -56,17 +65,16 @@ export function RoomTopActions({ children }: { children: React.ReactNode }) {
   // Desktop (and the SSR/first-paint default): inline row, unchanged.
   if (!mounted || !isMobile) {
     return (
-      <div className="flex flex-wrap items-center justify-end gap-1.5 md:gap-2">
+      <div className={className ?? "flex flex-wrap items-center justify-end gap-1.5 md:gap-2"}>
         {children}
       </div>
     );
   }
 
-  // Mobile: a single cluster button + a portaled pop-down in the foreground.
-  // The pop-down panel is ALWAYS mounted (just hidden via `display` when
-  // closed) so a child that opens its OWN modal — e.g. "+ Add person" —
-  // isn't unmounted by the same click that closes the menu, which would
-  // otherwise discard the child's modal before it can render.
+  // Mobile: a single cluster button + a portaled pop-down list in the foreground.
+  // The panel is ALWAYS mounted (just hidden via `display` when closed) so a
+  // child that opens its OWN modal isn't unmounted by the same click that
+  // closes the menu — which would discard the modal before it can render.
   return (
     <>
       <button
@@ -74,8 +82,8 @@ export function RoomTopActions({ children }: { children: React.ReactNode }) {
         type="button"
         onClick={toggle}
         aria-expanded={open}
-        aria-label="Room actions"
-        title="Room actions"
+        aria-label={label}
+        title={label}
         className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/5 text-base text-white/80 transition hover:bg-white/10 hover:text-white"
       >
         {open ? "▴" : "⋮"}
@@ -93,7 +101,7 @@ export function RoomTopActions({ children }: { children: React.ReactNode }) {
           <div
             onClick={() => setOpen(false)}
             style={{ top: pos.top, right: pos.right, display: open ? undefined : "none" }}
-            className="fixed z-[130] flex max-w-[92vw] flex-wrap justify-end gap-1.5 rounded-xl border border-white/10 bg-ink-800 p-2 shadow-2xl"
+            className="fixed z-[130] flex max-w-[92vw] flex-col items-stretch gap-1.5 rounded-xl border border-white/10 bg-ink-800 p-2 shadow-2xl [&_a]:w-full [&_button]:w-full"
           >
             {children}
           </div>
