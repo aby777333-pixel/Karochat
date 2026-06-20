@@ -255,8 +255,8 @@ export function CategoryBrowser({
           <TabButton
             active={tab === "user"}
             onClick={() => setTab("user")}
-            label="KaroGroups"
-            hint="Groups & rooms created by people"
+            label="User rooms"
+            hint="Rooms & groups created by people"
           />
         </div>
       )}

@@ -354,7 +354,8 @@ export default async function RoomsPage({
           <div className="scroll-thin mt-1.5 flex items-stretch gap-2 overflow-x-auto px-1 pb-1">
             <SnapsLobbyEntry currentUserId={user.id} />
             {[
-              { href: "/rooms#karogroups", icon: "📂", label: "KaroGroups" },
+              { href: "/rooms?create=1", icon: "➕", label: "New room" },
+              { href: "/rooms#karogroups", icon: "📂", label: "User rooms" },
               { href: "/feed", icon: "📷", label: "Posts" },
               { href: "/channels", icon: "📣", label: "Channels" },
               { href: "/lenses", icon: "🤳", label: "Lenses" },
@@ -364,17 +365,19 @@ export default async function RoomsPage({
               { href: "/memories", icon: "🗂️", label: "Memories" },
               { href: "/close-friends", icon: "💚", label: "Close friends" }
             ].map((t) => {
-              // KaroGroups gets an accent so it's easy to spot in the strip.
-              const accent = t.label === "KaroGroups";
+              // "New room" (create) and "User rooms" get accents so they're
+              // easy to spot in the strip.
+              const cls =
+                t.label === "New room"
+                  ? "border-neon-mint/50 bg-neon-mint/15 text-white hover:bg-neon-mint/25"
+                  : t.label === "User rooms"
+                  ? "border-neon-purple/50 bg-neon-purple/15 text-white hover:bg-neon-purple/25"
+                  : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white";
               return (
                 <Link
                   key={t.href}
                   href={t.href}
-                  className={
-                    accent
-                      ? "flex shrink-0 flex-col items-center gap-0.5 rounded-xl border border-neon-purple/50 bg-neon-purple/15 px-3 py-1.5 text-[11px] text-white transition hover:bg-neon-purple/25"
-                      : "flex shrink-0 flex-col items-center gap-0.5 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] text-white/70 transition hover:bg-white/10 hover:text-white"
-                  }
+                  className={`flex shrink-0 flex-col items-center gap-0.5 rounded-xl border px-3 py-1.5 text-[11px] transition ${cls}`}
                 >
                   <span aria-hidden className="text-base leading-none">{t.icon}</span>
                   <span className="whitespace-nowrap">{t.label}</span>

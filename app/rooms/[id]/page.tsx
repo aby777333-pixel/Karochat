@@ -13,6 +13,7 @@ import { NewRoomButton } from "@/components/NewRoomButton";
 import { AdRails } from "@/components/AdRails";
 import { RoomChat } from "./RoomChat";
 import { RoomExtras } from "./RoomExtras";
+import { RoomTopActions } from "./RoomTopActions";
 import { CopyCode } from "./CopyCode";
 import { LeaveRoomButton } from "./LeaveRoomButton";
 import { MemberList } from "./MemberList";
@@ -297,7 +298,7 @@ export default async function RoomPage({
             )}
           </div>
         </div>
-        <div className="-mr-1 flex flex-wrap items-center gap-1.5 overflow-visible pr-1 sm:justify-end md:gap-2">
+        <RoomTopActions>
           <Link
             href="/shorts"
             className="shrink-0 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-white/80 transition hover:bg-white/10 hover:text-white"
@@ -392,7 +393,7 @@ export default async function RoomPage({
             isOwner={isOwner}
           />
           <SignOutButton />
-        </div>
+        </RoomTopActions>
       </header>
 
       {!room.is_dm && !room.is_saved && !room.is_public && isOwner && room.invite_code && (
