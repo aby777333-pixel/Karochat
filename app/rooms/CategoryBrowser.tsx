@@ -80,6 +80,23 @@ export function CategoryBrowser({
   const router = useRouter();
 
   const [tab, setTab] = useState<"official" | "user">("official");
+
+  // Open the KaroGroups (user-rooms) tab when arrived at via the lobby
+  // "📂 KaroGroups" tile, which links to /rooms#karogroups.
+  useEffect(() => {
+    if (hideUserTab) return;
+    const openIfHash = () => {
+      if (window.location.hash === "#karogroups") {
+        setTab("user");
+        document
+          .getElementById("karogroups")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    };
+    openIfHash();
+    window.addEventListener("hashchange", openIfHash);
+    return () => window.removeEventListener("hashchange", openIfHash);
+  }, [hideUserTab]);
   const [counts, setCounts] = useState<CountRow[]>([]);
   const [openCats, setOpenCats] = useState<Set<string>>(new Set());
   const [openSubs, setOpenSubs] = useState<Set<string>>(new Set());
@@ -225,10 +242,10 @@ export function CategoryBrowser({
         )}
       </div>
 
-      {/* Yahoo!-style two-tab switcher: Karochat (official) vs User rooms.
+      {/* Yahoo!-style two-tab switcher: Karochat (official) vs KaroGroups.
           Suppressed when the parent already surfaces user rooms elsewhere. */}
       {!hideUserTab && (
-        <div className="mb-3 -mx-1 flex gap-1 border-b border-white/10 px-1">
+        <div id="karogroups" className="mb-3 -mx-1 flex scroll-mt-20 gap-1 border-b border-white/10 px-1">
           <TabButton
             active={tab === "official"}
             onClick={() => setTab("official")}
@@ -238,8 +255,8 @@ export function CategoryBrowser({
           <TabButton
             active={tab === "user"}
             onClick={() => setTab("user")}
-            label="User rooms"
-            hint="Rooms created by people"
+            label="KaroGroups"
+            hint="Groups & rooms created by people"
           />
         </div>
       )}

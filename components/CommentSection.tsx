@@ -41,7 +41,7 @@ export function CommentSection({
   currentUserId,
   initialCount
 }: {
-  kind: "short" | "video" | "post";
+  kind: "short" | "video" | "post" | "note" | "story";
   parentId: string;
   currentUserId: string;
   initialCount: number;

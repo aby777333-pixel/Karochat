@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { CommentSection } from "@/components/CommentSection";
 
 export type NoteRow = {
   id: string;
@@ -57,6 +58,8 @@ export function NotesRail({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [opening, setOpening] = useState<string | null>(null);
+  // The friend note opened in the detail / comments sheet.
+  const [viewNote, setViewNote] = useState<NoteRow | null>(null);
 
   const myNote = notes.find((n) => n.is_mine) || null;
   // Own note first, then most recent.
@@ -159,9 +162,8 @@ export function NotesRail({
           <button
             key={n.id}
             type="button"
-            onClick={() => openDM(n)}
-            disabled={opening === n.author_profile_id}
-            className="flex w-[68px] shrink-0 flex-col items-center gap-1 text-center disabled:opacity-50"
+            onClick={() => setViewNote(n)}
+            className="flex w-[68px] shrink-0 flex-col items-center gap-1 text-center"
           >
             <div className="relative">
               <Avatar
@@ -188,6 +190,56 @@ export function NotesRail({
           </div>
         )}
       </div>
+
+      {viewNote && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 sm:items-center"
+          onClick={() => setViewNote(null)}
+        >
+          <div
+            className="max-h-[80vh] w-full max-w-sm overflow-y-auto rounded-2xl border border-white/10 bg-[#0b0f14] shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3 p-4">
+              <Avatar
+                url={viewNote.author_avatar_url}
+                name={viewNote.author_display_name}
+                handle={viewNote.author_username}
+              />
+              <div className="min-w-0 flex-1">
+                <button
+                  type="button"
+                  onClick={() => openDM(viewNote)}
+                  disabled={opening === viewNote.author_profile_id}
+                  title="Message privately"
+                  className="text-sm font-semibold text-cyan-300 underline decoration-dotted underline-offset-2 hover:text-cyan-200 disabled:opacity-60"
+                >
+                  {opening === viewNote.author_profile_id
+                    ? "Opening…"
+                    : viewNote.author_display_name || viewNote.author_username || "Someone"}
+                </button>
+                <p className="mt-1 whitespace-pre-wrap break-words text-[15px] leading-snug text-white">
+                  {viewNote.body}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewNote(null)}
+                aria-label="Close"
+                className="shrink-0 rounded-md px-1.5 py-0.5 text-white/40 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+            <CommentSection
+              kind="note"
+              parentId={viewNote.id}
+              currentUserId={currentUserId}
+              initialCount={0}
+            />
+          </div>
+        </div>
+      )}
 
       {composeOpen && (
         <div

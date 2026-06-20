@@ -73,7 +73,7 @@ export default async function RoomPage({
 
   const roomResp = await supabase
     .from("rooms")
-    .select("id, name, description, is_public, invite_code, owner_id, is_dm, is_saved, is_vault, rules_markdown, visibility, parent_room_id, recording_started_at, theme, join_policy, avatar_url")
+    .select("id, name, description, is_public, invite_code, owner_id, is_dm, is_saved, is_vault, rules_markdown, visibility, parent_room_id, recording_started_at, theme, join_policy, avatar_url, vanish_mode")
     .eq("id", params.id)
     .maybeSingle();
   const room = roomResp.data as
@@ -425,6 +425,7 @@ export default async function RoomPage({
             isOwner={isOwner}
             isDm={!!room.is_dm}
             isSaved={!!room.is_saved}
+            initialVanishMode={!!(room as any).vanish_mode}
             initialMessages={(initialMessages as any[]) ?? []}
           />
         </div>

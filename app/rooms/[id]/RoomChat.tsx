@@ -326,6 +326,7 @@ type MessageRow = {
   pinned_at?: string | null;
   pinned_by?: string | null;
   expires_at?: string | null;
+  vanish?: boolean | null;
   mentions?: string[] | null;
   forwarded_from_id?: string | null;
   created_at: string;
@@ -353,6 +354,7 @@ export function RoomChat({
   isSaved,
   roomTheme,
   initialCall,
+  initialVanishMode,
   initialMessages
 }: {
   roomId: string;
@@ -372,6 +374,7 @@ export function RoomChat({
   isSaved?: boolean;
   roomTheme?: string | null;
   initialCall?: "audio" | "video" | null;
+  initialVanishMode?: boolean;
   initialMessages: MessageRow[];
 }) {
   const router = useRouter();
@@ -440,6 +443,14 @@ export function RoomChat({
   }>({ query: "", open: false });
   const [disappearTtlSec, setDisappearTtlSec] = useState<number | null>(null);
   const [ttlMenuOpen, setTtlMenuOpen] = useState(false);
+  // Phase 6.4 — vanish mode (DM-only, seen-then-gone). Mutual flag persisted on
+  // the room; live toggle sync rides a broadcast channel. Kept in a ref so the
+  // send paths read the latest value without re-binding their callbacks.
+  const [vanishMode, setVanishMode] = useState(!!initialVanishMode);
+  const vanishModeRef = useRef(vanishMode);
+  useEffect(() => {
+    vanishModeRef.current = vanishMode;
+  }, [vanishMode]);
   const [typingUsers, setTypingUsers] = useState<Map<string, { name: string; at: number }>>(
     () => new Map()
   );
@@ -741,6 +752,21 @@ export function RoomChat({
           );
         }
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "messages",
+          filter: `room_id=eq.${roomId}`
+        },
+        (payload) => {
+          // Hard deletes (e.g. vanish-mode purge) — drop the bubble live.
+          const old = payload.old as { id?: string } | undefined;
+          if (!old?.id) return;
+          setMessages((prev) => prev.filter((x) => x.id !== old.id));
+        }
+      )
       .subscribe((status) => {
         // Fires on the initial join AND on every automatic rejoin after a
         // disconnect — both are exactly when we may have missed rows.
@@ -751,6 +777,61 @@ export function RoomChat({
       void supabase.removeChannel(channel);
     };
   }, [supabase, roomId, fetchProfile]);
+
+  // ── Vanish mode (Phase 6.4) ────────────────────────────────────────────
+  // Broadcast channel keeps both DM clients' toggle state in sync (rooms isn't
+  // in the realtime publication, so we don't get a postgres_changes event).
+  const vanishChanRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  useEffect(() => {
+    if (!isDm) return;
+    const ch = supabase.channel(`room-vanish:${roomId}`);
+    ch.on("broadcast", { event: "vanish" }, (msg) => {
+      setVanishMode(!!(msg.payload as { on?: boolean } | undefined)?.on);
+    }).subscribe();
+    vanishChanRef.current = ch;
+    return () => {
+      vanishChanRef.current = null;
+      void supabase.removeChannel(ch);
+    };
+  }, [supabase, roomId, isDm]);
+
+  const toggleVanish = useCallback(async () => {
+    const next = !vanishModeRef.current;
+    setVanishMode(next);
+    const { error } = await supabase.rpc("set_vanish_mode", {
+      p_room_id: roomId,
+      p_on: next
+    });
+    if (error) {
+      setVanishMode(!next);
+      return;
+    }
+    vanishChanRef.current?.send({
+      type: "broadcast",
+      event: "vanish",
+      payload: { on: next }
+    });
+  }, [supabase, roomId]);
+
+  // When we leave/hide/close a DM, hard-delete the vanish messages we received
+  // (seen-then-gone). No-ops when there are none, so it's safe to run on every
+  // exit. The delete propagates to the sender via the realtime DELETE handler.
+  useEffect(() => {
+    if (!isDm) return;
+    const purge = () => {
+      void supabase.rpc("purge_seen_vanish_messages", { p_room_id: roomId });
+    };
+    const onVis = () => {
+      if (document.visibilityState === "hidden") purge();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("pagehide", purge);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("pagehide", purge);
+      purge();
+    };
+  }, [supabase, roomId, isDm]);
 
   // Realtime presence channel: room-scoped “here right now” count.
   const [onlineCount, setOnlineCount] = useState(1);
@@ -2088,6 +2169,22 @@ export function RoomChat({
           </div>
         )}
         <div className="relative flex flex-col gap-2">
+          {/* Vanish-mode banner (DM only). */}
+          {isDm && vanishMode && (
+            <div className="flex items-center gap-2 rounded-lg border border-neon-purple/40 bg-neon-purple/10 px-3 py-1.5 text-[11px] text-neon-purple">
+              <span aria-hidden>🫥</span>
+              <span>
+                Vanish mode is on — messages disappear once seen and the chat is closed.
+              </span>
+              <button
+                type="button"
+                onClick={() => void toggleVanish()}
+                className="ml-auto rounded-md border border-neon-purple/40 px-2 py-0.5 hover:bg-neon-purple/20"
+              >
+                Turn off
+              </button>
+            </div>
+          )}
           {/* Row 1 — action buttons ("left tags"). */}
           <div className="flex flex-wrap items-center gap-1 sm:gap-1.5">
           <button
@@ -2517,6 +2614,28 @@ export function RoomChat({
               </div>
             )}
           </div>
+          {/* Vanish mode — DM only. Seen-then-gone (distinct from the ⏳ timer). */}
+          {isDm && (
+            <button
+              type="button"
+              onClick={() => void toggleVanish()}
+              aria-pressed={vanishMode}
+              aria-label="Vanish mode"
+              title={
+                vanishMode
+                  ? "Vanish mode on — new messages disappear once seen"
+                  : "Turn on vanish mode (seen-then-gone)"
+              }
+              className={clsx(
+                "grid h-9 w-9 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-xl border transition",
+                vanishMode
+                  ? "border-neon-purple/60 bg-neon-purple/20 text-neon-purple"
+                  : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
+              )}
+            >
+              {vanishMode ? "🫥" : "👻"}
+            </button>
+          )}
           {mentionState.open && (
             <MentionMenu
               roomId={roomId}

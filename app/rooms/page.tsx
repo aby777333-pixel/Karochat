@@ -354,6 +354,7 @@ export default async function RoomsPage({
           <div className="scroll-thin mt-1.5 flex items-stretch gap-2 overflow-x-auto px-1 pb-1">
             <SnapsLobbyEntry currentUserId={user.id} />
             {[
+              { href: "/rooms#karogroups", icon: "📂", label: "KaroGroups" },
               { href: "/feed", icon: "📷", label: "Posts" },
               { href: "/channels", icon: "📣", label: "Channels" },
               { href: "/lenses", icon: "🤳", label: "Lenses" },

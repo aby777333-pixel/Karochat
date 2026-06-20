@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { CommentSection } from "@/components/CommentSection";
 
 export type StoryRow = {
   id: string;
@@ -233,7 +234,11 @@ function StoryViewer({
   const [si, setSi] = useState(0);
   const [progress, setProgress] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  // Comments pause the story so it doesn't advance out from under you.
+  const frozen = paused || commentsOpen;
 
   const group = groups[gi]!;
   const story = group.stories[si]!;
@@ -266,9 +271,17 @@ function StoryViewer({
     onSeen(story);
   }, [story, onSeen]);
 
+  // Freeze/resume video playback alongside the progress timer.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (frozen) v.pause();
+    else void v.play().catch(() => {});
+  }, [frozen, story]);
+
   // Auto-advance for text/image (video drives its own progress via timeupdate).
   useEffect(() => {
-    if (story.kind === "video" || paused) return;
+    if (story.kind === "video" || frozen) return;
     const start = Date.now();
     const tick = setInterval(() => {
       const p = Math.min(1, (Date.now() - start) / IMAGE_MS);
@@ -279,18 +292,24 @@ function StoryViewer({
       }
     }, 50);
     return () => clearInterval(tick);
-  }, [story, paused, next]);
+  }, [story, frozen, next]);
 
-  // Keyboard nav.
+  // Keyboard nav. When the comments sheet is open, Esc closes it first and
+  // arrow keys are ignored (so typing a comment doesn't skip the story).
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-      else if (e.key === "ArrowLeft") prev();
+      if (e.key === "Escape") {
+        if (commentsOpen) setCommentsOpen(false);
+        else onClose();
+        return;
+      }
+      if (commentsOpen) return;
+      if (e.key === "ArrowLeft") prev();
       else if (e.key === "ArrowRight") next();
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [prev, next, onClose]);
+  }, [prev, next, onClose, commentsOpen]);
 
   const mine = story.author_id === currentUserId;
   const author = story.author_display_name ?? story.author_username ?? "Someone";
@@ -343,6 +362,14 @@ function StoryViewer({
             </p>
           </div>
           <div className="flex items-center gap-1.5 text-white/50">
+            <button
+              onClick={() => setCommentsOpen(true)}
+              className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 hover:bg-white/10"
+              aria-label="Comments"
+              title="Comments"
+            >
+              💬
+            </button>
             {canDelete(story) && (
               <button
                 onClick={() => onDelete(story)}
@@ -426,6 +453,32 @@ function StoryViewer({
           <div className="px-1 text-center text-[11px] text-white/45">
             👁 Seen by {story.view_count ?? 0}
             {(story.view_count ?? 0) === 1 ? " person" : " people"}
+          </div>
+        )}
+
+        {/* Comments sheet — slides up over the story; story is frozen while open. */}
+        {commentsOpen && (
+          <div
+            className="absolute inset-x-0 bottom-0 z-10 max-h-[70%] overflow-y-auto rounded-t-2xl border-t border-white/10 bg-[#0b0f14]/95 backdrop-blur"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 pt-3 text-xs text-white/60">
+              <span>Comments on {mine ? "your" : `${author}'s`} story</span>
+              <button
+                type="button"
+                onClick={() => setCommentsOpen(false)}
+                aria-label="Close comments"
+                className="rounded-md px-1.5 text-white/40 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+            <CommentSection
+              kind="story"
+              parentId={story.id}
+              currentUserId={currentUserId}
+              initialCount={0}
+            />
           </div>
         )}
       </div>
