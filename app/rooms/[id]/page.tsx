@@ -12,6 +12,7 @@ import { TeachingKitButton } from "./TeachingKitButton";
 import { NewRoomButton } from "@/components/NewRoomButton";
 import { AdRails } from "@/components/AdRails";
 import { RoomChat } from "./RoomChat";
+import { RoomExtras } from "./RoomExtras";
 import { CopyCode } from "./CopyCode";
 import { LeaveRoomButton } from "./LeaveRoomButton";
 import { MemberList } from "./MemberList";
@@ -427,6 +428,12 @@ export default async function RoomPage({
             isSaved={!!room.is_saved}
             initialVanishMode={!!(room as any).vanish_mode}
             initialMessages={(initialMessages as any[]) ?? []}
+          />
+          <RoomExtras
+            roomId={room.id}
+            currentUserId={profile.id}
+            isDm={!!room.is_dm}
+            members={(initialMembers as any[]) ?? []}
           />
         </div>
         <MemberList

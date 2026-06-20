@@ -2202,75 +2202,6 @@ export function RoomChat({
           >
             🧰
           </button>
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setIntentMenuOpen((s) => !s)}
-              aria-label="Set message intent"
-              title={
-                intentChoice
-                  ? `Intent: ${INTENT_OPTIONS.find((i) => i.value === intentChoice)?.label ?? intentChoice}`
-                  : "Tag this message with an intent"
-              }
-              className={clsx(
-                "grid h-9 w-9 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-xl border text-sm transition",
-                intentChoice
-                  ? "border-neon-blue/60 bg-neon-blue/10 text-neon-blue"
-                  : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
-              )}
-            >
-              {intentChoice
-                ? INTENT_OPTIONS.find((i) => i.value === intentChoice)?.emoji ?? "·"
-                : "·"}
-            </button>
-            {intentMenuOpen && (
-              <div className="absolute bottom-12 left-0 z-[60] w-52 rounded-xl border border-white/10 bg-ink-800/95 p-1.5 shadow-xl backdrop-blur">
-                <div className="flex items-center justify-between px-2 pb-1">
-                  <p className="text-[10px] uppercase tracking-widest text-white/40">
-                    Intent
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setIntentMenuOpen(false)}
-                    aria-label="Close"
-                    title="Close"
-                    className="rounded-md border border-white/10 bg-white/5 px-1.5 text-[10px] text-white/60 hover:bg-white/10"
-                  >
-                    ✕
-                  </button>
-                </div>
-                {INTENT_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => {
-                      setIntentChoice((cur) => (cur === opt.value ? null : opt.value));
-                      setIntentMenuOpen(false);
-                    }}
-                    className={clsx(
-                      "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-white/10",
-                      intentChoice === opt.value && "bg-neon-blue/10 text-neon-blue"
-                    )}
-                  >
-                    <span aria-hidden>{opt.emoji}</span>
-                    <span>{opt.label}</span>
-                  </button>
-                ))}
-                {intentChoice && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIntentChoice(null);
-                      setIntentMenuOpen(false);
-                    }}
-                    className="mt-1 w-full rounded-md border border-white/10 px-2 py-1 text-[11px] text-white/60 hover:bg-white/10"
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
@@ -2284,35 +2215,12 @@ export function RoomChat({
               <path d="m21 15-5-5-9 9" />
             </svg>
           </button>
-          <button
-            type="button"
-            onClick={() => fileAnyInputRef.current?.click()}
-            disabled={uploading}
-            aria-label="Attach a file"
-            title="Attach any file (big files are compressed)"
-            className="grid h-9 w-9 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/5 text-white/70 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
-          >
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M21.44 11.05 12.25 20.24a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-            </svg>
-          </button>
           <input
             ref={fileAnyInputRef}
             type="file"
             className="hidden"
             onChange={onFileAny}
           />
-          <button
-            type="button"
-            onClick={() => void sendNudge()}
-            aria-label="Send a nudge"
-            title="Send a nudge (Ctrl+Shift+N)"
-            className="grid h-9 w-9 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-xl border border-neon-red/40 bg-neon-red/10 text-neon-red transition hover:bg-neon-red/20"
-          >
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z" />
-            </svg>
-          </button>
           <div className="relative">
             <button
               type="button"
@@ -2340,118 +2248,6 @@ export function RoomChat({
               />
             )}
           </div>
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                setShowGif((s) => !s);
-                setShowEmoji(false);
-                setShowVoice(false);
-                setShowStickers(false);
-                setShowLines(false);
-                setTtlMenuOpen(false);
-              }}
-              aria-label="Insert GIF"
-              title="Send a GIF"
-              className="grid h-9 w-9 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/5 text-white/70 text-[10px] font-bold transition hover:bg-white/10 hover:text-white"
-            >
-              GIF
-            </button>
-            {showGif && (
-              <GifPicker
-                onPick={(url) => {
-                  // GIFs are inserted as image messages so they show up the
-                  // same as any attachment.
-                  void supabase.from("messages").insert({
-                    sender_id: currentUserId,
-                    room_id: roomId,
-                    content: null,
-                    image_url: url,
-                    reply_to_id: replyTo?.id ?? null,
-                    intent: intentChoice,
-                    type: "image"
-                  }).then(({ error: err }) => {
-                    if (err) setError(err.message);
-                    else {
-                      setReplyTo(null);
-                      setIntentChoice(null);
-                    }
-                  });
-                  setShowGif(false);
-                }}
-                onClose={() => setShowGif(false)}
-              />
-            )}
-          </div>
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                setShowStickers((s) => !s);
-                setShowLines(false);
-                setShowEmoji(false);
-                setShowGif(false);
-                setShowVoice(false);
-                setTtlMenuOpen(false);
-              }}
-              aria-label="Insert sticker"
-              title="Stickers — kaomoji & emoji art"
-              className="grid h-9 w-9 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/5 text-white/70 transition hover:bg-white/10 hover:text-white"
-            >
-              🧩
-            </button>
-            {showStickers && (
-              <StickerPicker
-                onPickImage={(url) => {
-                  // Real (Tenor) stickers ride the exact GIF pipeline —
-                  // an ordinary image message. The #sticker fragment is
-                  // inert for fetching but lets the bubble render them
-                  // compact (sticker-sized) instead of photo-sized.
-                  void supabase.from("messages").insert({
-                    sender_id: currentUserId,
-                    room_id: roomId,
-                    content: null,
-                    image_url: url + "#sticker",
-                    reply_to_id: replyTo?.id ?? null,
-                    intent: intentChoice,
-                    type: "image"
-                  }).then(({ error: err }) => {
-                    if (err) setError(err.message);
-                    else {
-                      setReplyTo(null);
-                      setIntentChoice(null);
-                      void catchUpRef.current();
-                    }
-                  });
-                  setShowStickers(false);
-                }}
-                onPick={(s) => {
-                  insertAtCursor(s);
-                  setShowStickers(false);
-                }}
-                onClose={() => setShowStickers(false)}
-              />
-            )}
-          </div>
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                setShowKaraoke(true);
-                setShowStickers(false);
-                setShowEmoji(false);
-                setShowGif(false);
-                setShowVoice(false);
-                setShowLines(false);
-                setTtlMenuOpen(false);
-              }}
-              aria-label="Karaoke studio"
-              title="Karaoke studio — lyrics, vocal tuner, metronome, backing tracks"
-              className="grid h-9 w-9 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-xl border border-neon-red/40 bg-neon-red/10 text-neon-red transition hover:bg-neon-red/20"
-            >
-              🎤
-            </button>
-          </div>
           <KaraokeStudio
             open={showKaraoke}
             onClose={() => setShowKaraoke(false)}
@@ -2460,166 +2256,6 @@ export function RoomChat({
             userId={currentUserId}
             userName={currentDisplayName || currentUsername}
           />
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                setShowLines((s) => !s);
-                setShowStickers(false);
-                setShowEmoji(false);
-                setShowGif(false);
-                setShowVoice(false);
-                setTtlMenuOpen(false);
-              }}
-              aria-label="Lines and sparks"
-              title="Lines & sparks — ice breakers, compliments, pick-up lines"
-              className="grid h-9 w-9 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-xl border border-neon-purple/40 bg-neon-purple/10 text-neon-purple transition hover:bg-neon-purple/20"
-            >
-              💘
-            </button>
-            {showLines && (
-              <LinesPicker
-                onPick={(line) => {
-                  insertAtCursor(line);
-                  setShowLines(false);
-                }}
-                onClose={() => setShowLines(false)}
-              />
-            )}
-          </div>
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                setShowVoice((s) => !s);
-                setShowEmoji(false);
-                setShowGif(false);
-                setShowStickers(false);
-                setShowLines(false);
-                setTtlMenuOpen(false);
-              }}
-              aria-label="Record voice message"
-              title="Record a voice message"
-              className="grid h-9 w-9 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-xl border border-neon-purple/40 bg-neon-purple/10 text-neon-purple transition hover:bg-neon-purple/20"
-            >
-              🎙
-            </button>
-            {showVoice && (
-              <VoiceRecorder
-                onSend={(blob, ms) => void sendVoice(blob, ms)}
-                onClose={() => setShowVoice(false)}
-              />
-            )}
-          </div>
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                setShowVideo((s) => !s);
-                setShowVoice(false);
-                setShowEmoji(false);
-                setShowGif(false);
-                setShowStickers(false);
-                setShowLines(false);
-                setTtlMenuOpen(false);
-                setNotice(null);
-              }}
-              aria-label="Record a video clip"
-              title="Record a video clip — post to chat or Shorts"
-              className="grid h-9 w-9 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-xl border border-neon-blue/40 bg-neon-blue/10 text-neon-blue transition hover:bg-neon-blue/20"
-            >
-              🎥
-            </button>
-            {showVideo && (
-              <VideoRecorder
-                onPostToChat={(blob, ms, cap) => void sendVideoToChat(blob, ms, cap)}
-                onPostToShort={(blob, isPublic, cap) =>
-                  void postVideoToShort(blob, isPublic, cap)
-                }
-                onPostToBoth={(blob, ms, isPublic, cap) =>
-                  void postVideoToBoth(blob, ms, isPublic, cap)
-                }
-                onClose={() => setShowVideo(false)}
-                busy={uploading}
-              />
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={toggleDictation}
-            aria-pressed={dictating}
-            aria-label="Voice typing"
-            title="Voice typing — dictate your message"
-            className={clsx(
-              "grid h-9 w-9 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-xl border transition",
-              dictating
-                ? "border-neon-red/60 bg-neon-red/15 text-neon-red animate-pulseDot"
-                : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
-            )}
-          >
-            🎤
-          </button>
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                setTtlMenuOpen((s) => !s);
-                setShowEmoji(false);
-                setShowGif(false);
-                setShowVoice(false);
-                setShowStickers(false);
-                setShowLines(false);
-              }}
-              aria-pressed={disappearTtlSec !== null}
-              aria-label="Disappearing messages"
-              title={
-                disappearTtlSec
-                  ? `Disappears after ${formatTtl(disappearTtlSec)}`
-                  : "Set disappearing-message timer"
-              }
-              className={clsx(
-                "grid h-9 w-9 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-xl border transition",
-                disappearTtlSec
-                  ? "border-neon-amber/60 bg-neon-amber/15 text-neon-amber"
-                  : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
-              )}
-            >
-              ⏳
-            </button>
-            {ttlMenuOpen && (
-              <div className="absolute bottom-12 left-0 z-[60] w-44 rounded-xl border border-white/10 bg-ink-800/95 p-1.5 shadow-xl backdrop-blur">
-                <p className="px-2 pb-1 text-[10px] uppercase tracking-widest text-white/40">
-                  Disappear after
-                </p>
-                {[
-                  { label: "Off", v: null },
-                  { label: "30 seconds", v: 30 },
-                  { label: "1 minute", v: 60 },
-                  { label: "5 minutes", v: 300 },
-                  { label: "1 hour", v: 3600 },
-                  { label: "24 hours", v: 86400 },
-                  { label: "7 days", v: 604800 }
-                ].map((opt) => (
-                  <button
-                    key={opt.label}
-                    type="button"
-                    onClick={() => {
-                      setDisappearTtlSec(opt.v);
-                      setTtlMenuOpen(false);
-                    }}
-                    className={clsx(
-                      "block w-full rounded-md px-2 py-1 text-left text-xs hover:bg-white/10",
-                      disappearTtlSec === opt.v
-                        ? "bg-neon-amber/15 text-neon-amber"
-                        : "text-white/85"
-                    )}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
           {/* Vanish mode — DM only. Seen-then-gone (distinct from the ⏳ timer). */}
           {isDm && (
             <button
@@ -2716,6 +2352,140 @@ export function RoomChat({
               </div>
             </div>
           )}
+          {/* Composer popups — opened from the 🧰 Tools sheet. Rendered at the
+              composer root (not tied to a toolbar button) so they always sit
+              on-screen. One shows at a time. */}
+          <div className="relative">
+            {showGif && (
+              <GifPicker
+                onPick={(url) => {
+                  void supabase.from("messages").insert({
+                    sender_id: currentUserId,
+                    room_id: roomId,
+                    content: null,
+                    image_url: url,
+                    reply_to_id: replyTo?.id ?? null,
+                    intent: intentChoice,
+                    type: "image"
+                  }).then(({ error: err }) => {
+                    if (err) setError(err.message);
+                    else { setReplyTo(null); setIntentChoice(null); }
+                  });
+                  setShowGif(false);
+                }}
+                onClose={() => setShowGif(false)}
+              />
+            )}
+            {showStickers && (
+              <StickerPicker
+                onPickImage={(url) => {
+                  void supabase.from("messages").insert({
+                    sender_id: currentUserId,
+                    room_id: roomId,
+                    content: null,
+                    image_url: url + "#sticker",
+                    reply_to_id: replyTo?.id ?? null,
+                    intent: intentChoice,
+                    type: "image"
+                  }).then(({ error: err }) => {
+                    if (err) setError(err.message);
+                    else { setReplyTo(null); setIntentChoice(null); void catchUpRef.current(); }
+                  });
+                  setShowStickers(false);
+                }}
+                onPick={(s) => { insertAtCursor(s); setShowStickers(false); }}
+                onClose={() => setShowStickers(false)}
+              />
+            )}
+            {showLines && (
+              <LinesPicker
+                onPick={(line) => { insertAtCursor(line); setShowLines(false); }}
+                onClose={() => setShowLines(false)}
+              />
+            )}
+            {showVoice && (
+              <VoiceRecorder
+                onSend={(blob, ms) => void sendVoice(blob, ms)}
+                onClose={() => setShowVoice(false)}
+              />
+            )}
+            {showVideo && (
+              <VideoRecorder
+                onPostToChat={(blob, ms, cap) => void sendVideoToChat(blob, ms, cap)}
+                onPostToShort={(blob, isPublic, cap) => void postVideoToShort(blob, isPublic, cap)}
+                onPostToBoth={(blob, ms, isPublic, cap) => void postVideoToBoth(blob, ms, isPublic, cap)}
+                onClose={() => setShowVideo(false)}
+                busy={uploading}
+              />
+            )}
+            {intentMenuOpen && (
+              <div className="fixed inset-x-3 bottom-24 z-[60] mx-auto w-auto max-w-[300px] rounded-xl border border-white/10 bg-ink-800/95 p-1.5 shadow-xl backdrop-blur sm:absolute sm:inset-x-auto sm:bottom-12 sm:left-0 sm:mx-0 sm:w-52">
+                <div className="flex items-center justify-between px-2 pb-1">
+                  <p className="text-[10px] uppercase tracking-widest text-white/40">Intent</p>
+                  <button
+                    type="button"
+                    onClick={() => setIntentMenuOpen(false)}
+                    aria-label="Close"
+                    className="rounded-md border border-white/10 bg-white/5 px-1.5 text-[10px] text-white/60 hover:bg-white/10"
+                  >
+                    ✕
+                  </button>
+                </div>
+                {INTENT_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => {
+                      setIntentChoice((cur) => (cur === opt.value ? null : opt.value));
+                      setIntentMenuOpen(false);
+                    }}
+                    className={clsx(
+                      "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-white/10",
+                      intentChoice === opt.value && "bg-neon-blue/10 text-neon-blue"
+                    )}
+                  >
+                    <span aria-hidden>{opt.emoji}</span>
+                    <span>{opt.label}</span>
+                  </button>
+                ))}
+                {intentChoice && (
+                  <button
+                    type="button"
+                    onClick={() => { setIntentChoice(null); setIntentMenuOpen(false); }}
+                    className="mt-1 w-full rounded-md border border-white/10 px-2 py-1 text-[11px] text-white/60 hover:bg-white/10"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            )}
+            {ttlMenuOpen && (
+              <div className="fixed inset-x-3 bottom-24 z-[60] mx-auto w-auto max-w-[260px] rounded-xl border border-white/10 bg-ink-800/95 p-1.5 shadow-xl backdrop-blur sm:absolute sm:inset-x-auto sm:bottom-12 sm:left-0 sm:mx-0 sm:w-44">
+                <p className="px-2 pb-1 text-[10px] uppercase tracking-widest text-white/40">Disappear after</p>
+                {[
+                  { label: "Off", v: null },
+                  { label: "30 seconds", v: 30 },
+                  { label: "1 minute", v: 60 },
+                  { label: "5 minutes", v: 300 },
+                  { label: "1 hour", v: 3600 },
+                  { label: "24 hours", v: 86400 },
+                  { label: "7 days", v: 604800 }
+                ].map((opt) => (
+                  <button
+                    key={opt.label}
+                    type="button"
+                    onClick={() => { setDisappearTtlSec(opt.v); setTtlMenuOpen(false); }}
+                    className={clsx(
+                      "block w-full rounded-md px-2 py-1 text-left text-xs hover:bg-white/10",
+                      disappearTtlSec === opt.v ? "bg-neon-amber/15 text-neon-amber" : "text-white/85"
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           {/* Row 2 — the full-width message box + Send, under the tags. */}
           <div className="flex items-end gap-2">
           <textarea
