@@ -10,6 +10,7 @@ import { RoomsClient } from "./RoomsClient";
 import { SavedRoomButton } from "./SavedRoomButton";
 import { UserSearch } from "./UserSearch";
 import { StoriesStrip, type StoryRow } from "./StoriesStrip";
+import { NotesRail, type NoteRow } from "./NotesRail";
 import { SnapsLobbyEntry } from "@/components/SnapsLobbyEntry";
 import { DismissibleSection, RestoreHiddenSections } from "./DismissibleSection";
 import { FriendsAndRequests } from "./FriendsList";
@@ -216,6 +217,11 @@ export default async function RoomsPage({
     .limit(120);
   const liveStories = (storiesRaw ?? []) as StoryRow[];
 
+  // Active 24h Notes (Instagram-style text status). Audience-aware via the
+  // SECURITY DEFINER RPC — direct selects only expose public/own notes.
+  const { data: notesRaw } = await supabase.rpc("list_active_notes");
+  const activeNotes = (notesRaw ?? []) as NoteRow[];
+
   return (
     <AdRails>
       <PushAutoSubscribe />
@@ -340,6 +346,9 @@ export default async function RoomsPage({
             currentUserId={user.id}
             isAdmin={!!(profile as any).is_admin}
           />
+          <div className="mt-2">
+            <NotesRail initialNotes={activeNotes} currentUserId={user.id} />
+          </div>
           {/* Horizontally-scrollable feature tabs — every entry stays on-screen
               on phones (was overflowing/clipping at the edges before). */}
           <div className="scroll-thin mt-1.5 flex items-stretch gap-2 overflow-x-auto px-1 pb-1">
