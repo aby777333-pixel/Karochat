@@ -261,7 +261,7 @@ export default async function RoomPage({
   return (
     <AdRails>
     <main className="mx-auto flex h-[100dvh] max-w-6xl flex-col overflow-x-hidden px-1 py-4 md:py-6">
-      <header className="surface-glass flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+      <header className="surface-glass flex flex-row items-center justify-between gap-2 px-4 py-3 sm:gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <Link
             href="/rooms"

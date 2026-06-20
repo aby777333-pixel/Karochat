@@ -1,21 +1,50 @@
 "use client";
 
 // Karochat — clusters the room header's action buttons into a single "⋮"
-// button on phones that pops the toolbar DOWN (mirrors the bottom composer's
-// 🧰 Tools sheet, which pops up). On sm+ the buttons stay inline as before.
+// button (top-right) on phones that pops the toolbar DOWN. The panel is
+// rendered `fixed` with a very high z-index + measured position so it always
+// sits IN FRONT of the chat card below (an absolute panel was painting behind
+// it). On sm+ the buttons stay inline as before.
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 
 export function RoomTopActions({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+
+  function place() {
+    const r = btnRef.current?.getBoundingClientRect();
+    if (r) setPos({ top: r.bottom + 6, right: window.innerWidth - r.right });
+  }
+
+  function toggle() {
+    if (!open) place();
+    setOpen((o) => !o);
+  }
+
+  // Keep the panel anchored if the viewport changes; close on scroll so it
+  // never drifts away from the button.
+  useEffect(() => {
+    if (!open) return;
+    const onResize = () => place();
+    const onScroll = () => setOpen(false);
+    window.addEventListener("resize", onResize);
+    window.addEventListener("scroll", onScroll, true);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("scroll", onScroll, true);
+    };
+  }, [open]);
 
   return (
-    <div className="relative flex items-center">
-      {/* Mobile: the single cluster button. */}
+    <div className="flex items-center">
+      {/* Mobile: the single cluster button (top-right). */}
       <button
+        ref={btnRef}
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggle}
         aria-expanded={open}
         aria-label="Room actions"
         title="Room actions"
@@ -24,25 +53,27 @@ export function RoomTopActions({ children }: { children: React.ReactNode }) {
         {open ? "▴" : "⋮"}
       </button>
 
-      {/* Tap-away backdrop (mobile only). */}
+      {/* Tap-away backdrop (mobile only, under the panel). */}
       {open && (
         <div
-          className="fixed inset-0 z-40 sm:hidden"
+          className="fixed inset-0 z-[120] sm:hidden"
           onClick={() => setOpen(false)}
           aria-hidden
         />
       )}
 
-      {/* The actions. Pop-down panel on mobile; inline row on desktop.
+      {/* The actions. Mobile: a fixed pop-down IN FRONT of everything,
+          positioned just under the button. Desktop: inline row.
           Tapping any action also closes the panel. */}
       <div
         onClick={() => setOpen(false)}
+        style={open ? { top: pos?.top, right: pos?.right } : undefined}
         className={clsx(
           "items-center gap-1.5",
           open
-            ? "absolute right-0 top-full z-50 mt-1 flex max-w-[88vw] flex-wrap justify-end rounded-xl border border-white/10 bg-ink-800 p-2 shadow-xl"
+            ? "fixed z-[130] flex max-w-[92vw] flex-wrap justify-end rounded-xl border border-white/10 bg-ink-800 p-2 shadow-2xl"
             : "hidden",
-          "sm:static sm:mt-0 sm:flex sm:max-w-none sm:flex-wrap sm:justify-end sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none md:gap-2"
+          "sm:static sm:z-auto sm:flex sm:max-w-none sm:flex-wrap sm:justify-end sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none md:gap-2"
         )}
       >
         {children}

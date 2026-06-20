@@ -1883,12 +1883,27 @@ export function RoomChat({
           onClick={toggleCallTools}
           aria-expanded={callToolsOpen || !!recordingStartedAt}
           aria-controls="call-tool-strips"
-          className="flex w-full items-center justify-center gap-1.5 rounded-t-2xl border-b border-white/5 bg-white/[0.03] px-3 py-1.5 text-[10px] uppercase tracking-widest text-white/55 transition hover:bg-white/[0.06] hover:text-white/85"
+          className={clsx(
+            "flex w-full items-center justify-center gap-2 rounded-t-2xl border-b px-3 py-1.5 text-[10px] uppercase tracking-widest transition",
+            callToolsOpen || !!recordingStartedAt
+              ? "border-white/5 bg-white/[0.03] text-white/55 hover:bg-white/[0.06] hover:text-white/85"
+              : "border-neon-red/30 bg-neon-red/[0.07] text-white/75 hover:bg-neon-red/[0.12] hover:text-white"
+          )}
         >
           {callToolsOpen || !!recordingStartedAt ? (
             <>▲ Hide call &amp; video tools</>
           ) : (
-            <>📞 Expand for audio &amp; video calls ▼</>
+            <>
+              <span className="relative flex h-2 w-2" aria-hidden>
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-neon-red opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-neon-red" />
+              </span>
+              📞 Expand for audio &amp; video calls ▼
+              <span className="relative flex h-2 w-2" aria-hidden>
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-neon-red opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-neon-red" />
+              </span>
+            </>
           )}
         </button>
       )}
