@@ -200,13 +200,15 @@ export function GlobalNotifier() {
           (u) => u.toLowerCase() === me.username!.toLowerCase()
         );
 
-      // Only DMs, mentions, and DM nudges are global-worthy; busy public
-      // rooms would otherwise alert on every line of chatter.
-      let kind: "dm" | "mention" | "nudge";
-      if (m.type === "nudge" && isDm) kind = "nudge";
+      // Every message to a room you're in is global-worthy: DMs, mentions,
+      // nudges (now in any room), and ordinary public/group messages. The
+      // actively-viewed room is skipped below, and per-user sound/vibration
+      // toggles still apply.
+      let kind: "dm" | "mention" | "nudge" | "room";
+      if (m.type === "nudge") kind = "nudge";
       else if (mentioned) kind = "mention";
       else if (isDm) kind = "dm";
-      else return;
+      else kind = "room";
 
       // The open room handles its own effects (shake, inline pings).
       const viewingThatRoom =
