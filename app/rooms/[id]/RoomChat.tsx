@@ -1564,6 +1564,11 @@ export function RoomChat({
       return;
     }
     const caption = draft.trim();
+    // Uploaded pics auto-vanish after 24h by default (or sooner if a
+    // disappearing-timer is set). Keeps the chat from accumulating old photos.
+    const imageExpiresAt = disappearTtlSec
+      ? new Date(Date.now() + disappearTtlSec * 1000).toISOString()
+      : new Date(Date.now() + 24 * 3600 * 1000).toISOString();
     const { error: insertErr } = await supabase.from("messages").insert({
       sender_id: currentUserId,
       room_id: roomId,
@@ -1571,6 +1576,7 @@ export function RoomChat({
       image_url: pub.publicUrl,
       reply_to_id: replyTo?.id ?? null,
       intent: intentChoice,
+      expires_at: imageExpiresAt,
       type: "image"
     });
     setUploading(false);
@@ -2946,6 +2952,9 @@ function MessageBubble({
 }) {
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [showTranslate, setShowTranslate] = useState(false);
+  // On touch devices there's no hover, so the action bar (delete/edit/react…)
+  // was unreachable. A tap on the bubble toggles it open on mobile.
+  const [showActions, setShowActions] = useState(false);
   const [showAuthorMenu, setShowAuthorMenu] = useState(false);
   const [showShareCard, setShowShareCard] = useState(false);
   const [translating, setTranslating] = useState(false);
@@ -3226,11 +3235,28 @@ function MessageBubble({
           mine ? "self-end" : "self-start"
         )}
       >
-        {/* Actions row */}
+        {/* Mobile actions toggle — no hover on touch, so a tap reveals the bar.
+            Hidden on sm+ where hover handles it. */}
+        {!isDeleted && !isEditing && (
+          <button
+            type="button"
+            onClick={() => setShowActions((s) => !s)}
+            aria-label="Message actions"
+            className={clsx(
+              "absolute -top-3 z-20 grid h-6 w-6 place-items-center rounded-full border border-white/10 bg-ink-800/95 text-[11px] text-white/70 shadow sm:hidden",
+              mine ? "right-0" : "left-0"
+            )}
+          >
+            ⋯
+          </button>
+        )}
+        {/* Actions row — shown on hover (desktop) or after a tap (mobile). */}
         {!isDeleted && !isEditing && (
           <div
             className={clsx(
-              "pointer-events-none absolute -top-7 z-10 hidden gap-0.5 rounded-lg border border-white/10 bg-ink-800/95 px-1 py-0.5 shadow-lg backdrop-blur group-hover/bubble:flex group-hover/bubble:pointer-events-auto",
+              "absolute -top-7 z-10 gap-0.5 rounded-lg border border-white/10 bg-ink-800/95 px-1 py-0.5 shadow-lg backdrop-blur",
+              "pointer-events-none hidden group-hover/bubble:flex group-hover/bubble:pointer-events-auto",
+              showActions && "!flex !pointer-events-auto",
               mine ? "right-0" : "left-0"
             )}
           >
